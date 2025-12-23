@@ -14,7 +14,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         /// </summary>
         /// <param name="arquivo">Arquivo enviado via formulário.</param>
         /// <returns>Nome do arquivo salvo.</returns>
-        Task<Arquivo> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf);
+        Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf);
 
         /// <summary>
         /// Baixa um arquivo simples

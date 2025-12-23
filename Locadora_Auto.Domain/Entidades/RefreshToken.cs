@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Domain.Entidades
+﻿using Locadora_Auto.Domain.Entidades.Indentity;
+
+namespace Locadora_Auto.Domain.Entidades
 {
     public class RefreshToken
     {
@@ -9,7 +11,7 @@
         public bool Revogado { get; set; } = false;
         public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
         public string UserId { get; set; } = null!;
-        public ApplicationUser User { get; set; } = null!;
+        public User User { get; set; } = null!;
     }
 }
 

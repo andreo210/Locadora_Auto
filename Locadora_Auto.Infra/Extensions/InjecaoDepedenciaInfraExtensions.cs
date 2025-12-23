@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Locadora_Auto.Infra.Extensions
 {
-    public static class InjecaoDepedenciaInfraExtentions
+    public static class InjecaoDepedenciaInfraExtensions
     {
         //adiciona os repositórios
         public static IServiceCollection AddSqlServerRepositories(this IServiceCollection services)
@@ -24,7 +24,9 @@ namespace Locadora_Auto.Infra.Extensions
 
             //injetar repositorios
             services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
-             return services;
+            services.AddScoped<IUserRepository, UserRepository>();
+            
+            return services;
         }
         //adiciona o dbcontext
         public static IServiceCollection AddMySqlDbContext<TContext>(this IServiceCollection services, string ConnectionString) where TContext : DbContext

@@ -1,22 +1,18 @@
-﻿using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades.Indentity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Locadora_Auto.Infra.Data.Configuracao
 {
-    public class ApplicationUserConfig : IEntityTypeConfiguration<ApplicationUser>
+    public class ApplicationUserConfig : IEntityTypeConfiguration<User>
     {
-        public void Configure(EntityTypeBuilder<ApplicationUser> builder)
+        public void Configure(EntityTypeBuilder<User> builder)
         {
-            builder.ToTable("AspNetUsers");
+            builder.ToTable("aspnet_users");
 
             builder.Property(e => e.NomeCompleto)
                 .HasColumnName("NomeCompleto")
                 .HasMaxLength(255);
-
-            builder.Property(e => e.Cpf)
-                .HasColumnName("Cpf")
-                .HasMaxLength(11);
 
             builder.Property(e => e.Ativo)
                 .HasColumnName("Ativo");

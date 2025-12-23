@@ -32,7 +32,7 @@ namespace Locadora_Auto.Application.Models.Dto
         public DateTime CriadoEm { get; set; }
 
         public string UserId { get; set; } = string.Empty;
-        public ApplicationUser? User { get; set; }
+        public UserDto? User { get; set; }
     }
 
 }

@@ -31,6 +31,10 @@ services.AddHttpServices(config);
 services.AddMySqlDbContext<LocadoraDbContext>(config["ConnectionStrings:dbModelo"] ?? "");
 services.AddSqlServerRepositories();
 
+//adiciona o controle de identidade
+services.AddIdentityConfiguration();
+
+
 //elmah core
 //services.AddElmahConfig(config);
 

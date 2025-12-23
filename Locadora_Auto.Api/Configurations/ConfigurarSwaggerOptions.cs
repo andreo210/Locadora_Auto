@@ -41,12 +41,12 @@ namespace Locadora_Auto.Api.Configurations
         {
             var info = new OpenApiInfo()
             {
-                Title = "API - NomeDoserviço",
+                Title = "API - Locadora - Veiculos",
                 Version = description.ApiVersion.ToString(),
-                Description = "Esta API faz parte de um conjunto de serviços da SEPLAN",
+                Description = "Esta API faz parte de um conjunto de serviços do André Alcântara",
                 Contact = new OpenApiContact()
                 {
-                    Name = "Equipe Login Ùnico",
+                    Name = "Equipe Alcântara",
                     Email = "servicosdigitais@praiagrande.sp.gov.br."
                 }
             };

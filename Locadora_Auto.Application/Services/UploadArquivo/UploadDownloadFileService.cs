@@ -31,7 +31,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         /// <summary>
         /// Realiza o upload de um arquivo simples, sem criptografia.
         /// </summary>
-        public async Task<Arquivo> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf)
+        public async Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf)
         {
             try
             {
@@ -79,7 +79,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
                 }
 
                 // Retorna a classe Arquivo preenchida
-                return new Arquivo
+                return new Foto
                 {
                     Diretorio = diretorio,
                     Raiz = raiz,

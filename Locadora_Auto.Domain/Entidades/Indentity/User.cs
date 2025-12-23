@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace Locadora_Auto.Domain.Entidades
+namespace Locadora_Auto.Domain.Entidades.Indentity
 {
    
-    public class ApplicationUser : IdentityUser
+    public class User : IdentityUser
     {
         public string? NomeCompleto { get; set; }
         public string? Cpf { get; set; }

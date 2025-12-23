@@ -29,20 +29,17 @@ namespace Locadora_Auto.Infra.Data
     {
         protected readonly DbContext Context;
         protected readonly DbSet<TEntity> DbSet;
-        private readonly ICurrentUser _currentUser;
-        private LocadoraDbContext dbContext;
+        //private readonly ICurrentUser _currentUser;
+        //private LocadoraDbContext dbContext;
 
-        protected RepositorioGlobal(DbContext context, ICurrentUser currentUser)
+        protected RepositorioGlobal(DbContext context/*, ICurrentUser currentUser*/)
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             DbSet = Context.Set<TEntity>();
-            _currentUser = currentUser;
+           // _currentUser = currentUser;
         }
 
-        protected RepositorioGlobal(LocadoraDbContext dbContext)
-        {
-            this.dbContext = dbContext;
-        }
+       
 
         public virtual async Task<IReadOnlyList<TEntity>> ObterAsync(
             Expression<Func<TEntity, bool>>? filtro = null,
@@ -63,6 +60,31 @@ namespace Locadora_Auto.Infra.Data
 
             return await query.ToListAsync(ct);
         }
+
+        public virtual IQueryable<TEntity> ObterTodos()
+        {
+            var entity =  DbSet.AsNoTracking();
+            return entity;
+        }
+
+        //buscar por id Trackeado
+        public virtual async Task<TEntity> ObterPorId(object id)
+        {
+            var entity = await DbSet.FindAsync(id);
+            return entity;
+        }
+
+
+        public virtual async Task<TEntity> ObterPorIdNoTracker(object id)
+        {
+            var entity = await DbSet.FindAsync(id);
+            if (entity != null)
+            {
+                Context.Entry(entity).State = EntityState.Detached;
+            }
+            return entity;
+        }
+
 
         public virtual async Task<TEntity?> ObterPrimeiroAsync(
             Expression<Func<TEntity, bool>> filtro,
@@ -147,16 +169,44 @@ namespace Locadora_Auto.Infra.Data
             return DbSet.AddAsync(entidade, ct).AsTask();
         }
 
-        public virtual async Task AtualizarAsync(TEntity entidade, CancellationToken ct = default)
+        public virtual async Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(entidade);
-            DbSet.Attach(entidade);
-            await SalvarAsync(ct);
+            if (entidade == null)
+                throw new ArgumentNullException(nameof(entidade));
+
+            // Pega a chave primária da entidade
+            var keyProperties = Context.Model?
+                .FindEntityType(typeof(TEntity))
+                .FindPrimaryKey()
+                .Properties;
+
+            object[] keyValues = keyProperties.Select(p => p.PropertyInfo.GetValue(entidade)).ToArray();
+
+            // Tenta localizar a entidade rastreada no DbSet
+            var entidadeExistente = await DbSet.FindAsync(keyValues, ct);
+
+            if (entidadeExistente != null)
+            {
+                // Entidade rastreada: atualiza somente os valores que vieram
+                Context.Entry(entidadeExistente).CurrentValues.SetValues(entidade);
+            }
+            else
+            {
+                // Entidade não rastreada: marca para update (sobrescreve todas as colunas)
+                DbSet.Attach(entidade);
+                Context.Entry(entidade).State = EntityState.Modified;
+            }
+
+            // Salva alterações
+            var result = await Context.SaveChangesAsync(ct);
+
+            return result > 0; // retorna true se houve alterações no banco
         }
+
         public virtual void Atualizar(TEntity entidade)
         {
             ArgumentNullException.ThrowIfNull(entidade);
-            DbSet.Attach(entidade);
+            DbSet.Update(entidade);
         }
 
         public virtual async Task ExcluirAsync(object id, CancellationToken ct = default)
@@ -181,7 +231,7 @@ namespace Locadora_Auto.Infra.Data
 
         public virtual async Task<int> SalvarAsync(CancellationToken ct = default)
         {
-            AplicarAuditoria(_currentUser.UserId);
+            //AplicarAuditoria(_currentUser.UserId);
             return await Context.SaveChangesAsync(ct);
         }
 

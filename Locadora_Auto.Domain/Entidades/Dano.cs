@@ -4,6 +4,7 @@
     {
         public int IdDano { get; set; }
 
+        public int IdLocacao { get; set; }
         public int IdVistoria { get; set; }
         public Vistoria Vistoria { get; set; } = null!;
 

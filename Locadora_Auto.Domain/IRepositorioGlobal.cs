@@ -15,6 +15,12 @@ namespace Locadora_Auto.Domain
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             CancellationToken ct = default);
 
+        IQueryable<TEntity> ObterTodos();
+
+        Task<TEntity> ObterPorIdNoTracker(object id);
+
+        Task<TEntity> ObterPorId(object id);
+
         Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,
             CancellationToken ct = default);
@@ -38,7 +44,7 @@ namespace Locadora_Auto.Domain
 
         Task Inserir(TEntity entidade, CancellationToken ct = default);
 
-        Task AtualizarAsync(TEntity entidade, CancellationToken ct = default);
+        Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default);
 
         void Atualizar(TEntity entidade);
 

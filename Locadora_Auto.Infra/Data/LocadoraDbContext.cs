@@ -1,10 +1,12 @@
 ﻿using Locadora_Auto.Domain.Entidades;
+using Locadora_Auto.Domain.Entidades.Indentity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Locadora_Auto.Infra.Data
 {
-    public class LocadoraDbContext : IdentityDbContext<ApplicationUser>
+    public class LocadoraDbContext : IdentityDbContext<User, IdentityRole, string>
     {
         public LocadoraDbContext(DbContextOptions<LocadoraDbContext> options) : base(options) { }
 
@@ -31,8 +33,6 @@ namespace Locadora_Auto.Infra.Data
             builder.ApplyConfigurationsFromAssembly(typeof(LocadoraDbContext).Assembly);
 
             base.OnModelCreating(builder);
-
-          
 
 
             //Ajuste charset MariaDB

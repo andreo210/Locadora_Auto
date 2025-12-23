@@ -1,8 +1,8 @@
 ﻿namespace Locadora_Auto.Domain.Entidades
 {
-    public class Arquivo
+    public class Foto
     {
-        public int? Id { get; set; }
+        public int? IdFoto { get; set; }
         public string? Nome { get; set; }
         public string? Raiz { get; set; }
         public string? Diretorio { get; set; }

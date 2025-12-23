@@ -3,6 +3,8 @@ using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
 using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.Email;
 using Locadora_Auto.Application.Services.JobsBackgroundService;
+using Locadora_Auto.Application.Services.OAuth.Roles;
+using Locadora_Auto.Application.Services.OAuth.Users;
 using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,7 +32,13 @@ namespace Locadora_Auto.Application.Extensions
             //utils
             services.AddScoped<IUploadDownloadFileService, UploadDownloadFileService>();
             services.AddScoped<IPdfStorageService, PdfStorageService>();
-            //services.AddScoped<ISolicitacaoService, SolicitacaoService>();
+
+
+
+            //identidade
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IRoleService, RoleService>();
+
 
 
             services.AddSingleton<ILoginService, LoginService>();
