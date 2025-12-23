@@ -1,6 +1,4 @@
-﻿using Locadora_Auto.Domain.Entidades;
-
-namespace Locadora_Auto.Application.Models.Dto
+﻿namespace Locadora_Auto.Application.Models.Dto
 {
     public class LoginDto
     {
@@ -33,6 +31,16 @@ namespace Locadora_Auto.Application.Models.Dto
 
         public string UserId { get; set; } = string.Empty;
         public UserDto? User { get; set; }
+    }
+
+    public class TokenDto
+    {
+        public string? AccessToken { get; set; }
+        public double? ExpiresIn { get; set; }
+        //public UsuarioView UsuarioToken { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime CriadoEm { get; set; }
+        public bool Utilizado { get; set; }
     }
 
 }
