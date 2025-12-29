@@ -1,4 +1,6 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Domain.Entidades.Indentity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Locadora_Auto.Application.Services.OAuth.Users
 {
@@ -10,6 +12,10 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
         Task<IEnumerable<UserDto>> ListarAsync();
         Task DesativarAsync(string id);
         Task<bool> AtualizarAsync(string id);
+        Task<UserDto?> ObterPorEmail(string email);
+        Task<SignInResult> LoginAsync(LoginDto dto);
+        Task<User?> ObterPorCpf(string cpf);
+        Task<User> DesativarToken(string refreshToken);
     }
 
 }

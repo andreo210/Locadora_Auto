@@ -1,45 +1,39 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Application.Services.OAuth.Users;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Users;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 
-namespace Locadora_Auto.Application.Configuration.Ultils.Token
+namespace Locadora_Auto.Application.Services.OAuth.Token
 {
     public class TokenService : ITokenService
     {
 
-        private readonly SignInManager<User> _signInManager;
         private readonly UserManager<User> _userManager;
-        private readonly AppSettings _appSettings;
-        private readonly IUserRepository _usuarioRepository;
-        private readonly ITokenRepository _tokenRepository;
         private readonly IUsersAsp _aspNetUser;
-        private readonly IJwtService _jwksService;
+        private readonly IUserService _userService;
+        private readonly RsaKeyService _rsaKeyService;
+        private readonly ITokenRepository _tokenRepository;
 
         public TokenService(
-            SignInManager<User> signInManager,
             UserManager<User> userManager,
-            IOptions<AppSettings> appSettings,
-            IUsuarioRepository usuarioRepository,
             ITokenRepository tokenRepository,
             IUsersAsp aspNetUser,
-            IJwtService jwksService
-            )
+            RsaKeyService rsaKeyService
+,
+            IUserService userService)
         {
-            _signInManager = signInManager;
             _userManager = userManager;
             _tokenRepository = tokenRepository;
-            _usuarioRepository = usuarioRepository;
-            _appSettings = appSettings.Value;
             _aspNetUser = aspNetUser;
-            _jwksService = jwksService;
+            _rsaKeyService = rsaKeyService;
+            _userService = userService;
         }
 
         public string GerarIdRefreshToken()
@@ -55,14 +49,9 @@ namespace Locadora_Auto.Application.Configuration.Ultils.Token
         }
 
 
-
-        
-
-
         public async Task<TokenDto> GerarToken(string email)
         {
-            
-            var user = _usuarioRepository.ObterPorEmail(email);
+            var user = await _userService.ObterPorCpf(email);
             var claims = await _userManager.GetClaimsAsync(user);
 
             // Gerar accesstoken
@@ -86,7 +75,7 @@ namespace Locadora_Auto.Application.Configuration.Ultils.Token
             identityClaims.AddClaims(claims);
             var tokenHandler = new JwtSecurityTokenHandler();
             var currentIssuer = $"{_aspNetUser.ObterContextoHttp().Request.Scheme}://{_aspNetUser.ObterContextoHttp().Request.Host}";
-            var key = _jwksService.GetCurrentSigningCredentials().Result;
+            var key = _rsaKeyService.GetSigningCredentials();
             var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
             {
                 Issuer = currentIssuer,
@@ -130,24 +119,22 @@ namespace Locadora_Auto.Application.Configuration.Ultils.Token
                 CriadoEm = DateTime.Now,
                 RefreshToken = refreshToken,
                 ExpiresIn = TimeSpan.FromHours(1).TotalSeconds,
-            //    UsuarioToken = new UsuarioView
-            //    {
-            //        Id = user.Id,
-            //        Email = user.Email,
-            //        Claims = claims.Select(c => new ClaimsView { Type = c.Type, Value = c.Value })
-            //    }
+                user = new UserDto()
+                {
+                    Id = user.Id,
+                    Email = user.Email
+                }
             };
             var tokenModel = new RefreshToken()
             {
-                RefreshToken = refreshToken,
-                ExpirationToken = TimeSpan.FromHours(8).TotalSeconds,
-                ExpirationRefreshToken = DateTime.Now.AddHours(3),
-                Usuario = user,
-                Criado = DateTime.Now,
-                Utilizado = false
+                Token = refreshToken,
+                ExpiraEm = DateTime.Now.AddHours(3),
+                CriadoEm = DateTime.Now,
+                Revogado = false,
+                UserId = user.Id                
             };
 
-            _tokenRepository.Cadastrar(tokenModel);
+            var model = _tokenRepository.InserirAsync(tokenModel).Result;
 
 
 

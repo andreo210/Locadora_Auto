@@ -4,6 +4,7 @@ using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.Email;
 using Locadora_Auto.Application.Services.JobsBackgroundService;
 using Locadora_Auto.Application.Services.OAuth.Roles;
+using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
 using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,8 @@ namespace Locadora_Auto.Application.Extensions
             //identidade
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddSingleton<RsaKeyService>();
 
 
 

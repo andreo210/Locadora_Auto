@@ -25,7 +25,8 @@ namespace Locadora_Auto.Infra.Extensions
             //injetar repositorios
             services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
-            
+            services.AddScoped<ITokenRepository, TokenRepository>();
+
             return services;
         }
         //adiciona o dbcontext

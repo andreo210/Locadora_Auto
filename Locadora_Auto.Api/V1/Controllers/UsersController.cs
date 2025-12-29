@@ -1,11 +1,13 @@
 ﻿using Locadora_Auto.Application.Extensions;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.OAuth.Roles;
+using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
-namespace Locadora_Auto.Api.Controllers
+namespace Locadora_Auto.Api.V1.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -13,12 +15,14 @@ namespace Locadora_Auto.Api.Controllers
     {
         private readonly IUserService _userService;
         private readonly IRoleService _roleService;
-        public UsersController(IUserService userService, IRoleService roleService)
+        private readonly ITokenService _tokenService;
+        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService)
         {
             _userService = userService;
             _roleService = roleService;
+            _tokenService = tokenService;
         }
-               
+
 
         [HttpPost("{userId:guid}/roles/{role}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -101,9 +105,20 @@ namespace Locadora_Auto.Api.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesDefaultResponseType]
-        public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto dto)
+        public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto usuarioRegistro)
         {
-            var user = await _userService.CriarAsync(dto);
+
+            var usuario = await _userService.ObterPorEmail(usuarioRegistro.Email);
+
+            if (usuario != null)
+            {
+                throw new Exception("Usuário já cadastrado");
+            }
+            if (usuarioRegistro.Password != usuarioRegistro.RepeatPassword)
+            {
+                throw new Exception("Senha diferente");
+            }
+            var user =await _userService.CriarAsync(usuarioRegistro);
             return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
         }
 
@@ -149,6 +164,40 @@ namespace Locadora_Auto.Api.Controllers
 
             await _userService.DesativarAsync(id);
             return NoContent();
+        }
+
+
+        [HttpPost("autenticar")]
+        public async Task<ActionResult> Login(LoginDto usuarioLogin)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var result = await _userService.LoginAsync(usuarioLogin);
+
+            if (result.Succeeded)
+            {
+                return Ok(await _tokenService.GerarToken(usuarioLogin.UserName));
+            }
+
+            if (result.IsLockedOut)
+            {
+                return BadRequest("Usuário temporariamente bloqueado por tentativas inválidas");
+            }
+
+            return BadRequest("Usuário ou Senha incorretos");
+        }
+
+        //[Authorize]
+        [HttpPost("renovar")]
+        public async Task<IActionResult> Renovar([FromBody] string refreshToken)
+        {
+            
+            var user = await _userService.DesativarToken(refreshToken);
+            if (user != null)
+            {
+                return Ok(await _tokenService.GerarToken(user.UserName));
+            }
+            return BadRequest("Token inválido");
         }
     }
 }

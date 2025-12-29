@@ -37,7 +37,7 @@
     {
         public string? AccessToken { get; set; }
         public double? ExpiresIn { get; set; }
-        //public UsuarioView UsuarioToken { get; set; }
+        public UserDto user { get; set; }
         public string? RefreshToken { get; set; }
         public DateTime CriadoEm { get; set; }
         public bool Utilizado { get; set; }
