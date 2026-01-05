@@ -1,4 +1,5 @@
-﻿using Locadora_Auto.Application.Models.Dto;
+﻿using Locadora_Auto.Application.Extensions;
+using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
@@ -52,10 +53,14 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
             var refreshTokenDB = await _tokenRepository.ObterPrimeiroAsync(x=>x.Token == refreshToken);
 
             if (refreshTokenDB == null)
-                //return BadRequest("token inválido");
+                throw new ProblemException(ValidationProblemFactory.Single("Token", "Token não existe"));
+
+            if (refreshTokenDB.Revogado)
+                throw new ArgumentNullException("refreshToken", "refreshToken foi desativado");
+
 
             if (refreshTokenDB.ExpiraEm < DateTime.Now)
-                //return BadRequest("token expirado");
+                throw new ProblemException(ValidationProblemFactory.Single("Token", "Token expirado"));
 
             //RefreshToken antigo - Atualizar - Desativar esse refreshToken
             refreshTokenDB.Revogado = true;

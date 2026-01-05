@@ -3,7 +3,6 @@ using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -11,7 +10,7 @@ namespace Locadora_Auto.Api.V1.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UsersController : ControllerBase
+    public class UsersController : MainController
     {
         private readonly IUserService _userService;
         private readonly IRoleService _roleService;
@@ -88,11 +87,11 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<ActionResult<UserDto>> GetByCpf(string cpf)
+        public async Task<IActionResult> GetByCpf(string cpf)
         {
             var user = await _userService.ObterPorCpfAsync(cpf);
             if (user == null)
-                return NotFound(ProblemFactory.Create(HttpStatusCode.NotFound, "Usúario não encontrado."));
+                return NotFound("Usuário não encontrado"); ;
 
             return Ok(user);
         }
@@ -133,7 +132,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<ActionResult> Update(string id, [FromBody] CreateUserDto dto)
+        public async Task<IActionResult> Update(string id, [FromBody] CreateUserDto dto)
         {
             var existingUser = await _userService.ObterPorIdAsync(id);
             if (existingUser == null)
@@ -142,7 +141,7 @@ namespace Locadora_Auto.Api.V1.Controllers
             var updated = await _userService.AtualizarAsync(id);
 
             if (!updated)
-                return BadRequest(ProblemFactory.Create(HttpStatusCode.BadRequest, "Não foi possível atualizar o usuário."));
+                return ProblemResponse(HttpStatusCode.BadRequest, "Não foi possível atualizar o usuário.");
 
             return NoContent();
         }
@@ -156,11 +155,11 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<ActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string id)
         {
             var existingUser = await _userService.ObterPorIdAsync(id);
             if (existingUser == null)
-                return NotFound();
+                return ProblemResponse(HttpStatusCode.NotFound, "usuario não encontrado");
 
             await _userService.DesativarAsync(id);
             return NoContent();
@@ -168,23 +167,27 @@ namespace Locadora_Auto.Api.V1.Controllers
 
 
         [HttpPost("autenticar")]
-        public async Task<ActionResult> Login(LoginDto usuarioLogin)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesDefaultResponseType]
+        public async Task<IActionResult> Login(LoginDto usuarioLogin)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid) return ValidationResponse(ModelState);
+            
 
             var result = await _userService.LoginAsync(usuarioLogin);
 
             if (result.Succeeded)
             {
-                return Ok(await _tokenService.GerarToken(usuarioLogin.UserName));
+                return OkResponse(await _tokenService.GerarToken(usuarioLogin.UserName));
             }
 
             if (result.IsLockedOut)
             {
-                return BadRequest("Usuário temporariamente bloqueado por tentativas inválidas");
+                return ValidationResponse("BLOQUEADO", "Usuário temporariamente bloqueado por tentativas inválidas");
             }
 
-            return BadRequest("Usuário ou Senha incorretos");
+            return ValidationResponse("Usuário ou Senha incorretos", "Usuário ou Senha incorretos");
         }
 
         //[Authorize]
@@ -197,7 +200,7 @@ namespace Locadora_Auto.Api.V1.Controllers
             {
                 return Ok(await _tokenService.GerarToken(user.UserName));
             }
-            return BadRequest("Token inválido");
+            return ValidationResponse("Token inválido", "Token inválido");
         }
     }
 }

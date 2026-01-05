@@ -49,9 +49,9 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
         }
 
 
-        public async Task<TokenDto> GerarToken(string email)
+        public async Task<TokenDto> GerarToken(string cpf)
         {
-            var user = await _userService.ObterPorCpf(email);
+            var user = await _userService.ObterPorCpf(cpf);
             var claims = await _userManager.GetClaimsAsync(user);
 
             // Gerar accesstoken
@@ -122,7 +122,10 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
                 user = new UserDto()
                 {
                     Id = user.Id,
-                    Email = user.Email
+                    Email = user.Email,
+                    Ativo = user.Ativo,
+                    Cpf = user.Cpf,
+                    NomeCompleto = user.NomeCompleto
                 }
             };
             var tokenModel = new RefreshToken()
