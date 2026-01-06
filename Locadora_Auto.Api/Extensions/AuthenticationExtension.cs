@@ -7,7 +7,6 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace Locadora_Auto.Api.Extensions
 {
@@ -30,10 +29,8 @@ namespace Locadora_Auto.Api.Extensions
             services.AddTransient<IClaimsTransformation>(x => new ClaimsTransformer(configuration["AuthenticationExterno:ValidAudience"] ?? ""));
             services.AddTransient<IClaimsTransformation>(x => new ClaimsTransformer(configuration["AuthenticationInterno:ValidAudience"] ?? ""));
 
-            var openidConfigurationInterno = ObterJWKSAsync(configuration["AuthenticationInterno:Authority"], environment, CancellationToken.None).Result;
-            var openidConfigurationExterno = ObterJWKSAsync(configuration["AuthenticationExterno:Authority"], environment, CancellationToken.None).Result;
-            //var openidConfigurationInterno = BildarChavePublicaFixa(configuration["AuthenticationInterno:PublicKeyJWT"] ?? "");
-            //var openidConfigurationExterno = BildarChavePublicaFixa(configuration["AuthenticationExterno:PublicKeyJWT"] ?? "");
+            var openidConfigurationInterno = ObterJWKSAsync(configuration["AuthenticationInterno:Authority"]!, environment, CancellationToken.None).Result;
+            var openidConfigurationExterno = ObterJWKSAsync(configuration["AuthenticationExterno:Authority"]!, environment, CancellationToken.None).Result;
             services.AddAuthentication()
 
             // Configuração do esquema externo
@@ -45,7 +42,6 @@ namespace Locadora_Auto.Api.Extensions
                     ValidateIssuer = true,
                     ValidIssuers = new[] { configuration["AuthenticationExterno:ValidIssuer"] ?? "" },
                     ValidateIssuerSigningKey = true,
-                    //IssuerSigningKey = openidConfigurationExterno,//chave fixa
                     IssuerSigningKeys = openidConfigurationExterno.SigningKeys,
                     ValidateLifetime = true
                 };
@@ -149,26 +145,7 @@ namespace Locadora_Auto.Api.Extensions
             app.UseAuthentication();
             app.UseAuthorization();
             return app;
-        }
-
-
-        //TODO: Remover método se não for mais necessário, ele esta aqui caso queira usar a autenticação via chave pública em Base64 fixa no appsettings
-        /// <summary>
-        /// Constrói uma chave RSA a partir de uma string pública codificada em Base64.
-        /// Utilizada para validar tokens JWT assinados com chave pública.
-        /// </summary>
-        /// <param name="publicKeyJWT">Chave pública JWT em formato Base64.</param>
-        /// <returns>Instância de RsaSecurityKey para validação de assinatura.</returns>
-        private static RsaSecurityKey BildarChavePublicaFixa(string publicKeyJWT)
-        {
-            RSA rsa = RSA.Create();
-            rsa.ImportSubjectPublicKeyInfo(
-                source: Convert.FromBase64String(publicKeyJWT),
-                bytesRead: out _
-            );
-            var IssuerSigningKey = new RsaSecurityKey(rsa);
-            return IssuerSigningKey;
-        }
+        }       
     }   
     
 }

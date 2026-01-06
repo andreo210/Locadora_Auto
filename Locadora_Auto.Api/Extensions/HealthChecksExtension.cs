@@ -14,10 +14,8 @@ namespace Locadora_Auto.Api.Extensions
         public static IServiceCollection AddHealthChecksConfig(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddHealthChecks()
-                .AddCheck("sqlserver_check", new SqlServerHealthCheck(
-                    configuration.GetConnectionString("DefaultConnection")!))
-                .AddCheck("external_api_check", new ExternalApiHealthCheck(
-                    "https://jsonplaceholder.typicode.com/posts"));
+                .AddCheck("sqlserver_check", new SqlServerHealthCheck(configuration.GetConnectionString("DefaultConnection")!))
+                .AddCheck("external_api_check", new ExternalApiHealthCheck("https://jsonplaceholder.typicode.com/posts"));
 
 
             // Adiciona HealthChecks UI, mas tem que se perguntar , se é preciso ter essa funcionalidade
