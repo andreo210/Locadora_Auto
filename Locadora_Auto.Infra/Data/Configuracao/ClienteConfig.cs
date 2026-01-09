@@ -15,35 +15,11 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.IdCliente)
                 .HasColumnName("id_cliente")
                 .ValueGeneratedOnAdd();
-
-            builder.Property(e => e.Cpf)
-                .HasColumnName("cpf")
-                .HasMaxLength(11)
-                .IsRequired();
-
-            builder.HasIndex(e => e.Cpf)
-                .IsUnique();
-
-            builder.Property(e => e.Nome)
-                .HasColumnName("nome")
-                .HasMaxLength(150)
-                .IsRequired();
-
-            builder.Property(e => e.Telefone)
-                .HasColumnName("telefone")
-                .HasMaxLength(20);
-
-            builder.Property(e => e.Email)
-                .HasColumnName("email")
-                .HasMaxLength(150);
+         
 
             builder.Property(e => e.Status)
                 .HasColumnName("status")
                 .IsRequired();
-
-            builder.Property(e => e.Status)
-               .HasColumnName("status")
-               .IsRequired();
 
             builder.Property(e => e.NumeroHabilitacao)
                .HasColumnName("numero_habilitacao");
@@ -66,6 +42,9 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.DataModificacao)
                 .HasColumnName("data_modificacao");
 
+            //chave estrangeira
+            builder.Property(e => e.IdUser)
+                .HasColumnName("idAspNetUsers");
 
 
             #region relacionamento
@@ -73,6 +52,11 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .WithOne(c => c.Cliente)//um endereço tem um clientea
                    .HasForeignKey<Endereco>(c => c.IdCliente)
                    .OnDelete(DeleteBehavior.Cascade);//ao deletar o cliente, deletar o endereço
+
+            builder.HasOne(u => u.Usuario)//o cliente é usuário
+                .WithOne(f => f.Cliente)//o usuario pode ser um cliente
+                .HasForeignKey<Clientes>(c =>c.IdUser)
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             #endregion relacionamento

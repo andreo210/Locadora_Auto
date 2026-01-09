@@ -1,6 +1,5 @@
 ﻿using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
-using Locadora_Auto.Infra.Data.CurrentUsers;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 

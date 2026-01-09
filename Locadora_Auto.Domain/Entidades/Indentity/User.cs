@@ -8,7 +8,11 @@ namespace Locadora_Auto.Domain.Entidades.Indentity
         public string? NomeCompleto { get; set; }
         public string? Cpf { get; set; }
         public bool Ativo { get; set; } = true;
-        public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+        public DateTime DataCriacao { get; set; } = DateTime.Now;
+
+        //navegação
+        public Clientes? Cliente { get; set; }
+
     }
     
 

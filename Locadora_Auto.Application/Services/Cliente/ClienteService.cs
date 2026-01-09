@@ -3,7 +3,9 @@ using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.Cliente;
 using Locadora_Auto.Domain.Entidades;
+using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
@@ -15,8 +17,10 @@ namespace Locadora_Auto.Application.Services
         private readonly IClienteRepository _clienteRepository;
         private readonly IUnitOfWork _transaction;
         private readonly ILogger<ClienteService> _logger;
+        private readonly UserManager<User> _userManager;
 
         public ClienteService(
+            UserManager<User> userManager,
             IClienteRepository clienteRepository,
             IUnitOfWork transaction,
             ILogger<ClienteService> logger)
@@ -24,13 +28,14 @@ namespace Locadora_Auto.Application.Services
             _clienteRepository = clienteRepository ?? throw new ArgumentNullException(nameof(clienteRepository));
             _transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(logger));
         }
 
         #region Operações de Consulta
 
         public async Task<ClienteDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {   
-            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.IdCliente == id, ct: ct, incluir: q => q.Include(c => c.Endereco));
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.IdCliente == id, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
             return entidade?.ToDto();            
         }
 
@@ -38,7 +43,7 @@ namespace Locadora_Auto.Application.Services
         {
 
             var cpfLimpo = LimparCpf(cpf);
-            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco));
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
             return entidade?.ToDto();
       
         }
@@ -46,14 +51,14 @@ namespace Locadora_Auto.Application.Services
         public async Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default)
         {
            
-             var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct,incluir: q => q.Include(c => c.Endereco));
+             var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
             return entidade.Select(c => c.ToDto()).ToList();
 
         }
 
         public async Task<IReadOnlyList<ClienteDto>> ObterAtivosAsync(CancellationToken ct = default)
         {
-            var entidades = await _clienteRepository.ObterAsync( filtro: c => c.Status, ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync( filtro: c => c.Status, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
 
         }
@@ -61,7 +66,7 @@ namespace Locadora_Auto.Application.Services
         public async Task<IReadOnlyList<ClienteDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default)
         {
             
-            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Nome.Contains(nome) && c.Status, ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.NomeCompleto.Contains(nome) && c.Status, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d=>d.ToDto()).ToList();
 
         }
@@ -69,7 +74,7 @@ namespace Locadora_Auto.Application.Services
         public async Task<IReadOnlyList<ClienteDto>> ObterPorEmailAsync(string email, CancellationToken ct = default)
         {
 
-            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Email == email && c.Status,ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.Email == email && c.Status,ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
 
         }
@@ -77,7 +82,7 @@ namespace Locadora_Auto.Application.Services
         public async Task<bool> ExisteClienteAsync(string cpf, CancellationToken ct = default)
         {            
             var cpfLimpo = LimparCpf(cpf);
-            return await _clienteRepository.ExisteAsync(c => c.Cpf == cpfLimpo, ct);            
+            return await _clienteRepository.ExisteAsync(c => c.Usuario.Cpf == cpfLimpo, ct);            
         }
 
         public async Task<int> ContarClientesAtivosAsync(CancellationToken ct = default)
@@ -99,7 +104,7 @@ namespace Locadora_Auto.Application.Services
                 filtro: c => c.Status,
                 skip: skip,
                 take: tamanhoPagina,
-                ordenarPor: q => q.OrderBy(c => c.Nome),
+                ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto),
                 ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
             
@@ -117,9 +122,9 @@ namespace Locadora_Auto.Application.Services
             {
                 filtro = s =>
                     (status == null || s.Status == status) &&
-                    (cpf == null || s.Cpf == cpf) &&
-                    (nome == null || s.Nome == nome) &&
-                    (email == null || (s.Email == email));
+                    (cpf == null || s.Usuario.Cpf == cpf) &&
+                    (nome == null || s.Usuario.NomeCompleto == nome) &&
+                    (email == null || (s.Usuario.Email == email));
             }
             var entidades = await _clienteRepository.ObterComFiltroAsync(filtro);
             return entidades.Select(d => d.ToDto()).ToList(); 
@@ -170,14 +175,45 @@ namespace Locadora_Auto.Application.Services
                 // Validações
                 await ValidarCriacaoClienteAsync(clienteDto, ct);
 
-                // Inserir no banco
-                var model = await _clienteRepository.InserirAsync(clienteDto.ToEntity(), ct);
+            // Inserir no banco
+            //var model = await _clienteRepository.InserirAsync(clienteDto.ToEntity(), ct);
+            var user = new User
+            {
+                UserName = clienteDto.Cpf,
+                Email = clienteDto.Email,
+                NomeCompleto = clienteDto.Nome,
+                Cpf = LimparCpf(clienteDto.Cpf),
+                PhoneNumber = LimparTelefone(clienteDto.Telefone),
+                
+            };
 
-                // Operações adicionais que devem ser atômicas
-                //await CriarAuditoriaClienteAsync(model.IdCliente, ct);
-                // await EnviarNotificacaoCadastroAsync(model.Email, ct); // ⚠️ Cuidado com operações externas!
+            var model = new Clientes
+            {
+                Usuario = user,
+                Status = clienteDto.Status,
+                NumeroHabilitacao = clienteDto.NumeroHabilitacao,
+                ValidadeHabilitacao = clienteDto.ValidadeHabilitacao,
+                Endereco = clienteDto.Endereco.ToEntity()
+            };
+            user.Cliente = model;
 
-                return model.ToDto();
+            var result = await _userManager.CreateAsync(user, clienteDto.Senha);
+
+            if (!result.Succeeded)
+                throw new InvalidOperationException(
+                    string.Join(", ", result.Errors.Select(e => e.Description))
+                );
+
+            // Operações adicionais que devem ser atômicas
+            //await CriarAuditoriaClienteAsync(model.IdCliente, ct);
+            // await EnviarNotificacaoCadastroAsync(model.Email, ct); // ⚠️ Cuidado com operações externas!
+
+            var cliente = model.ToDto();
+            cliente.Cpf = user.Cpf;
+            cliente.Email = user.Email;
+            cliente.Telefone= user.PhoneNumber;
+            cliente.Nome = user.NomeCompleto;
+            return cliente;
            
         }
 
@@ -213,13 +249,13 @@ namespace Locadora_Auto.Application.Services
 
                 // Atualizar campos
                 if (!string.IsNullOrWhiteSpace(clienteDto.Nome))
-                    cliente.Nome = clienteDto.Nome.Trim();
+                    cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
 
                 if (!string.IsNullOrWhiteSpace(clienteDto.Email))
-                    cliente.Email = clienteDto.Email.Trim().ToLower();
+                    cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
 
                 if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
-                    cliente.Telefone = LimparTelefone(clienteDto.Telefone);
+                    cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
 
                 //if (clienteDto.Endereco != null)
                 //    cliente.Endereco = clienteDto.Endereco.Trim();

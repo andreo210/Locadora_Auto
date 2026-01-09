@@ -12,6 +12,8 @@
     {
         public string Cpf { get; set; } = null!;
         public string? NumeroHabilitacao { get; set; }
+        public string? Senha { get; set; }
+        public string? ConfirmarSenha { get; set; }
         public DateTime? ValidadeHabilitacao { get; set; }
         public bool Status = true;
     }

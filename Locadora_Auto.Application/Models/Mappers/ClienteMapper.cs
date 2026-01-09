@@ -9,10 +9,6 @@ namespace Locadora_Auto.Application.Models.Mappers
         {
             return new Clientes
             {
-                Nome = dto.Nome,
-                Cpf = dto.Cpf,
-                Telefone = dto.Telefone,
-                Email = dto.Email,
                 Status = true,
                 Endereco = dto.Endereco.ToEntity()
             };
@@ -22,9 +18,6 @@ namespace Locadora_Auto.Application.Models.Mappers
         {
             return new Clientes
             {
-                Nome = dto.Nome,
-                Telefone = dto.Telefone,
-                Email = dto.Email,
                 Status = dto.Status,
                 Endereco = dto.Endereco.ToEntity()
             };
@@ -37,12 +30,11 @@ namespace Locadora_Auto.Application.Models.Mappers
             return new ClienteDto
             {
                 IdCliente = entidade.IdCliente,
-                Nome = entidade.Nome,
-                Cpf = entidade.Cpf,
-                Telefone = entidade.Telefone,
-                Email = entidade.Email,
                 Status = entidade.Status,
                 Endereco = entidade.Endereco?.ToDto(),
+                NumeroHabilitacao = entidade.NumeroHabilitacao,
+                TotalLocacoes = entidade.TotalLocacoes,
+                ValidadeHabilitacao = entidade.ValidadeHabilitacao
             };
         }
 
@@ -51,10 +43,10 @@ namespace Locadora_Auto.Application.Models.Mappers
             return new ClienteDto
             {
                 IdCliente = entidade.IdCliente,
-                Nome = entidade.Nome,
-                Cpf = entidade.Cpf,
-                Telefone = entidade.Telefone,
-                Email = entidade.Email,
+                Nome = entidade.Usuario.NomeCompleto,
+                Cpf = entidade.Usuario.Cpf,
+                Telefone = entidade.Usuario.PhoneNumber,
+                Email = entidade.Usuario.Email    ,
                 Status = entidade.Status,
                 Endereco = entidade.Endereco?.ToDto()
             };
