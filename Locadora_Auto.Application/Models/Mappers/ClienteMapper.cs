@@ -26,7 +26,7 @@ namespace Locadora_Auto.Application.Models.Mappers
         public static ClienteDto ToDto(this Clientes entidade)
         {
             if (entidade == null) return null;
-            //if (entidade.Endereco == null) return null;
+
             return new ClienteDto
             {
                 IdCliente = entidade.IdCliente,
@@ -34,9 +34,14 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Endereco = entidade.Endereco?.ToDto(),
                 NumeroHabilitacao = entidade.NumeroHabilitacao,
                 TotalLocacoes = entidade.TotalLocacoes,
-                ValidadeHabilitacao = entidade.ValidadeHabilitacao
+                ValidadeHabilitacao = entidade.ValidadeHabilitacao,
+                Cpf = entidade.Usuario?.Cpf ?? string.Empty,
+                Nome = entidade.Usuario?.NomeCompleto ?? string.Empty,
+                Email = entidade.Usuario?.Email ?? string.Empty,
+                Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
             };
         }
+
 
         public static ClienteDto ToViewDto(this Clientes entidade)
         {
