@@ -2,11 +2,6 @@
 using Locadora_Auto.Infra.Configuration;
 using Locadora_Auto.Infra.Data.CurrentUsers;
 using Locadora_Auto.Infra.Data.Repositorio;
-using Locadora_Auto.Infra.ServiceHttp.Configuration;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadadastroBase;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadadastroBaseAdmin;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadastroBaseRead;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
 using Locadora_Auto.Infra.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,9 +18,12 @@ namespace Locadora_Auto.Infra.Extensions
             services.AddScoped<ICurrentUser, CurrentUser>();
 
             //injetar repositorios
-            services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
+            //services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ITokenRepository, TokenRepository>();
+            services.AddScoped<IClienteRepository, ClienteRepository>();
+
+            
 
             return services;
         }
@@ -45,6 +43,9 @@ namespace Locadora_Auto.Infra.Extensions
                             errorNumbersToAdd: null);
                     });
             });
+
+            //transaction
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             return services;
         }
 
@@ -52,28 +53,8 @@ namespace Locadora_Auto.Infra.Extensions
         public static IServiceCollection AddHttpServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddScoped<IUsersAsp, UsersAsp>();
-            services.AddHttpClient<ILoginService, LoginService>();
-
             //registrando servicos
             services.AddHttpContextAccessor();
-            //configuração de tokens
-            services.AddTransient<HttpClientAuthorizationAdminInterno>();
-            services.AddTransient<HttpClientAuthorizationAdminExterno>();
-            services.AddTransient<HttpClientAuthorizationUser>();
-
-
-            ///httpClients
-            services.AddHttpClient<ICadastroBaseService, CadastroBaseService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationUser>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
-
-            services.AddHttpClient<ICadastroBaseReadService, CadastroBaseReadService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationAdminInterno>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
-
-            services.AddHttpClient<ICadastroBaseAdminService, CadastroBaseAdminService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationAdminInterno>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
 
 
             //configuraçoes do appsetting

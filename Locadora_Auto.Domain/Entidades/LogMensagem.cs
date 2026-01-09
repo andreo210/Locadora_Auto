@@ -29,7 +29,7 @@
         public DateTime DataCadastro { get; set; }
 
         public LogMensagem() { }
-        public LogMensagem(int idSolicitacao, string tipoAndamento, int tipoAndamentoCodigo, string? descricaoTipoAndamento, string? nomePessoa, string? emailDestinatario, string? protocoloEmail, string? observacaoEmail, string? assuntoEmail, string? corpoEmail, string? notificacaoCpf, string? protocoloNotificacao, string? mensagemNotificacao, string? statusNotificacao, int? statusRetornoEmail, string? erroEmail, int? statusRetornoNotificacao, string? erroNotificacao)
+        public LogMensagem(int idSolicitacao, string tipoAndamento, int tipoAndamentoCodigo, string? descricaoTipoAndamento, string? nomePessoa, string? emailDestinatario, string? protocoloEmail, string? observacaoEmail, string? assuntoEmail, string? corpoEmail, string? notificacaoCpf, string? protocoloNotificacao, string? mensagemNotificacao, string? statusNotificacao, int? statusRetornoEmail, string? erroEmail, int? statusRetornoNotificacao)
         {
             IdSolicitacao = idSolicitacao;
             TipoAndamento = tipoAndamento;
@@ -48,7 +48,7 @@
             StatusRetornoEmail = statusRetornoEmail;
             ErroEmail = erroEmail;
             StatusRetornoNotificacao = statusRetornoNotificacao;
-            ErroNotificacao = erroNotificacao;
+     
         }
     }
 }

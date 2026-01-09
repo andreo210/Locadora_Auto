@@ -4,6 +4,7 @@
     {
         public int IdEndereco { get; set; }
 
+        public int IdCliente { get; set; }
         public string Logradouro { get; set; } = null!;
         public string Numero { get; set; } = null!;
         public string? Complemento { get; set; }
@@ -11,7 +12,10 @@
         public string Cidade { get; set; } = null!;
         public string Estado { get; set; } = null!;
         public string Cep { get; set; } = null!;
+        public DateTime DataCriacao { get; set; } = DateTime.Now;
 
-        public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
+        //navegacao
+        public Clientes Cliente { get; set; } = null!;
+
     }
 }

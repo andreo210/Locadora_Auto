@@ -1,34 +1,34 @@
 ﻿namespace Locadora_Auto.Application.Models.Dto
 {
-    public class ClienteCreateDto
+    public class ClienteBase
+    {
+        public string Nome { get; set; } = null!;
+        public string? Telefone { get; set; }
+        public string? Email { get; set; }
+        public EnderecoDto Endereco { get; set; } = null!;
+    }
+
+    public class CriarClienteDto : ClienteBase
     {
         public string Cpf { get; set; } = null!;
-        public string Nome { get; set; } = null!;
-        public string? Telefone { get; set; }
-        public string? Email { get; set; }
-
-        public EnderecoCreateDto Endereco { get; set; } = null!;
+        public string? NumeroHabilitacao { get; set; }
+        public DateTime? ValidadeHabilitacao { get; set; }
+        public bool Status = true;
     }
 
-    public class ClienteUpdateDto
+    public class AtualizarClienteDto : ClienteBase
     {
-        public string Nome { get; set; } = null!;
-        public string? Telefone { get; set; }
-        public string? Email { get; set; }
-        public string Status { get; set; } = "ATIVO";
-        public EnderecoCreateDto Endereco { get; set; } = null!;
+        public bool Status { get; set; } = true;
     }
 
-    public class ClienteDto
+    public class ClienteDto : ClienteBase
     {
         public int IdCliente { get; set; }
         public string Cpf { get; set; } = null!;
-        public string Nome { get; set; } = null!;
-        public string? Telefone { get; set; }
-        public string? Email { get; set; }
-        public string Status { get; set; } = null!;
-
-        public EnderecoDto Endereco { get; set; } = null!;
+         public string? NumeroHabilitacao { get; set; }
+        public DateTime? ValidadeHabilitacao { get; set; }
+        public bool Status { get; set; }
+        public int TotalLocacoes { get; set; }
     }
 
 }

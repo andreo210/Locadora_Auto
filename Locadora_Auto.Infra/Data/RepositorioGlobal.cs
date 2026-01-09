@@ -1,20 +1,12 @@
 ﻿using Locadora_Auto.Domain;
+using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Infra.Data.CurrentUsers;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace Locadora_Auto.Infra.Data
 {
-    /// <summary>
-    /// Interface para auditoria automática.
-    /// </summary>
-    public interface IAuditable
-    {
-        DateTime DataCriacao { get; set; }
-        string? IdUsuarioCriacao { get; set; }
-        DateTime? DataModificacao { get; set; }
-        string? IdUsuarioModificacao { get; set; }
-    }
+   
 
     /// <summary>
     /// Repositório genérico base refatorado:
@@ -130,8 +122,9 @@ namespace Locadora_Auto.Infra.Data
             return await query.Skip(skip).Take(take).ToListAsync(ct);
         }
 
-        public async Task<List<TEntity>> ObterComFiltroAsync<TEntity>(
+        public async Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(
             Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             bool asNoTracking = true,
             bool asSplitQuery = false,
@@ -155,6 +148,38 @@ namespace Locadora_Auto.Infra.Data
             return await query.ToListAsync(ct);
         }
 
+
+        public async Task<IReadOnlyList<TResult>> ObterComFiltroEProjecaoAsync<TEntity, TResult>(
+        Expression<Func<TEntity, TResult>> projecao,
+        Expression<Func<TEntity, bool>>? filtro = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+        bool asNoTracking = true,
+        bool asSplitQuery = false,
+        CancellationToken ct = default)
+        where TEntity : class
+        where TResult : class
+            {
+                IQueryable<TEntity> query = Context.Set<TEntity>();
+
+                if (asNoTracking)
+                    query = query.AsNoTracking();
+
+                if (asSplitQuery)
+                    query = query.AsSplitQuery();
+
+                if (incluir != null)
+                    query = incluir(query);
+
+                if (filtro != null)
+                    query = query.Where(filtro);
+
+                if (ordenarPor != null)
+                    query = ordenarPor(query);
+
+                // Aplica projeção ANTES de materializar
+                return await query.Select(projecao).ToListAsync(ct);
+        }
 
         public virtual async Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default)
         {
@@ -239,7 +264,7 @@ namespace Locadora_Auto.Infra.Data
         {
             var agora = DateTime.UtcNow;
 
-            foreach (var entry in Context.ChangeTracker.Entries<IAuditable>())
+            foreach (var entry in Context.ChangeTracker.Entries<IAuditoria>())
             {
                 if (entry.State == EntityState.Added)
                 {

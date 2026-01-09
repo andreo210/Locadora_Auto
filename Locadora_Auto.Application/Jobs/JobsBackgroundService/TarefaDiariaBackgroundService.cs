@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Locadora_Auto.Application.Services.JobsBackgroundService
+namespace Locadora_Auto.Application.Jobs.JobsBackgroundService
 {
     public class TarefaDiariaBackgroundService : BackgroundService
     {

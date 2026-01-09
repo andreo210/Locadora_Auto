@@ -4,10 +4,13 @@ using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using YamlDotNet.Core.Tokens;
 
 namespace Locadora_Auto.Api.V1.Controllers
 {
+
     [ApiController]
     [Route("api/[controller]")]
     public class UsersController : MainController
@@ -194,13 +197,29 @@ namespace Locadora_Auto.Api.V1.Controllers
         [HttpPost("renovar")]
         public async Task<IActionResult> Renovar([FromBody] string refreshToken)
         {
-            
-            var user = await _userService.DesativarToken(refreshToken);
+            var (idRefreshToken, validade) = ObterIdToken(refreshToken);
+            if (validade<DateTime.Now) return ValidationResponse("Token", "token expirado");
+
+            var user = await _userService.DesativarToken(idRefreshToken);
             if (user != null)
             {
                 return Ok(await _tokenService.GerarToken(user.UserName));
             }
             return ValidationResponse("Token inválido", "Token inválido");
+        }
+
+
+
+        private (string token ,DateTime validade)  ObterIdToken(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            // Ler claims
+            var idrefreshToken = jwt.Claims.First(c => c.Type == "jti").Value;
+            var expiracao = Convert.ToInt32(jwt.Claims.First(c => c.Type == "exp").Value);
+            DateTime data = DateTimeOffset.FromUnixTimeSeconds(expiracao).LocalDateTime;
+            return (idrefreshToken, data);
         }
     }
 }

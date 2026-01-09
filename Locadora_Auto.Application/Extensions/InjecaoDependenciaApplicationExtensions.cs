@@ -1,12 +1,12 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
+using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
+using Locadora_Auto.Application.Services.Cliente;
 using Locadora_Auto.Application.Services.Email;
-using Locadora_Auto.Application.Services.JobsBackgroundService;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Locadora_Auto.Application.Extensions
@@ -15,8 +15,7 @@ namespace Locadora_Auto.Application.Extensions
     {
         public static IServiceCollection AddInjecaoDependenciaApplicationsConfig(this IServiceCollection services)
         {
-            //TODO: aqui voçe registra os serviços específicos da sua Applications
-            services.AddHostedService<TokenExternoBackgroundService>();
+
 
 
             // Singletons
@@ -40,11 +39,10 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IClienteService, ClienteService>();
             services.AddSingleton<RsaKeyService>();
 
 
-
-            services.AddSingleton<ILoginService, LoginService>();
 
             return services;
         }

@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Application.Services.Email
+﻿using Locadora_Auto.Application.Jobs;
+
+namespace Locadora_Auto.Application.Services.Email
 {
     public interface IMailService
     {

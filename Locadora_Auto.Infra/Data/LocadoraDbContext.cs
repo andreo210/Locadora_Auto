@@ -11,7 +11,7 @@ namespace Locadora_Auto.Infra.Data
         public LocadoraDbContext(DbContextOptions<LocadoraDbContext> options) : base(options) { }
 
         //DbSets do domínio
-        public DbSet<Cliente> Clientes => Set<Cliente>();
+        public DbSet<Clientes> Clientes => Set<Clientes>();
         public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
         public DbSet<Veiculo> Veiculos => Set<Veiculo>();
         public DbSet<Locacao> Locacoes => Set<Locacao>();

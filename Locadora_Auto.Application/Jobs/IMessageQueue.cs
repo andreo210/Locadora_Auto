@@ -1,14 +1,13 @@
 ﻿using Locadora_Auto.Application.Services.Email;
-using Locadora_Auto.Domain.IRepositorio;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.Notificacao;
 using Locadora_Auto.Domain.Entidades;
+using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Locadora_Auto.Application.Services;
+namespace Locadora_Auto.Application.Jobs;
 
 #region Records (DTOs imutáveis)
 
@@ -246,7 +245,6 @@ public class MessageSenderBackgroundService(
 
         using var scope = serviceProvider.CreateScope();
 
-        var notificacaoService = scope.ServiceProvider.GetRequiredService<INotificacaoService>();
         var mailService = scope.ServiceProvider.GetRequiredService<IMailService>();
         var logMensagemRepository = scope.ServiceProvider.GetRequiredService<ILogMensagemRepository>();
 
@@ -259,7 +257,6 @@ public class MessageSenderBackgroundService(
             {
                 await ProcessMessageAsync(
                     mensagem,
-                    notificacaoService,
                     mailService,
                     logMensagemRepository);
             }
@@ -281,7 +278,6 @@ public class MessageSenderBackgroundService(
      */
     private async Task ProcessMessageAsync(
         Mensagem mensagem,
-        INotificacaoService notificacaoService,
         IMailService mailService,
         ILogMensagemRepository logMensagemRepository)
     {
@@ -290,42 +286,7 @@ public class MessageSenderBackgroundService(
         string? erroNotificacao = null;
         string? erroEmail = null;
 
-        #region Envio de Notificação
 
-        try
-        {
-            await notificacaoService.EnviarNotificacao(
-                mensagem.Notificacao.Cpf,
-                mensagem.Notificacao.Protocolo,
-                mensagem.Notificacao.Mensagem,
-                mensagem.Notificacao.Status);
-
-            statusRetornoNotificacao = 1; // sucesso
-        }
-        catch (HttpRequestException httpEx)
-        {
-            statusRetornoNotificacao =
-                httpEx.StatusCode.HasValue ? (int)httpEx.StatusCode.Value : 0;
-
-            erroNotificacao = httpEx.ToString();
-
-            logger.LogError(
-                httpEx,
-                "Erro HTTP ao enviar notificação para IdSolicitacao {IdSolicitacao}",
-                mensagem.IdSolicitacao);
-        }
-        catch (Exception ex)
-        {
-            statusRetornoNotificacao = 0;
-            erroNotificacao = ex.ToString();
-
-            logger.LogError(
-                ex,
-                "Erro ao enviar notificação para IdSolicitacao {IdSolicitacao}",
-                mensagem.IdSolicitacao);
-        }
-
-        #endregion
 
         #region Envio de Email
 
@@ -371,26 +332,24 @@ public class MessageSenderBackgroundService(
         #endregion
 
         #region Persistência do Log
-
-        var logMensagem = new LogMensagem(
-            mensagem.IdSolicitacao,
-            mensagem.Email.TipoAndamento.ToString(),
-            mensagem.Email.TipoAndamento,
-            mensagem.Email.DescricaoTipoAndamento,
-            mensagem.Email.NomePessoa,
-            mensagem.Email.Email,
-            mensagem.Email.Protocolo,
-            mensagem.Email.Observacao,
-            assunto,
-            corpo,
-            mensagem.Notificacao.Cpf,
-            mensagem.Notificacao.Protocolo,
-            mensagem.Notificacao.Mensagem,
-            mensagem.Notificacao.Status,
-            statusRetornoEmail,
-            erroEmail,
-            statusRetornoNotificacao,
-            erroNotificacao);
+        var logMensagem = new LogMensagem();
+       //var logMensagem = new LogMensagem(
+       //     mensagem.IdSolicitacao,
+       //     mensagem.Email.TipoAndamento.ToString(),
+       //     mensagem.Email.TipoAndamento,
+       //     mensagem.Email.DescricaoTipoAndamento,
+       //     mensagem.Email.NomePessoa,
+       //     mensagem.Email.Email,
+       //     mensagem.Email.Protocolo,
+       //     mensagem.Email.Observacao,
+       //     assunto,
+       //     corpo,
+       //     mensagem.Notificacao.Cpf,
+       //     mensagem.Notificacao.Protocolo,
+       //     mensagem.Notificacao.Mensagem,
+       //     mensagem.Notificacao.Status,
+       //     statusRetornoEmail,
+       //     erroEmail);
 
         try
         {

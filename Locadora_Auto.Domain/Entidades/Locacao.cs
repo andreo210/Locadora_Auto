@@ -29,7 +29,7 @@ namespace Locadora_Auto.Domain.Entidades
 
         public string Status { get; set; } = null!;
 
-        public Cliente Cliente { get; set; } = null!;
+        public Clientes Cliente { get; set; } = null!;
         public Veiculo Veiculo { get; set; } = null!;
         public Funcionario Funcionario { get; set; } = null!;
 

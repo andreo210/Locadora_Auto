@@ -32,13 +32,25 @@ namespace Locadora_Auto.Domain
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             CancellationToken ct = default);
 
-        Task<List<TEntity>> ObterComFiltroAsync<TEntity>(
+        Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(
             Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             bool asNoTracking = true,
             bool asSplitQuery = false,
             CancellationToken ct = default)
             where TEntity : class;
+
+        Task<IReadOnlyList<TResult>> ObterComFiltroEProjecaoAsync<TEntity, TResult>(
+        Expression<Func<TEntity, TResult>> projecao,
+        Expression<Func<TEntity, bool>>? filtro = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+        bool asNoTracking = true,
+        bool asSplitQuery = false,
+        CancellationToken ct = default)
+        where TEntity : class
+        where TResult : class;
 
         Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default);
 

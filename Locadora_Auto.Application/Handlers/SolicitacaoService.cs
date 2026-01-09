@@ -1,5 +1,5 @@
-﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Services;
+﻿using Locadora_Auto.Application.Jobs;
+using Locadora_Auto.Application.Models.Dto;
 
 namespace Locadora_Auto.Application.Handlers
 {

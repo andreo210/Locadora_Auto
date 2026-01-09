@@ -3,8 +3,8 @@ using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
 using Locadora_Auto.Application.Configuration.UtilExtensions;
 using Locadora_Auto.Application.Extensions;
 using Locadora_Auto.Application.Handlers;
+using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Locadora_Auto.Api.V1.Controllers

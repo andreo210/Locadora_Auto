@@ -4,16 +4,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Locadora_Auto.Infra.Data.Configuracao
 {
-    public class ClienteConfig : IEntityTypeConfiguration<Cliente>
+    public class ClienteConfig : IEntityTypeConfiguration<Clientes>
     {
-        public void Configure(EntityTypeBuilder<Cliente> builder)
+        public void Configure(EntityTypeBuilder<Clientes> builder)
         {
-            builder.ToTable("cliente");
+            builder.ToTable("tbCliente");
 
             builder.HasKey(e => e.IdCliente);
 
             builder.Property(e => e.IdCliente)
-                .HasColumnName("id_cliente");
+                .HasColumnName("id_cliente")
+                .ValueGeneratedOnAdd();
 
             builder.Property(e => e.Cpf)
                 .HasColumnName("cpf")
@@ -38,8 +39,44 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             builder.Property(e => e.Status)
                 .HasColumnName("status")
-                .HasMaxLength(20)
                 .IsRequired();
+
+            builder.Property(e => e.Status)
+               .HasColumnName("status")
+               .IsRequired();
+
+            builder.Property(e => e.NumeroHabilitacao)
+               .HasColumnName("numero_habilitacao");
+
+            builder.Property(e => e.ValidadeHabilitacao)
+                .HasColumnName("validade_habilitacao");
+
+            builder.Property(e => e.TotalLocacoes)
+               .HasColumnName("total_locacoes");
+
+            builder.Property(e => e.IdUsuarioCriacao)
+                .HasColumnName("id_usuario_criacao");
+
+            builder.Property(e => e.IdUsuarioModificacao)
+                .HasColumnName("id_usuario_modificacao");
+
+            builder.Property(e => e.DataCriacao)
+                .HasColumnName("data_criacao");
+
+            builder.Property(e => e.DataModificacao)
+                .HasColumnName("data_modificacao");
+
+
+
+            #region relacionamento
+            builder.HasOne(p => p.Endereco)//uma cliente tem um endereço
+                   .WithOne(c => c.Cliente)//um endereço tem um clientea
+                   .HasForeignKey<Endereco>(c => c.IdCliente)
+                   .OnDelete(DeleteBehavior.Cascade);//ao deletar o cliente, deletar o endereço
+
+
+            #endregion relacionamento
+
         }
     }
 

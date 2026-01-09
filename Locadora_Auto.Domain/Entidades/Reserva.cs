@@ -9,7 +9,7 @@
         public DateTime DataFim { get; set; }
         public string Status { get; set; } = null!;
 
-        public Cliente Cliente { get; set; } = null!;
+        public Clientes Cliente { get; set; } = null!;
         public CategoriaVeiculo Categoria { get; set; } = null!;
     }
 }
