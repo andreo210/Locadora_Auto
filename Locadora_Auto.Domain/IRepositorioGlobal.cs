@@ -15,6 +15,11 @@ namespace Locadora_Auto.Domain
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             CancellationToken ct = default);
 
+        Task<TEntity?> ObterPrimeiroRastreadoAsync(
+            Expression<Func<TEntity, bool>> filtro,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            CancellationToken ct = default);
+
         IQueryable<TEntity> ObterTodos();
 
         Task<TEntity> ObterPorIdNoTracker(object id);
@@ -60,9 +65,9 @@ namespace Locadora_Auto.Domain
 
         void Atualizar(TEntity entidade);
 
-        Task ExcluirAsync(object id, CancellationToken ct = default);
+        Task ExcluirAsync(TEntity entidade, CancellationToken ct = default);
 
-        Task Excluir(object id, CancellationToken ct = default);
+        Task Excluir(TEntity entidade, CancellationToken ct = default);
 
         Task<int> SalvarAsync(CancellationToken ct = default);
 

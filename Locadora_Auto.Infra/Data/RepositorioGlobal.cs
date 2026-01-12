@@ -90,6 +90,19 @@ namespace Locadora_Auto.Infra.Data
             return await query.FirstOrDefaultAsync(filtro, ct);
         }
 
+        public virtual async Task<TEntity?> ObterPrimeiroRastreadoAsync(
+            Expression<Func<TEntity, bool>> filtro,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            CancellationToken ct = default)
+        {
+            IQueryable<TEntity> query = DbSet;
+
+            if (incluir != null)
+                query = incluir(query);
+
+            return await query.FirstOrDefaultAsync(filtro, ct);
+        }
+
         public virtual async Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,
             CancellationToken ct = default)
@@ -226,6 +239,39 @@ namespace Locadora_Auto.Infra.Data
 
             return result > 0; // retorna true se houve alterações no banco
         }
+        //public virtual async Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default)
+        //{
+        //    if (entidade == null)
+        //        throw new ArgumentNullException(nameof(entidade));
+
+        //    // Anexa se não estiver rastreada
+        //    var entry = Context.Entry(entidade);
+
+        //    if (entry.State == EntityState.Detached)
+        //    {
+        //        DbSet.Attach(entidade);
+        //        entry = Context.Entry(entidade);
+        //    }
+
+        //    // Marca como Modified (EF gera UPDATE)
+        //    entry.State = EntityState.Modified;
+
+        //    var dd = Context.Entry(entidade);
+
+        //    Console.WriteLine($"State: {dd.State}");
+
+        //    foreach (var prop in dd.Properties)
+        //    {
+        //        if (prop.Metadata.IsPrimaryKey())
+        //        {
+        //            Console.WriteLine($"PK {prop.Metadata.Name} = {prop.CurrentValue}");
+        //        }
+        //    }
+
+        //    var affected = await Context.SaveChangesAsync(ct);
+        //    return affected > 0;
+        //}
+
 
         public virtual void Atualizar(TEntity entidade)
         {
@@ -233,9 +279,9 @@ namespace Locadora_Auto.Infra.Data
             DbSet.Update(entidade);
         }
 
-        public virtual async Task ExcluirAsync(object id, CancellationToken ct = default)
+        public virtual async Task ExcluirAsync(TEntity entidade, CancellationToken ct = default)
         {
-            var entidade = await DbSet.FindAsync(new[] { id }, ct);
+            //var entidade = await DbSet.FindAsync(new[] { id }, ct);
 
             if (entidade == null)
                 throw new KeyNotFoundException("Entidade não encontrada.");
@@ -243,9 +289,9 @@ namespace Locadora_Auto.Infra.Data
             await SalvarAsync(ct);
         }
 
-        public virtual async Task Excluir(object id, CancellationToken ct = default)
+        public virtual async Task Excluir(TEntity entidade, CancellationToken ct = default)
         {
-            var entidade = await DbSet.FindAsync(new[] { id }, ct);
+            //var entidade = await DbSet.FindAsync(new[] { id }, ct);
 
             if (entidade == null)
                 throw new KeyNotFoundException("Entidade não encontrada.");

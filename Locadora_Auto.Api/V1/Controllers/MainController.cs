@@ -12,7 +12,7 @@ namespace Locadora_Auto.Api.V1.Controllers
             return result is null ? Ok() : Ok(result);
         }
 
-        protected IActionResult ProblemResponse(
+        protected ActionResult ProblemResponse(
             HttpStatusCode status,
             string detail,
             string? title = null,
@@ -25,19 +25,19 @@ namespace Locadora_Auto.Api.V1.Controllers
             );
         }
 
-        protected IActionResult NotFound(string message)=> ProblemResponse(HttpStatusCode.NotFound, message);
+        protected ActionResult NotFound(string message)=> ProblemResponse(HttpStatusCode.NotFound, message);
 
-        protected IActionResult Forbidden(string message)=> ProblemResponse(HttpStatusCode.Forbidden, message);
+        protected ActionResult Forbidden(string message)=> ProblemResponse(HttpStatusCode.Forbidden, message);
 
 
-        protected IActionResult ValidationResponse(ModelStateDictionary modelState)
+        protected ActionResult ValidationResponse(ModelStateDictionary modelState)
         {
             return ValidationProblem(
                 ValidationProblemFactory.FromModelState(modelState)
             );
         }
 
-        protected IActionResult ValidationResponse(
+        protected ActionResult ValidationResponse(
             string key,
             string error)
         {

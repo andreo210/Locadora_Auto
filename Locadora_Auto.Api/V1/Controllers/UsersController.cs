@@ -1,12 +1,10 @@
-﻿using Locadora_Auto.Application.Extensions;
-using Locadora_Auto.Application.Models.Dto;
+﻿using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using YamlDotNet.Core.Tokens;
 
 namespace Locadora_Auto.Api.V1.Controllers
 {
@@ -76,7 +74,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         {
             var user = await _userService.ObterPorIdAsync(id);
             if (user == null)
-                return NotFound(ProblemFactory.Create(HttpStatusCode.NotFound, "Usúario não encontrado."));
+                return NotFound("Usúario não encontrado.");
 
             return Ok(user);
         }
@@ -90,11 +88,11 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> GetByCpf(string cpf)
+        public async Task<ActionResult<UserDto>> GetByCpf(string cpf)
         {
             var user = await _userService.ObterPorCpfAsync(cpf);
             if (user == null)
-                return NotFound("Usuário não encontrado"); ;
+                return NotFound("Usuário não encontrado");
 
             return Ok(user);
         }
@@ -149,24 +147,24 @@ namespace Locadora_Auto.Api.V1.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Desativa (exclui) um usuário.
-        /// </summary>
-        /// <param name="id">ID do usuário a ser desativado</param>
-        /// <returns>Status da operação</returns>
-        [HttpDelete("{id:guid}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesDefaultResponseType]
-        public async Task<IActionResult> Delete(string id)
-        {
-            var existingUser = await _userService.ObterPorIdAsync(id);
-            if (existingUser == null)
-                return ProblemResponse(HttpStatusCode.NotFound, "usuario não encontrado");
+        ///// <summary>
+        ///// Desativa (exclui) um usuário.
+        ///// </summary>
+        ///// <param name="id">ID do usuário a ser desativado</param>
+        ///// <returns>Status da operação</returns>
+        //[HttpDelete("{id:guid}")]
+        //[ProducesResponseType(StatusCodes.Status204NoContent)]
+        //[ProducesResponseType(StatusCodes.Status404NotFound)]
+        //[ProducesDefaultResponseType]
+        //public async Task<IActionResult> Delete(string id)
+        //{
+        //    var existingUser = await _userService.ObterPorIdAsync(id);
+        //    if (existingUser == null)
+        //        return ProblemResponse(HttpStatusCode.NotFound, "usuario não encontrado");
 
-            await _userService.DesativarAsync(id);
-            return NoContent();
-        }
+        //    await _userService.DesativarAsync(id);
+        //    return NoContent();
+        //}
 
 
         [HttpPost("autenticar")]

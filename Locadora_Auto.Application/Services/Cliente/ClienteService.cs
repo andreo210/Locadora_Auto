@@ -51,7 +51,11 @@ namespace Locadora_Auto.Application.Services
         public async Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default)
         {
            
-             var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            if(entidade == null)
+            {
+                return new List<ClienteDto>();
+            }
             return entidade.Select(c => c.ToDto()).ToList();
 
         }
@@ -219,148 +223,109 @@ namespace Locadora_Auto.Application.Services
 
 
         public async Task<bool> AtualizarClienteAsync(int id, AtualizarClienteDto clienteDto, CancellationToken ct = default)
-        {
-            await _transaction.BeginTransactionAsync(ct);
-
-            try
+        {            
+            // Buscar cliente existente
+            var cliente = await _clienteRepository.ObterPrimeiroRastreadoAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            if (cliente == null)
             {
-                _logger.LogInformation("Atualizando cliente ID: {Id}", id);
-
-                // Buscar cliente existente
-                var cliente = await _clienteRepository.ObterPorId(id);
-                if (cliente == null)
-                {
-                    throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
-                }
-
-                if (!cliente.Status)
-                {
-                    throw new InvalidOperationException("Não é possível atualizar um cliente inativo.");
-                }
-
-                // Validações de campos únicos
-                //if (!string.IsNullOrWhiteSpace(clienteDto.Email) && clienteDto.Email != cliente.Email)
-                //{
-                //    if (await VerificarDisponibilidadeEmailAsync(clienteDto.Email, id, ct))
-                //    {
-                //        throw new InvalidOperationException($"Email {clienteDto.Email} já está em uso.");
-                //    }
-                //}
-
-                // Atualizar campos
-                if (!string.IsNullOrWhiteSpace(clienteDto.Nome))
-                    cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
-
-                if (!string.IsNullOrWhiteSpace(clienteDto.Email))
-                    cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
-
-                if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
-                    cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
-
-                //if (clienteDto.Endereco != null)
-                //    cliente.Endereco = clienteDto.Endereco.Trim();
-
-
-
-                // Atualizar no banco
-                var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
-                if (!atualizado)
-                {
-                    throw new InvalidOperationException("Falha ao atualizar cliente.");
-                }
-
-                await _transaction.CommitAsync(ct);
-
-                _logger.LogInformation("Cliente ID: {Id} atualizado com sucesso", id);
-                return atualizado;
+                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
             }
-            catch (Exception ex)
+
+            if (!cliente.Status)
             {
-                await _transaction.RollbackAsync(ct);
-                _logger.LogError(ex, "Erro ao atualizar cliente ID: {Id}", id);
-                throw;
+                throw new InvalidOperationException("Não é possível atualizar um cliente inativo.");
             }
+
+            // Validações de campos únicos
+            //if (!string.IsNullOrWhiteSpace(clienteDto.Email) && clienteDto.Email != cliente.Email)
+            //{
+            //    if (await VerificarDisponibilidadeEmailAsync(clienteDto.Email, id, ct))
+            //    {
+            //        throw new InvalidOperationException($"Email {clienteDto.Email} já está em uso.");
+            //    }
+            //}
+
+            // Atualizar campos
+            if (!string.IsNullOrWhiteSpace(clienteDto.Nome))
+                cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
+
+            if (!string.IsNullOrWhiteSpace(clienteDto.Email))
+                cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
+
+            if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
+                cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
+
+
+            // Atualizar no banco
+            var atualizado = await _clienteRepository.SalvarAsync();
+            if (atualizado == 0)
+            {
+                throw new InvalidOperationException("Falha ao atualizar cliente.");
+            } 
+            return true;
         }
 
         public async Task<bool> ExcluirClienteAsync(int id, CancellationToken ct = default)
-        {            
-            await _clienteRepository.ExcluirAsync(id, ct);
-            return true;            
+        {
+            // Buscar cliente existente
+            var cliente = await _clienteRepository.ObterPrimeiroRastreadoAsync(x => x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            if (cliente != null) {
+                await _clienteRepository.ExcluirAsync(cliente, ct);
+                return true;
+            }
+            return false;
         }
 
         public async Task<bool> AtivarClienteAsync(int id, CancellationToken ct = default)
         {
-            try
+            var cliente = await _clienteRepository.ObterPorId(id);
+            if (cliente == null)
             {
-                _logger.LogInformation("Ativando cliente ID: {Id}", id);
-
-                var cliente = await _clienteRepository.ObterPorId(id);
-                if (cliente == null)
-                {
-                    throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
-                }
-
-                if (cliente.Status)
-                {
-                    return true; // Já está ativo
-                }
-
-                // Validar habilitação se necessário
-                if (cliente.ValidadeHabilitacao.HasValue &&
-                    cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
-                {
-                    throw new InvalidOperationException(
-                        "Habilitação do cliente está vencida. Não é possível ativar.");
-                }
-
-                cliente.Status = true;
-                var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
-
-                _logger.LogInformation("Cliente ID: {Id} ativado com sucesso", id);
-                return atualizado;
+                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
             }
-            catch (Exception ex)
+
+            if (cliente.Status)
             {
-                _logger.LogError(ex, "Erro ao ativar cliente ID: {Id}", id);
-                throw;
+                return true; // Já está ativo
             }
+
+            // Validar habilitação se necessário
+            if (cliente.ValidadeHabilitacao.HasValue &&
+                cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
+            {
+                throw new InvalidOperationException(
+                    "Habilitação do cliente está vencida. Não é possível ativar.");
+            }
+
+            cliente.Status = true;
+            var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
+            return atualizado;            
         }
 
         public async Task<bool> DesativarClienteAsync(int id, CancellationToken ct = default)
         {
-            try
+            var cliente = await _clienteRepository.ObterPorId(id);
+            if (cliente == null)
             {
-                _logger.LogInformation("Desativando cliente ID: {Id}", id);
-
-                var cliente = await _clienteRepository.ObterPorId(id);
-                if (cliente == null)
-                {
-                    throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
-                }
-
-                if (!cliente.Status)
-                {
-                    return true; // Já está inativo
-                }
-
-                // Verificar se cliente possui locações ativas
-                //if (await ClientePossuiLocacoesAtivasAsync(id, ct))
-                //{
-                //    throw new InvalidOperationException(
-                //        "Cliente possui locações ativas. Finalize as locações antes de desativar.");
-                //}
-
-                cliente.Status = false;
-                var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
-
-                _logger.LogInformation("Cliente ID: {Id} desativado com sucesso", id);
-                return atualizado;
+                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
             }
-            catch (Exception ex)
+
+            if (!cliente.Status)
             {
-                _logger.LogError(ex, "Erro ao desativar cliente ID: {Id}", id);
-                throw;
+                return true; // Já está inativo
             }
+
+            // Verificar se cliente possui locações ativas
+            //if (await ClientePossuiLocacoesAtivasAsync(id, ct))
+            //{
+            //    throw new InvalidOperationException(
+            //        "Cliente possui locações ativas. Finalize as locações antes de desativar.");
+            //}
+
+            cliente.Status = false;
+            var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
+            return atualizado;
+           
         }
 
         #endregion
@@ -368,38 +333,30 @@ namespace Locadora_Auto.Application.Services
         #region Validações e Regras de Negócio
 
         public async Task<bool> ValidarClienteParaLocacaoAsync(int id, CancellationToken ct = default)
-        {
-            try
+        {            
+            var cliente = await _clienteRepository.ObterPrimeiroAsync(
+                c => c.IdCliente == id && c.Status,
+                ct: ct);
+
+            if (cliente == null)
             {
-                var cliente = await _clienteRepository.ObterPrimeiroAsync(
-                    c => c.IdCliente == id && c.Status,
-                    ct: ct);
+                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado ou inativo.");
+            }                
 
-                if (cliente == null)
-                {
-                    throw new KeyNotFoundException($"Cliente com ID {id} não encontrado ou inativo.");
-                }                
-
-                // Verificar habilitação válida
-                if (cliente.ValidadeHabilitacao.HasValue &&
-                    cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
-                {
-                    return false;
-                }
-
-                // Verificar se está em dia com pagamentos
-                //if (!await ClienteEstaEmDiaComPagamentosAsync(id, ct))
-                //{
-                //    return false;
-                //}
-
-                return true;
-            }
-            catch (Exception ex)
+            // Verificar habilitação válida
+            if (cliente.ValidadeHabilitacao.HasValue &&
+                cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
             {
-                _logger.LogError(ex, "Erro ao validar cliente para locação ID: {Id}", id);
-                throw;
+                return false;
             }
+
+            // Verificar se está em dia com pagamentos
+            //if (!await ClienteEstaEmDiaComPagamentosAsync(id, ct))
+            //{
+            //    return false;
+            //}
+
+            return true;           
         }
 
         //public async Task<bool> ClientePossuiLocacoesAtivasAsync(int id, CancellationToken ct = default)
@@ -458,8 +415,8 @@ namespace Locadora_Auto.Application.Services
         //    {
         //        var emailNormalizado = email.Trim().ToLower();
 
-        //        var query = _dbContext.Set<ClienteDto>()
-        //            .Where(c => c.Email == emailNormalizado && c.Status ==true);
+        //        var query = _clienteRepository.(emailNormalizado)
+        //            .Where(c => c.Email == emailNormalizado && c.Status == true);
 
         //        if (idExcluir.HasValue)
         //        {

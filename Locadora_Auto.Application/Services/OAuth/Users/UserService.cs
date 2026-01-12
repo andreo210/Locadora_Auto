@@ -71,10 +71,11 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
 
 
-        public async Task DesativarAsync(string id)
-        {
-            await _userRepository.ExcluirAsync(id);
-        }
+        //public async Task DesativarAsync(string id)
+        //{
+
+        //    await _userRepository.ExcluirAsync(id);
+        //}
 
         public async Task<IEnumerable<UserDto>> ListarAsync()
         {

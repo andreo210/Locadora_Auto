@@ -1,8 +1,8 @@
-﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Services;
+﻿using Locadora_Auto.Api.V1.Controllers;
+using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.Cliente;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Mime;
+using System.Net;
 
 namespace Locadora_Auto.API.Controllers
 {
@@ -12,7 +12,7 @@ namespace Locadora_Auto.API.Controllers
     [ApiController]
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("1.0")]
-    public class ClientesController : ControllerBase
+    public class ClientesController : MainController
     {
         private readonly IClienteService _clienteService;
         private readonly ILogger<ClientesController> _logger;
@@ -43,38 +43,28 @@ namespace Locadora_Auto.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
-        {
-            try
+        {           
+ 
+            IReadOnlyList<ClienteDto> clientes;
+
+            if (!string.IsNullOrWhiteSpace(nome))
             {
-                _logger.LogInformation("Consultando clientes. Filtros: Nome={Nome}, Ativos={Ativos}, Pagina={Pagina}, Tamanho={Tamanho}",
-                    nome, somenteAtivos, pageNumber, pageSize);
-
-                IReadOnlyList<ClienteDto> clientes;
-
-                if (!string.IsNullOrWhiteSpace(nome))
-                {
-                    clientes = await _clienteService.ObterPorNomeAsync(nome, ct);
-                }
-                else if (somenteAtivos)
-                {
-                    clientes = await _clienteService.ObterAtivosAsync(ct);
-                }
-                else if (pageNumber > 0 && pageSize > 0)
-                {
-                    clientes = await _clienteService.ObterPaginadoAsync(pageNumber, pageSize, ct);
-                }
-                else
-                {
-                    clientes = await _clienteService.ObterTodosAsync(ct);
-                }
-
-                return Ok(clientes);
+                clientes = await _clienteService.ObterPorNomeAsync(nome, ct);
             }
-            catch (Exception ex)
+            else if (somenteAtivos)
             {
-                _logger.LogError(ex, "Erro ao consultar clientes");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
+                clientes = await _clienteService.ObterAtivosAsync(ct);
             }
+            else if (pageNumber > 0 && pageSize > 0)
+            {
+                clientes = await _clienteService.ObterPaginadoAsync(pageNumber, pageSize, ct);
+            }
+            else
+            {
+                clientes = await _clienteService.ObterTodosAsync(ct);
+            }
+
+            return Ok(clientes);           
         }
 
         /// <summary>
@@ -90,26 +80,16 @@ namespace Locadora_Auto.API.Controllers
         public async Task<ActionResult<ClienteDto>> GetById(
             [FromRoute] int id,
             CancellationToken ct = default)
-        {
-            try
+        {          
+
+            var cliente = await _clienteService.ObterPorIdAsync(id, ct);
+
+            if (cliente == null)
             {
-                _logger.LogInformation("Consultando cliente por ID: {Id}", id);
-
-                var cliente = await _clienteService.ObterPorIdAsync(id, ct);
-
-                if (cliente == null)
-                {
-                    _logger.LogWarning("Cliente não encontrado: ID {Id}", id);
-                    return NotFound(new { Message = $"Cliente com ID {id} não encontrado" });
-                }
-
-                return Ok(cliente);
+                return NotFound(new { Message = $"Cliente com ID {id} não encontrado" });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao consultar cliente por ID: {Id}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+
+            return Ok(cliente);            
         }
 
         /// <summary>
@@ -126,25 +106,14 @@ namespace Locadora_Auto.API.Controllers
             [FromRoute] string cpf,
             CancellationToken ct = default)
         {
-            try
+            var cliente = await _clienteService.ObterPorCpfAsync(cpf, ct);
+
+            if (cliente == null)
             {
-                _logger.LogInformation("Consultando cliente por CPF: {Cpf}", cpf);
-
-                var cliente = await _clienteService.ObterPorCpfAsync(cpf, ct);
-
-                if (cliente == null)
-                {
-                    _logger.LogWarning("Cliente não encontrado: CPF {Cpf}", cpf);
-                    return NotFound(new { Message = $"Cliente com CPF {cpf} não encontrado" });
-                }
-
-                return Ok(cliente);
+                return NotFound( $"Cliente com CPF {cpf} não encontrado");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao consultar cliente por CPF: {Cpf}", cpf);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return Ok(cliente);
+           
         }
 
         /// <summary>
@@ -162,34 +131,8 @@ namespace Locadora_Auto.API.Controllers
             [FromBody] CriarClienteDto clienteDto,
             CancellationToken ct = default)
         {
-            try
-            {
-                _logger.LogInformation("Criando novo cliente: {Nome}", clienteDto.Nome);
-
-                var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
-
-                _logger.LogInformation("Cliente criado com sucesso: ID {Id}", cliente.IdCliente);
-
-                return CreatedAtAction(
-                    nameof(GetById),
-                    new { id = cliente.IdCliente },
-                    cliente);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Dados inválidos ao criar cliente: {Message}", ex.Message);
-                return BadRequest(new { Message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Conflito ao criar cliente: {Message}", ex.Message);
-                return Conflict(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao criar cliente");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
+            return CreatedAtAction(nameof(GetById),new { id = cliente.IdCliente },cliente);      
         }
 
         /// <summary>
@@ -210,35 +153,13 @@ namespace Locadora_Auto.API.Controllers
             [FromBody] AtualizarClienteDto clienteDto,
             CancellationToken ct = default)
         {
-            try
-            {
-                _logger.LogInformation("Atualizando cliente ID: {Id}", id);
+            var atualizado = await _clienteService.AtualizarClienteAsync(id, clienteDto, ct);
 
-                var atualizado = await _clienteService.AtualizarClienteAsync(id, clienteDto, ct);
-
-                if (!atualizado)
-                {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro ao atualizar cliente" });
-                }
-
-                _logger.LogInformation("Cliente atualizado com sucesso: ID {Id}", id);
-                return Ok(new { Message = "Cliente atualizado com sucesso" });
-            }
-            catch (KeyNotFoundException ex)
+            if (!atualizado)
             {
-                _logger.LogWarning(ex, "Cliente não encontrado para atualização: ID {Id}", id);
-                return NotFound(new { Message = ex.Message });
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao atualizar cliente");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Operação inválida ao atualizar cliente: {Message}", ex.Message);
-                return BadRequest(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao atualizar cliente ID: {Id}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return Ok(new { Message = "Cliente atualizado com sucesso" });           
         }
 
         /// <summary>
@@ -256,35 +177,13 @@ namespace Locadora_Auto.API.Controllers
             [FromRoute] int id,
             CancellationToken ct = default)
         {
-            try
-            {
-                _logger.LogInformation("Excluindo cliente ID: {Id}", id);
+            var excluido = await _clienteService.ExcluirClienteAsync(id, ct);
 
-                var excluido = await _clienteService.ExcluirClienteAsync(id, ct);
-
-                if (!excluido)
-                {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro ao excluir cliente" });
-                }
-
-                _logger.LogInformation("Cliente excluído com sucesso: ID {Id}", id);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
+            if (!excluido)
             {
-                _logger.LogWarning(ex, "Cliente não encontrado para exclusão: ID {Id}", id);
-                return NotFound(new { Message = ex.Message });
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao excluir cliente");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Operação inválida ao excluir cliente: {Message}", ex.Message);
-                return Conflict(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao excluir cliente ID: {Id}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return NoContent();           
         }
 
         /// <summary>
@@ -301,36 +200,14 @@ namespace Locadora_Auto.API.Controllers
         public async Task<IActionResult> Ativar(
             [FromRoute] int id,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogInformation("Ativando cliente ID: {Id}", id);
+        {  
+            var ativado = await _clienteService.AtivarClienteAsync(id, ct);
 
-                var ativado = await _clienteService.AtivarClienteAsync(id, ct);
-
-                if (!ativado)
-                {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro ao ativar cliente" });
-                }
-
-                _logger.LogInformation("Cliente ativado com sucesso: ID {Id}", id);
-                return Ok(new { Message = "Cliente ativado com sucesso" });
-            }
-            catch (KeyNotFoundException ex)
+            if (!ativado)
             {
-                _logger.LogWarning(ex, "Cliente não encontrado para ativação: ID {Id}", id);
-                return NotFound(new { Message = ex.Message });
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao ativar cliente");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Operação inválida ao ativar cliente: {Message}", ex.Message);
-                return Conflict(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao ativar cliente ID: {Id}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return Ok(new { Message = "Cliente ativado com sucesso" });            
         }
 
         /// <summary>
@@ -348,35 +225,14 @@ namespace Locadora_Auto.API.Controllers
             [FromRoute] int id,
             CancellationToken ct = default)
         {
-            try
-            {
-                _logger.LogInformation("Desativando cliente ID: {Id}", id);
 
-                var desativado = await _clienteService.DesativarClienteAsync(id, ct);
+            var desativado = await _clienteService.DesativarClienteAsync(id, ct);
 
-                if (!desativado)
-                {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro ao desativar cliente" });
-                }
-
-                _logger.LogInformation("Cliente desativado com sucesso: ID {Id}", id);
-                return Ok(new { Message = "Cliente desativado com sucesso" });
-            }
-            catch (KeyNotFoundException ex)
+            if (!desativado)
             {
-                _logger.LogWarning(ex, "Cliente não encontrado para desativação: ID {Id}", id);
-                return NotFound(new { Message = ex.Message });
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao desativar cliente");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Operação inválida ao desativar cliente: {Message}", ex.Message);
-                return Conflict(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao desativar cliente ID: {Id}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return Ok(new { Message = "Cliente desativado com sucesso" });           
         }
 
         ///// <summary>
@@ -438,24 +294,14 @@ namespace Locadora_Auto.API.Controllers
         public async Task<ActionResult<object>> VerificarCpf(
             [FromRoute] string cpf,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogInformation("Verificando disponibilidade do CPF: {Cpf}", cpf);
+        {            
+            var existe = await _clienteService.ExisteClienteAsync(cpf, ct);
 
-                var existe = await _clienteService.ExisteClienteAsync(cpf, ct);
-
-                return Ok(new
-                {
-                    Disponivel = !existe,
-                    Message = existe ? "CPF já cadastrado" : "CPF disponível"
-                });
-            }
-            catch (Exception ex)
+            return Ok(new
             {
-                _logger.LogError(ex, "Erro ao verificar CPF: {Cpf}", cpf);
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+                Disponivel = !existe,
+                Message = existe ? "CPF já cadastrado" : "CPF disponível"
+            });            
         }
 
         /// <summary>
@@ -468,23 +314,13 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<object>> ContarAtivos(CancellationToken ct = default)
         {
-            try
-            {
-                _logger.LogInformation("Contando clientes ativos");
+            var quantidade = await _clienteService.ContarClientesAtivosAsync(ct);
 
-                var quantidade = await _clienteService.ContarClientesAtivosAsync(ct);
-
-                return Ok(new
-                {
-                    Quantidade = quantidade,
-                    Message = $"Total de {quantidade} cliente(s) ativo(s)"
-                });
-            }
-            catch (Exception ex)
+            return Ok(new
             {
-                _logger.LogError(ex, "Erro ao contar clientes ativos");
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Erro interno ao processar a solicitação" });
-            }
+                Quantidade = quantidade,
+                Message = $"Total de {quantidade} cliente(s) ativo(s)"
+            });           
         }
     }
 }
