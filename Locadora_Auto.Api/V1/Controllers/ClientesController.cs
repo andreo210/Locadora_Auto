@@ -1,6 +1,7 @@
 ﻿using Locadora_Auto.Api.V1.Controllers;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.Cliente;
+using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -19,7 +20,8 @@ namespace Locadora_Auto.API.Controllers
 
         public ClientesController(
             IClienteService clienteService,
-            ILogger<ClientesController> logger)
+            INotificador notificador,
+            ILogger<ClientesController> logger) : base(notificador)
         {
             _clienteService = clienteService ?? throw new ArgumentNullException(nameof(clienteService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -132,6 +134,7 @@ namespace Locadora_Auto.API.Controllers
             CancellationToken ct = default)
         {
             var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
+            if (cliente == null) return CustomResponse();
             return CreatedAtAction(nameof(GetById),new { id = cliente.IdCliente },cliente);      
         }
 
@@ -153,13 +156,8 @@ namespace Locadora_Auto.API.Controllers
             [FromBody] AtualizarClienteDto clienteDto,
             CancellationToken ct = default)
         {
-            var atualizado = await _clienteService.AtualizarClienteAsync(id, clienteDto, ct);
-
-            if (!atualizado)
-            {
-                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao atualizar cliente");
-            }
-            return Ok(new { Message = "Cliente atualizado com sucesso" });           
+            var atualizado = await _clienteService.AtualizarClienteAsync(id, clienteDto, ct);            
+            return CustomResponse(new { Message = "Cliente atualizado com sucesso" });           
         }
 
         /// <summary>

@@ -1,4 +1,6 @@
 ﻿using Locadora_Auto.Application.Extensions;
+using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
@@ -7,7 +9,27 @@ namespace Locadora_Auto.Api.V1.Controllers
 {
     public abstract class MainController : ControllerBase
     {
-        protected IActionResult OkResponse(object? result = null)
+        private readonly INotificador _notificador;
+
+        protected MainController(INotificador notificador)
+        {
+            _notificador = notificador;
+        }
+
+        protected ActionResult CustomResponse(object? result = null)
+        {
+            if (!_notificador.TemNotificacao())
+                return OkResponse(result);
+
+            var problem = NotificationProblemAdapterMapper.ToProblemDetails(
+                HttpContext,
+                _notificador.ObterNotificacoes()
+            );
+
+            return StatusCode(problem.Status!.Value, problem);
+        }
+
+        protected ActionResult OkResponse(object? result = null)
         {
             return result is null ? Ok() : Ok(result);
         }

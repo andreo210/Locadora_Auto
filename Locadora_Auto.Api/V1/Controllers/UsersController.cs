@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
@@ -16,7 +17,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         private readonly IUserService _userService;
         private readonly IRoleService _roleService;
         private readonly ITokenService _tokenService;
-        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService)
+        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService, INotificador notificador) : base(notificador)
         {
             _userService = userService;
             _roleService = roleService;

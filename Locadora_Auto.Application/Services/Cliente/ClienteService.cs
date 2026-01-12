@@ -1,7 +1,9 @@
 ﻿using Locadora_Auto.Application.Configuration.UtilExtensions;
+using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.Cliente;
+using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
@@ -18,17 +20,20 @@ namespace Locadora_Auto.Application.Services
         private readonly IUnitOfWork _transaction;
         private readonly ILogger<ClienteService> _logger;
         private readonly UserManager<User> _userManager;
+        private readonly INotificador _notificador;
 
         public ClienteService(
             UserManager<User> userManager,
             IClienteRepository clienteRepository,
             IUnitOfWork transaction,
+            INotificador notificador,
             ILogger<ClienteService> logger)
         {
             _clienteRepository = clienteRepository ?? throw new ArgumentNullException(nameof(clienteRepository));
             _transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(logger));
+            _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
         }
 
         #region Operações de Consulta
@@ -223,17 +228,30 @@ namespace Locadora_Auto.Application.Services
 
 
         public async Task<bool> AtualizarClienteAsync(int id, AtualizarClienteDto clienteDto, CancellationToken ct = default)
-        {            
+        {    
+            
             // Buscar cliente existente
             var cliente = await _clienteRepository.ObterPrimeiroRastreadoAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            if (string.IsNullOrWhiteSpace(clienteDto.Nome))
+                _notificador.Add(new Notificacao("Nome não pode ser nulo ou vazio"));
+
+            if (string.IsNullOrWhiteSpace(clienteDto.Email))
+                _notificador.Add(new Notificacao("Email não pode ser nulo ou vazio"));
+
+            if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
+                _notificador.Add(new Notificacao("Telefone não pode ser nulo ou vazio"));
+
             if (cliente == null)
             {
-                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
+                _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
+                return false;
+
             }
 
             if (!cliente.Status)
             {
-                throw new InvalidOperationException("Não é possível atualizar um cliente inativo.");
+                _notificador.Add(new Notificacao("Não é possível atualizar um cliente inativo."));
+                return false;
             }
 
             // Validações de campos únicos
@@ -246,14 +264,9 @@ namespace Locadora_Auto.Application.Services
             //}
 
             // Atualizar campos
-            if (!string.IsNullOrWhiteSpace(clienteDto.Nome))
-                cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
-
-            if (!string.IsNullOrWhiteSpace(clienteDto.Email))
-                cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
-
-            if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
-                cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
+            cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
+            cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
+            cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
 
 
             // Atualizar no banco
@@ -273,6 +286,7 @@ namespace Locadora_Auto.Application.Services
                 await _clienteRepository.ExcluirAsync(cliente, ct);
                 return true;
             }
+            _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
             return false;
         }
 
@@ -281,7 +295,8 @@ namespace Locadora_Auto.Application.Services
             var cliente = await _clienteRepository.ObterPorId(id);
             if (cliente == null)
             {
-                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
+                _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
+                return false;
             }
 
             if (cliente.Status)
