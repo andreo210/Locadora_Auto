@@ -9,10 +9,7 @@ namespace Locadora_Auto.Domain.Entidades
         public string? NumeroHabilitacao { get; set; }
         public DateTime? ValidadeHabilitacao { get; set; }
         public bool Status { get; set; }
-        public int TotalLocacoes { get; set; }
-
-        //chave estrangeira
-        public string IdUser { get; set; } = null!;
+        public int TotalLocacoes { get; set; }    
 
 
         //auditoria
@@ -20,6 +17,9 @@ namespace Locadora_Auto.Domain.Entidades
         public string? IdUsuarioCriacao { get; set; }
         public DateTime? DataModificacao { get; set; }
         public string? IdUsuarioModificacao { get; set; }
+
+        //chave estrangeira
+        public string IdUser { get; set; } = null!;
 
         //navegação
         public User? Usuario { get; set; } = null!;

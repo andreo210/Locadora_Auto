@@ -12,5 +12,6 @@ namespace Locadora_Auto.Domain.Entidades
         public string? NumeroHabilitacao { get; set; }
         public DateTime? ValidadeHabilitacao { get; set; }
         public int TotalLocacoes { get; set; }
+        public string? IdUsuarioModificacao { get; set; }
     }
 }

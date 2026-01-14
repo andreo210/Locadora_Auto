@@ -33,7 +33,10 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("acao");
 
             builder.Property(e => e.UsuarioEvento)
-                .HasColumnName("usuario_evento");         
+                .HasColumnName("usuario_evento");
+
+            builder.Property(e => e.IdUsuarioModificacao)
+                .HasColumnName("Id_usuario_modificacao");
         }
     }
 }

@@ -13,6 +13,7 @@ namespace Locadora_Auto.Domain.Entidades.Indentity
 
         //navegação
         public Clientes? Cliente { get; set; }
+        public Funcionario? Funcionario { get; set; }
 
     }
     

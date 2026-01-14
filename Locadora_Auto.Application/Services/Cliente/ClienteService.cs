@@ -266,6 +266,8 @@ namespace Locadora_Auto.Application.Services
 
             // Atualizar campos
             cliente.Endereco = clienteDto.Endereco.ToEntity();
+            cliente.DataModificacao = DateTime.Now;
+            cliente.IdUsuarioModificacao = "TODO"; // Obter ID do usuário atual
             cliente.NumeroHabilitacao = clienteDto.NumeroHabilitacao;
             cliente.ValidadeHabilitacao = clienteDto.ValidadeHabilitacao;
             cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
