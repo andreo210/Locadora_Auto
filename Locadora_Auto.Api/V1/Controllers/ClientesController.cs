@@ -18,10 +18,7 @@ namespace Locadora_Auto.API.Controllers
         private readonly IClienteService _clienteService;
         private readonly ILogger<ClientesController> _logger;
 
-        public ClientesController(
-            IClienteService clienteService,
-            INotificador notificador,
-            ILogger<ClientesController> logger) : base(notificador)
+        public ClientesController(IClienteService clienteService, INotificador notificador, ILogger<ClientesController> logger) : base(notificador)
         {
             _clienteService = clienteService ?? throw new ArgumentNullException(nameof(clienteService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -129,9 +126,7 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ClienteDto>> Post(
-            [FromBody] CriarClienteDto clienteDto,
-            CancellationToken ct = default)
+        public async Task<ActionResult<ClienteDto>> Post([FromBody] CriarClienteDto clienteDto, CancellationToken ct = default)
         {
             var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
             return CustomResponse(HttpStatusCode.Created);  
@@ -150,10 +145,7 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Put(
-            [FromRoute] int id,
-            [FromBody] AtualizarClienteDto clienteDto,
-            CancellationToken ct = default)
+        public async Task<IActionResult> Put([FromRoute] int id, [FromBody] AtualizarClienteDto clienteDto, CancellationToken ct = default)
         {
             var atualizado = await _clienteService.AtualizarClienteAsync(id, clienteDto, ct);            
             return CustomResponse(new { Message = "Cliente atualizado com sucesso" });           
@@ -170,12 +162,9 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Delete(
-            [FromRoute] int id,
-            CancellationToken ct = default)
+        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct = default)
         {
             var excluido = await _clienteService.ExcluirClienteAsync(id, ct);
-
             if (!excluido)
             {
                 return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao excluir cliente");
@@ -194,12 +183,9 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Ativar(
-            [FromRoute] int id,
-            CancellationToken ct = default)
+        public async Task<IActionResult> Ativar( [FromRoute] int id, CancellationToken ct = default)
         {  
             var ativado = await _clienteService.AtivarClienteAsync(id, ct);
-
             if (!ativado)
             {
                 return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao ativar cliente");
@@ -218,11 +204,8 @@ namespace Locadora_Auto.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Desativar(
-            [FromRoute] int id,
-            CancellationToken ct = default)
+        public async Task<IActionResult> Desativar([FromRoute] int id,  CancellationToken ct = default)
         {
-
             var desativado = await _clienteService.DesativarClienteAsync(id, ct);
 
             if (!desativado)
@@ -288,12 +271,9 @@ namespace Locadora_Auto.API.Controllers
         [HttpGet("verificar-cpf/{cpf}")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<object>> VerificarCpf(
-            [FromRoute] string cpf,
-            CancellationToken ct = default)
+        public async Task<ActionResult<object>> VerificarCpf([FromRoute] string cpf, CancellationToken ct = default)
         {            
             var existe = await _clienteService.ExisteClienteAsync(cpf, ct);
-
             return Ok(new
             {
                 Disponivel = !existe,

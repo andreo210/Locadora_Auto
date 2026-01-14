@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 
 namespace Locadora_Auto.Application.Services
 {
@@ -181,8 +182,8 @@ namespace Locadora_Auto.Application.Services
         public async Task<ClienteDto> CriarClienteAsync(CriarClienteDto clienteDto, CancellationToken ct = default)
         {
             
-                // Validações
-                await ValidarCriacaoClienteAsync(clienteDto, ct);
+            // Validações
+            await ValidarCriacaoClienteAsync(clienteDto, ct);
 
             // Inserir no banco
             //var model = await _clienteRepository.InserirAsync(clienteDto.ToEntity(), ct);
@@ -264,6 +265,9 @@ namespace Locadora_Auto.Application.Services
             //}
 
             // Atualizar campos
+            cliente.Endereco = clienteDto.Endereco.ToEntity();
+            cliente.NumeroHabilitacao = clienteDto.NumeroHabilitacao;
+            cliente.ValidadeHabilitacao = clienteDto.ValidadeHabilitacao;
             cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
             cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
             cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);

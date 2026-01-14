@@ -17,9 +17,6 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.IdCliente)
                 .HasColumnName("id_cliente");
 
-            builder.Property(e => e.NomeCompleto)
-                .HasColumnName("nome");
-
             builder.Property(e => e.NumeroHabilitacao)
                .HasColumnName("numero_habilitacao");
 
@@ -39,5 +36,4 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("usuario_evento");         
         }
     }
-
 }

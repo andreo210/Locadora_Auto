@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 namespace Locadora_Auto.Domain.Entidades.Indentity
 {
    
-    public class User : IdentityUser, ITemporalEntity<ClienteHistorico>
+    public class User : IdentityUser, ITemporalEntity<UserHistorico>
     {
         public string? NomeCompleto { get; set; }
         public string? Cpf { get; set; }
