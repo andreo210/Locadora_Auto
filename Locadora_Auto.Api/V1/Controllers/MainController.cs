@@ -16,10 +16,15 @@ namespace Locadora_Auto.Api.V1.Controllers
             _notificador = notificador;
         }
 
-        protected ActionResult CustomResponse(object? result = null)
+        protected ActionResult CustomResponse(object? result = null, HttpStatusCode status = HttpStatusCode.OK)
         {
             if (!_notificador.TemNotificacao())
-                return OkResponse(result);
+            {
+                if (status == HttpStatusCode.OK) return OkResponse(result);
+                if(status == HttpStatusCode.Created) return Created(string.Empty, result);
+                if (status == HttpStatusCode.NoContent) return NoContent();
+            }
+                
 
             var problem = NotificationProblemAdapterMapper.ToProblemDetails(
                 HttpContext,

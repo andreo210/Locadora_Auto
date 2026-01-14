@@ -1,5 +1,6 @@
 ﻿using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Configuration;
+using Locadora_Auto.Infra.Data;
 using Locadora_Auto.Infra.Data.CurrentUsers;
 using Locadora_Auto.Infra.Data.Repositorio;
 using Locadora_Auto.Infra.Users;

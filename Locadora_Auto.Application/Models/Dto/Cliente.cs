@@ -21,6 +21,8 @@
     public class AtualizarClienteDto : ClienteBase
     {
         public bool Status { get; set; } = true;
+        public string? NumeroHabilitacao { get; set; }
+        public DateTime? ValidadeHabilitacao { get; set; }
     }
 
     public class ClienteDto : ClienteBase

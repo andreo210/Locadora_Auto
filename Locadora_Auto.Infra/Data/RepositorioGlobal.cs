@@ -303,26 +303,6 @@ namespace Locadora_Auto.Infra.Data
         {
             //AplicarAuditoria(_currentUser.UserId);
             return await Context.SaveChangesAsync(ct);
-        }
-
-        protected virtual void AplicarAuditoria(string? usuario)
-        {
-            var agora = DateTime.UtcNow;
-
-            foreach (var entry in Context.ChangeTracker.Entries<IAuditoria>())
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    entry.Entity.DataCriacao = agora;
-                    entry.Entity.IdUsuarioCriacao = usuario;
-                }
-
-                if (entry.State == EntityState.Modified)
-                {
-                    entry.Entity.DataModificacao = agora;
-                    entry.Entity.IdUsuarioModificacao = usuario;
-                }
-            }
-        }
+        }        
     }
 }

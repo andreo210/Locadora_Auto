@@ -88,7 +88,7 @@ namespace Locadora_Auto.API.Controllers
 
             if (cliente == null)
             {
-                return NotFound(new { Message = $"Cliente com ID {id} não encontrado" });
+                return NotFound($"Cliente com ID {id} não encontrado" );
             }
 
             return Ok(cliente);            
@@ -134,8 +134,7 @@ namespace Locadora_Auto.API.Controllers
             CancellationToken ct = default)
         {
             var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
-            if (cliente == null) return CustomResponse();
-            return CreatedAtAction(nameof(GetById),new { id = cliente.IdCliente },cliente);      
+            return CustomResponse(HttpStatusCode.Created);  
         }
 
         /// <summary>

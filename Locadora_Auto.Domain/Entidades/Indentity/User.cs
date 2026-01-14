@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Locadora_Auto.Domain.Auditoria;
+using Microsoft.AspNetCore.Identity;
 
 namespace Locadora_Auto.Domain.Entidades.Indentity
 {
    
-    public class User : IdentityUser
+    public class User : IdentityUser, ITemporalEntity<ClienteHistorico>
     {
         public string? NomeCompleto { get; set; }
         public string? Cpf { get; set; }

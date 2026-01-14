@@ -18,7 +18,7 @@ namespace Locadora_Auto.Infra.Data.CurrentUsers
 
         public string? UserId =>
             _usersAsp.EstaAutenticado()
-                ? _usersAsp.ObterIdKeycloak()
+                ? _usersAsp.ObterIdUsuario()
                 : null;
 
         public bool IsAuthenticated =>

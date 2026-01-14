@@ -1,7 +1,7 @@
 ﻿using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace Locadora_Auto.Infra.Data.Repositorio
+namespace Locadora_Auto.Infra.Data
 {
     public class UnitOfWork : IUnitOfWork
     {

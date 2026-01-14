@@ -238,7 +238,7 @@ namespace Locadora_Auto.Application.Services
             if (string.IsNullOrWhiteSpace(clienteDto.Email))
                 _notificador.Add(new Notificacao("Email não pode ser nulo ou vazio"));
 
-            if (!string.IsNullOrWhiteSpace(clienteDto.Telefone))
+            if (string.IsNullOrWhiteSpace(clienteDto.Telefone))
                 _notificador.Add(new Notificacao("Telefone não pode ser nulo ou vazio"));
 
             if (cliente == null)

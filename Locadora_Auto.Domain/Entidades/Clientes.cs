@@ -1,8 +1,9 @@
-﻿using Locadora_Auto.Domain.Entidades.Indentity;
+﻿using Locadora_Auto.Domain.Auditoria;
+using Locadora_Auto.Domain.Entidades.Indentity;
 
 namespace Locadora_Auto.Domain.Entidades
 {
-    public class Clientes : IAuditoria
+    public class Clientes : IAuditoria, ITemporalEntity<ClienteHistorico>
     {
         public int IdCliente { get; set; }        
         public string? NumeroHabilitacao { get; set; }
