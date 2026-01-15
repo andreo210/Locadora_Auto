@@ -36,8 +36,8 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             builder.HasOne(u => u.Usuario)//o funcionario é usuário
                .WithOne(f => f.Funcionario)//o usuario pode ser um fucionario
-               .HasForeignKey<Funcionario>(c => c.IdUser)
-               .OnDelete(DeleteBehavior.Cascade);
+               .HasForeignKey<Funcionario>(c => c.IdUser);
+              
 
         }
     }

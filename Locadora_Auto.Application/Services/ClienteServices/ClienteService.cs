@@ -193,8 +193,7 @@ namespace Locadora_Auto.Application.Services
                 Email = clienteDto.Email,
                 NomeCompleto = clienteDto.Nome,
                 Cpf = LimparCpf(clienteDto.Cpf),
-                PhoneNumber = LimparTelefone(clienteDto.Telefone),
-                
+                PhoneNumber = LimparTelefone(clienteDto.Telefone)                
             };
 
             var model = new Clientes

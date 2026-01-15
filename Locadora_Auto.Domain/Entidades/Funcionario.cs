@@ -9,6 +9,7 @@ namespace Locadora_Auto.Domain.Entidades
         public string? Cargo { get; set; }
         public bool Status { get; set; }
 
+
         //chave estrangeira
         public string IdUser { get; set; } = null!;
 

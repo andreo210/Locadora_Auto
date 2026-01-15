@@ -4,6 +4,7 @@ using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.Cliente;
 using Locadora_Auto.Application.Services.Email;
+using Locadora_Auto.Application.Services.FuncionarioServices;
 using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
@@ -41,9 +42,9 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IClienteService, ClienteService>();
+            services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<INotificador, Notificador>();
             services.AddSingleton<RsaKeyService>();
-
 
 
             return services;

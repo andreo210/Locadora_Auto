@@ -41,20 +41,5 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
             };
         }
-
-
-        public static ClienteDto ToViewDto(this Clientes entidade)
-        {
-            return new ClienteDto
-            {
-                IdCliente = entidade.IdCliente,
-                Nome = entidade.Usuario.NomeCompleto,
-                Cpf = entidade.Usuario.Cpf,
-                Telefone = entidade.Usuario.PhoneNumber,
-                Email = entidade.Usuario.Email    ,
-                Status = entidade.Status,
-                Endereco = entidade.Endereco?.ToDto()
-            };
-        }
     }
 }
