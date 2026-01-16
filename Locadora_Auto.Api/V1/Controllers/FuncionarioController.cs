@@ -45,11 +45,32 @@ namespace Locadora_Auto.Api.V1.Controllers
         //    return sucesso ? Ok() : BadRequest();
         //}
 
-        //[HttpGet]
-        //public async Task<ActionResult<EstatisticasFuncionariosDto>> GetEstatisticas(CancellationToken ct)
-        //{
-        //    var funcionarios = await _funcionarioService.ObterTodosAsync(ct);
-        //    return Ok(funcionarios);
-        //}
+        [HttpGet]
+        public async Task<ActionResult<EstatisticasFuncionariosDto>> ObterTodos(CancellationToken ct)
+        {
+            var funcionarios = await _funcionarioService.ObterTodosAsync(ct);
+            return Ok(funcionarios);
+        }
+
+
+        /// <summary>
+        /// Obtém um funcionario pelo CPF
+        /// </summary>
+        /// <param name="cpf">CPF do funcionario (com ou sem formatação)</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Dados do funcionario</returns>
+        [HttpGet("cpf/{cpf}")]
+        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ClienteDto>> GetByCpf([FromRoute] string cpf, CancellationToken ct = default)
+        {
+            var funcionario = await _funcionarioService.ObterPorFuncionarioCpfAsync(cpf, ct);
+            if (funcionario == null)
+            {
+                return NotFound($"Funcionario com CPF {cpf} não encontrado");
+            }
+            return Ok(funcionario);
+        }
     }
 }

@@ -1,6 +1,4 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Domain.Entidades;
-using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.FuncionarioServices
 {
@@ -10,7 +8,9 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //Task<FuncionarioDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         //Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default);
         //Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default);
+        Task<FuncionarioDto?> ObterPorFuncionarioCpfAsync(string cpf, CancellationToken ct = default);
         Task<IReadOnlyList<FuncionarioDto>> ObterTodosAsync(CancellationToken ct = default);
+
         //Task<IReadOnlyList<FuncionarioDto>> ObterAtivosAsync(CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorCargoAsync(string cargo, CancellationToken ct = default);

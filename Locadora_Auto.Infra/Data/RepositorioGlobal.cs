@@ -36,9 +36,12 @@ namespace Locadora_Auto.Infra.Data
             Expression<Func<TEntity, bool>>? filtro = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default)
         {
-            IQueryable<TEntity> query = DbSet.AsNoTracking();
+            IQueryable<TEntity> query = rastreado
+               ? DbSet
+               : DbSet.AsNoTracking();
 
             if (incluir != null)
                 query = incluir(query);
@@ -78,30 +81,21 @@ namespace Locadora_Auto.Infra.Data
 
 
         public virtual async Task<TEntity?> ObterPrimeiroAsync(
-            Expression<Func<TEntity, bool>> filtro,
-            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
-            CancellationToken ct = default)
+             Expression<Func<TEntity, bool>> filtro,
+             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+             bool rastreado = false,
+             CancellationToken ct = default)
         {
-            IQueryable<TEntity> query = DbSet.AsNoTracking();
+            IQueryable<TEntity> query = rastreado
+                ? DbSet
+                : DbSet.AsNoTracking();
 
             if (incluir != null)
                 query = incluir(query);
 
             return await query.FirstOrDefaultAsync(filtro, ct);
         }
-
-        public virtual async Task<TEntity?> ObterPrimeiroRastreadoAsync(
-            Expression<Func<TEntity, bool>> filtro,
-            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
-            CancellationToken ct = default)
-        {
-            IQueryable<TEntity> query = DbSet;
-
-            if (incluir != null)
-                query = incluir(query);
-
-            return await query.FirstOrDefaultAsync(filtro, ct);
-        }
+                
 
         public virtual async Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,

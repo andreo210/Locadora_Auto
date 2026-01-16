@@ -8,16 +8,13 @@ namespace Locadora_Auto.Domain
             Expression<Func<TEntity, bool>>? filtro = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default);
 
         Task<TEntity?> ObterPrimeiroAsync(
             Expression<Func<TEntity, bool>> filtro,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
-            CancellationToken ct = default);
-
-        Task<TEntity?> ObterPrimeiroRastreadoAsync(
-            Expression<Func<TEntity, bool>> filtro,
-            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default);
 
         IQueryable<TEntity> ObterTodos();

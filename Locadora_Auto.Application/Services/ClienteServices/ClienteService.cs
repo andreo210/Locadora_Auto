@@ -231,7 +231,7 @@ namespace Locadora_Auto.Application.Services
         {    
             
             // Buscar cliente existente
-            var cliente = await _clienteRepository.ObterPrimeiroRastreadoAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var cliente = await _clienteRepository.ObterPrimeiroAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario), rastreado:true);
             if (string.IsNullOrWhiteSpace(clienteDto.Nome))
                 _notificador.Add(new Notificacao("Nome não pode ser nulo ou vazio"));
 
@@ -286,7 +286,7 @@ namespace Locadora_Auto.Application.Services
         public async Task<bool> ExcluirClienteAsync(int id, CancellationToken ct = default)
         {
             // Buscar cliente existente
-            var cliente = await _clienteRepository.ObterPrimeiroRastreadoAsync(x => x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var cliente = await _clienteRepository.ObterPrimeiroAsync(x => x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario),rastreado:true);
             if (cliente != null) {
                 await _clienteRepository.ExcluirAsync(cliente, ct);
                 return true;

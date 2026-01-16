@@ -30,87 +30,44 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
         // #region Operações de Consulta
 
-        //public async Task<FuncionarioDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Buscando funcionário por ID: {Id}", id);
+        public async Task<FuncionarioDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
+        {
+           
 
-        //        var funcionario = await _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: f => f.Id == id,
-        //            incluir: q => q.Include(f => f.ApplicationUser),
-        //            asNoTracking: true,
-        //            ct: ct);
 
-        //        var funcionarioEntity = funcionario.FirstOrDefault();
-        //        if (funcionarioEntity == null)
-        //            return null;
+            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.IdFuncionario == id, ct: ct, incluir: q => q.Include(c => c.Usuario));
 
-        //        // Obter estatísticas
-        //        var totalLocacoes = await _repositorioGlobal.ContarAsync<Locacao>(
-        //            filtro: l => l.FuncionarioId == id, ct: ct);
+            if (funcionario == null)
+                return null;
 
-        //        var totalManutencoes = await _repositorioGlobal.ContarAsync<Manutencao>(
-        //            filtro: m => m.FuncionarioId == id, ct: ct);
+            // Obter estatísticas
+            //var totalLocacoes = await _repositorioGlobal.ContarAsync<Locacao>(
+            //    filtro: l => l.FuncionarioId == id, ct: ct);
 
-        //        return FuncionarioDto.FromEntity(funcionarioEntity, totalLocacoes, totalManutencoes);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar funcionário por ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
+            //var totalManutencoes = await _repositorioGlobal.ContarAsync<Manutencao>(
+            //    filtro: m => m.FuncionarioId == id, ct: ct);
 
-        //public async Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Buscando funcionário por matrícula: {Matricula}", matricula);
+            return funcionario.ToDto();
+            
+        }
 
-        //        var funcionario = await _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: f => f.Matricula == matricula,
-        //            incluir: q => q.Include(f => f.ApplicationUser),
-        //            asNoTracking: true,
-        //            ct: ct);
+        public async Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default)
+        {            
 
-        //        var funcionarioEntity = funcionario.FirstOrDefault();
-        //        if (funcionarioEntity == null)
-        //            return null;
+            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c.Matricula == matricula, ct: ct, incluir: q => q.Include(c => c.Usuario));
+            if (funcionario == null)
+                return null;
 
-        //        return FuncionarioDto.FromEntity(funcionarioEntity);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar funcionário por matrícula: {Matricula}", matricula);
-        //        throw;
-        //    }
-        //}
+            return funcionario.ToDto();            
+        }
 
-        //public async Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Buscando funcionário por usuário ID: {UsuarioId}", usuarioId);
 
-        //        var funcionario = await _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: f => f.ApplicationUserId == usuarioId,
-        //            incluir: q => q.Include(f => f.ApplicationUser),
-        //            asNoTracking: true,
-        //            ct: ct);
-
-        //        var funcionarioEntity = funcionario.FirstOrDefault();
-        //        if (funcionarioEntity == null)
-        //            return null;
-
-        //        return FuncionarioDto.FromEntity(funcionarioEntity);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar funcionário por usuário ID: {UsuarioId}", usuarioId);
-        //        throw;
-        //    }
-        //}
+        public async Task<FuncionarioDto?> ObterPorFuncionarioCpfAsync(string cpf, CancellationToken ct = default)
+        {   cpf = LimparCpf(cpf);
+            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c.Usuario!.Cpf == cpf, ct: ct, incluir: q => q.Include(c => c.Usuario));
+            if (funcionario == null) return null;
+            return funcionario.ToDto();           
+        }
 
         public async Task<IReadOnlyList<FuncionarioDto>> ObterTodosAsync(CancellationToken ct = default)
         {           
