@@ -7,7 +7,8 @@ using System.Net;
 namespace Locadora_Auto.Api.V1.Controllers
 {
     [ApiController]
-    [Route("api/funcionarios")]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
     //[Authorize(Policy = "Gerente")] // Apenas gerentes podem gerenciar funcionários
     public class FuncionariosController : MainController
     {
