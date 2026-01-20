@@ -30,12 +30,12 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
         // #region Operações de Consulta
 
-        public async Task<FuncionarioDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
+        public async Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string? id, CancellationToken ct = default)
         {
            
 
 
-            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.IdFuncionario == id, ct: ct, incluir: q => q.Include(c => c.Usuario));
+            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.Usuario!.Id == id, ct: ct, incluir: q => q.Include(c => c.Usuario));
 
             if (funcionario == null)
                 return null;
@@ -144,6 +144,12 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         public async Task<bool> ExisteFuncionarioAsync(string matricula, CancellationToken ct = default)
         {            
             return await _funcionarioRepository.ExisteAsync(f => f.Matricula == matricula, ct);           
+        }
+
+        public async Task<bool> ExisteFuncionarioPorCpfAsync(string cpf, CancellationToken ct = default)
+        {
+            var modelo = await ObterPorFuncionarioCpfAsync(cpf, ct);
+            return modelo != null;
         }
 
         //public async Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default)
@@ -940,6 +946,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             {
                 return false;
             }
-        }
+        }        
     }
 }

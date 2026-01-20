@@ -27,7 +27,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         /// <param name="ct">Token de cancelamento</param>
         /// <returns>Cliente criado</returns>
         [HttpPost]
-        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(FuncionarioDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -59,18 +59,58 @@ namespace Locadora_Auto.Api.V1.Controllers
         /// <param name="cpf">CPF do funcionario (com ou sem formatação)</param>
         /// <param name="ct">Token de cancelamento</param>
         /// <returns>Dados do funcionario</returns>
-        [HttpGet("cpf/{cpf}")]
-        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status200OK)]
+        [HttpGet("ObterFuncionario")]
+        [ProducesResponseType(typeof(FuncionarioDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ClienteDto>> GetByCpf([FromRoute] string cpf, CancellationToken ct = default)
+        public async Task<ActionResult<FuncionarioDto>> ObterFuncionario(
+            [FromQuery] string? cpf = null,
+            [FromQuery] string? matricula = null,
+            [FromQuery] string? usuarioId = null,
+            CancellationToken ct = default
+            )
         {
-            var funcionario = await _funcionarioService.ObterPorFuncionarioCpfAsync(cpf, ct);
-            if (funcionario == null)
+
+            if (!string.IsNullOrWhiteSpace(cpf))
             {
-                return NotFound($"Funcionario com CPF {cpf} não encontrado");
+                var model = await _funcionarioService.ObterPorFuncionarioCpfAsync(cpf, ct);
+                if (model != null) return Ok(model);
+                return NotFound();
             }
-            return Ok(funcionario);
+            else if (!string.IsNullOrWhiteSpace(matricula))
+            {
+                var model = await _funcionarioService.ObterPorMatriculaAsync(matricula, ct);
+                if (model != null) return Ok(model);
+                return NotFound();
+            }        
+            else if (!string.IsNullOrWhiteSpace(usuarioId))
+            {
+                var model = await _funcionarioService.ObterPorUsuarioIdAsync(usuarioId, ct);
+                if (model != null) return Ok(model);
+                return NotFound();
+            }
+            return NotFound();
+        }
+
+        [HttpGet("existe")]
+        [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<bool>> VerificaExiste(
+            [FromQuery] string? cpf = null,
+            [FromQuery] string? matricula = null,
+            CancellationToken ct = default)
+        {
+
+            if (!string.IsNullOrWhiteSpace(cpf))
+            {
+                return await _funcionarioService.ExisteFuncionarioPorCpfAsync(cpf, ct);
+            }
+            else if (!string.IsNullOrWhiteSpace(matricula))
+            {
+                return await _funcionarioService.ExisteFuncionarioAsync(matricula, ct);
+            }
+            
+            return Ok(false);
         }
     }
 }

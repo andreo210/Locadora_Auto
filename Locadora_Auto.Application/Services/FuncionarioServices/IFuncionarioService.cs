@@ -6,8 +6,8 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
     {
         //#region Operações de Consulta
         //Task<FuncionarioDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
-        //Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default);
-        //Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default);
+        Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default);
+        Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default);
         Task<FuncionarioDto?> ObterPorFuncionarioCpfAsync(string cpf, CancellationToken ct = default);
         Task<IReadOnlyList<FuncionarioDto>> ObterTodosAsync(CancellationToken ct = default);
 
@@ -15,8 +15,8 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorCargoAsync(string cargo, CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorDepartamentoAsync(string departamento, CancellationToken ct = default);
-        //Task<bool> ExisteFuncionarioAsync(string matricula, CancellationToken ct = default);
-        //Task<bool> ExisteFuncionarioPorCpfAsync(string cpf, CancellationToken ct = default);
+        Task<bool> ExisteFuncionarioAsync(string matricula, CancellationToken ct = default);
+        Task<bool> ExisteFuncionarioPorCpfAsync(string cpf, CancellationToken ct = default);
         //Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPaginadoAsync(int pagina, int tamanhoPagina, CancellationToken ct = default);
 
