@@ -22,7 +22,6 @@ namespace Locadora_Auto.Application.Models.Dto
 
     public class AtualizarFuncionarioDto : FuncionarioBaseDto
     {
-        public string? Endereco { get; set; }
         public bool? Ativo { get; set; }
     }
 

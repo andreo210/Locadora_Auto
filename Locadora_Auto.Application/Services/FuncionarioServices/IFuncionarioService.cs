@@ -17,7 +17,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //Task<IReadOnlyList<FuncionarioDto>> ObterPorDepartamentoAsync(string departamento, CancellationToken ct = default);
         Task<bool> ExisteFuncionarioAsync(string matricula, CancellationToken ct = default);
         Task<bool> ExisteFuncionarioPorCpfAsync(string cpf, CancellationToken ct = default);
-        //Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default);
+        Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default);
         //Task<IReadOnlyList<FuncionarioDto>> ObterPaginadoAsync(int pagina, int tamanhoPagina, CancellationToken ct = default);
 
         //// Métodos para relatórios e estatísticas
@@ -34,10 +34,10 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
        // #region Operações de CRUD
         Task<FuncionarioDto> CriarFuncionarioAsync(CriarFuncionarioDto funcionarioDto, CancellationToken ct = default);
-        //Task<bool> AtualizarFuncionarioAsync(int id, AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default);
+        Task<bool> AtualizarFuncionarioAsync(int id, AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default);
         //Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default);
-        //Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default);
-        //Task<bool> DesativarFuncionarioAsync(int id, CancellationToken ct = default);
+        Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default);
+        Task<bool> DesativarFuncionarioAsync(int id, CancellationToken ct = default);
         //Task<bool> AlterarCargoAsync(int id, string novoCargo, CancellationToken ct = default);
         //Task<bool> AtualizarSalarioAsync(int id, decimal novoSalario, CancellationToken ct = default);
         //#endregion

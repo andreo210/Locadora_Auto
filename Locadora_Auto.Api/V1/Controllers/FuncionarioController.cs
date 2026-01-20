@@ -38,6 +38,25 @@ namespace Locadora_Auto.Api.V1.Controllers
             return CustomResponse(HttpStatusCode.Created);
         }
 
+        /// <summary>
+        /// Atualiza um funcionario existente
+        /// </summary>
+        /// <param name="id">ID do funcionario</param>
+        /// <param name="funcionarioDto">Dados atualizados do funcionario</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpPut("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Put([FromRoute] int id, [FromBody] AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default)
+        {
+            var atualizado = await _funcionarioService.AtualizarFuncionarioAsync(id, funcionarioDto, ct);
+            return CustomResponse(new { Message = "Funcionario atualizado com sucesso" });
+        }
+
         //[HttpPost("{id}/atribuir-locacao/{locacaoId}")]
         //public async Task<IActionResult> AtribuirLocacao(
         //    [FromRoute] int id, [FromRoute] int locacaoId, CancellationToken ct)
@@ -60,7 +79,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         /// <param name="cpf">CPF do funcionario (com ou sem formatação)</param>
         /// <param name="ct">Token de cancelamento</param>
         /// <returns>Dados do funcionario</returns>
-        [HttpGet("ObterFuncionario")]
+        [HttpGet("obter-funcionario")]
         [ProducesResponseType(typeof(FuncionarioDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -112,6 +131,57 @@ namespace Locadora_Auto.Api.V1.Controllers
             }
             
             return Ok(false);
+        }
+
+        [HttpGet("contar-ativos")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<int>> ContarAtivos()
+        {
+            return Ok(await _funcionarioService.ContarFuncionariosAtivosAsync());
+        }
+
+        /// <summary>
+        /// Ativa um funcionario
+        /// </summary>
+        /// <param name="id">ID do funcionario</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpPatch("{id:int}/ativar")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Ativar([FromRoute] int id, CancellationToken ct = default)
+        {
+            var ativado = await _funcionarioService.AtivarFuncionarioAsync(id, ct);
+            if (!ativado)
+            {
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao ativar funcionario");
+            }
+            return Ok(new { Message = "Funcionario ativado com sucesso" });
+        }
+
+        /// <summary>
+        /// Desativa um funcionario
+        /// </summary>
+        /// <param name="id">ID do funcionario</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpPatch("{id:int}/desativar")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Desativar([FromRoute] int id, CancellationToken ct = default)
+        {
+            var desativado = await _funcionarioService.DesativarFuncionarioAsync(id, ct);
+
+            if (!desativado)
+            {
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao desativar funcionario");
+            }
+            return Ok(new { Message = "Funcionario desativado com sucesso" });
         }
     }
 }

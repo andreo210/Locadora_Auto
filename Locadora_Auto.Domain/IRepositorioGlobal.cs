@@ -54,6 +54,8 @@ namespace Locadora_Auto.Domain
         where TEntity : class
         where TResult : class;
 
+        Task<int> ContarAsync(Expression<Func<TEntity, bool>>? filtro = null,CancellationToken ct = default);
+
         Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default);
 
         Task Inserir(TEntity entidade, CancellationToken ct = default);

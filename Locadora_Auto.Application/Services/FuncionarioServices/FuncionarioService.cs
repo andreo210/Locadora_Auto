@@ -32,9 +32,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
         public async Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string? id, CancellationToken ct = default)
         {
-           
-
-
             var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.Usuario!.Id == id, ct: ct, incluir: q => q.Include(c => c.Usuario));
 
             if (funcionario == null)
@@ -49,6 +46,14 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
             return funcionario.ToDto();
             
+        }
+
+        private async Task<Funcionario?> ObterPorIdAsync(int? id, CancellationToken ct = default)
+        {
+            var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.IdFuncionario == id, ct: ct, incluir: q => q.Include(c => c.Usuario),rastreado:true);
+            if (funcionario == null)
+                return null;
+            return funcionario;
         }
 
         public async Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default)
@@ -152,19 +157,10 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             return modelo != null;
         }
 
-        //public async Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        return await _repositorioGlobal.ContarAsync<Funcionario>(
-        //            f => f.Status, ct);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao contar funcionários ativos");
-        //        throw;
-        //    }
-        //}
+        public async Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default)
+        {           
+            return await _funcionarioRepository.ContarAsync(f => f.Status, ct);            
+        }
 
         //public async Task<IReadOnlyList<FuncionarioDto>> ObterPaginadoAsync(
         //    int pagina, int tamanhoPagina, CancellationToken ct = default)
@@ -382,104 +378,95 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
         }
 
-        //public async Task<bool> AtualizarFuncionarioAsync(
-        //    int id, AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default)
-        //{
-        //    await _unitOfWork.BeginTransactionAsync(ct);
+        public async Task<bool> AtualizarFuncionarioAsync(int id, AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default)
+        {
+            try
+            {
+                _logger.LogInformation("Atualizando funcionário ID: {Id}", id);
 
-        //    try
-        //    {
-        //        _logger.LogInformation("Atualizando funcionário ID: {Id}", id);
+                // Buscar funcionário existente
+                var funcionario = await ObterPorIdAsync(id);
+                if (funcionario == null)
+                    throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
 
-        //        // Buscar funcionário existente
-        //        var funcionario = await _funcionarioRepository.ObterPorId(id);
-        //        if (funcionario == null)
-        //            throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
+                if (!funcionario.Status)
+                    throw new InvalidOperationException("Não é possível atualizar um funcionário inativo.");
 
-        //        if (!funcionario.Status)
-        //            throw new InvalidOperationException("Não é possível atualizar um funcionário inativo.");
+                // Buscar usuário associado
+                var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
+                if (user == null)
+                    throw new InvalidOperationException("Usuário associado não encontrado.");
 
-        //        // Buscar usuário associado
-        //        var user = await _userManager.FindByIdAsync(funcionario.ApplicationUserId);
-        //        if (user == null)
-        //            throw new InvalidOperationException("Usuário associado não encontrado.");
+                // Validações de campos únicos
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Email) && funcionarioDto.Email != user.Email)
+                {
+                    var emailExists = await _userManager.FindByEmailAsync(funcionarioDto.Email);
+                    if (emailExists != null && emailExists.Id != user.Id)
+                        throw new InvalidOperationException($"Email {funcionarioDto.Email} já está em uso.");
+                }
 
-        //        // Validações de campos únicos
-        //        if (!string.IsNullOrWhiteSpace(funcionarioDto.Email) && funcionarioDto.Email != user.Email)
-        //        {
-        //            var emailExists = await _userManager.FindByEmailAsync(funcionarioDto.Email);
-        //            if (emailExists != null && emailExists.Id != user.Id)
-        //                throw new InvalidOperationException($"Email {funcionarioDto.Email} já está em uso.");
-        //        }
+                // Atualizar usuário (se email foi alterado)
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Email) && funcionarioDto.Email != user.Email)
+                {
+                    user.Email = funcionarioDto.Email;
+                    user.UserName = funcionarioDto.Email;
+                    var updateResult = await _userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                        throw new InvalidOperationException("Erro ao atualizar email do usuário.");
+                }
 
-        //        // Atualizar usuário (se email foi alterado)
-        //        if (!string.IsNullOrWhiteSpace(funcionarioDto.Email) && funcionarioDto.Email != user.Email)
-        //        {
-        //            user.Email = funcionarioDto.Email;
-        //            user.UserName = funcionarioDto.Email;
-        //            var updateResult = await _userManager.UpdateAsync(user);
-        //            if (!updateResult.Succeeded)
-        //                throw new InvalidOperationException("Erro ao atualizar email do usuário.");
-        //        }
+                // Atualizar permissões (se fornecidas)
+                if (funcionarioDto.Permissoes != null)
+                {
+                    // Remover claims existentes
+                    var existingClaims = await _userManager.GetClaimsAsync(user);
+                    var permissionClaims = existingClaims.Where(c => c.Type == "Permissao");
+                    foreach (var claim in permissionClaims)
+                    {
+                        await _userManager.RemoveClaimAsync(user, claim);
+                    }
 
-        //        // Atualizar permissões (se fornecidas)
-        //        if (funcionarioDto.Permissoes != null)
-        //        {
-        //            // Remover claims existentes
-        //            var existingClaims = await _userManager.GetClaimsAsync(user);
-        //            var permissionClaims = existingClaims.Where(c => c.Type == "Permissao");
-        //            foreach (var claim in permissionClaims)
-        //            {
-        //                await _userManager.RemoveClaimAsync(user, claim);
-        //            }
+                    // Adicionar novas permissões
+                    foreach (var permissao in funcionarioDto.Permissoes)
+                    {
+                        await _userManager.AddClaimAsync(user,
+                            new System.Security.Claims.Claim("Permissao", permissao));
+                    }
+                }
 
-        //            // Adicionar novas permissões
-        //            foreach (var permissao in funcionarioDto.Permissoes)
-        //            {
-        //                await _userManager.AddClaimAsync(user,
-        //                    new System.Security.Claims.Claim("Permissao", permissao));
-        //            }
-        //        }
+                // Atualizar campos do funcionário
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Nome))
+                    funcionario.Usuario.NomeCompleto = funcionarioDto.Nome.Trim();
 
-        //        // Atualizar campos do funcionário
-        //        if (!string.IsNullOrWhiteSpace(funcionarioDto.Nome))
-        //            funcionario.Nome = funcionarioDto.Nome.Trim();
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Telefone))
+                    funcionario.Usuario.PhoneNumber = LimparTelefone(funcionarioDto.Telefone);
 
-        //        if (!string.IsNullOrWhiteSpace(funcionarioDto.Telefone))
-        //            funcionario.Telefone = LimparTelefone(funcionarioDto.Telefone);
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Email))
+                    funcionario.Usuario.Email = funcionarioDto.Email;
 
-        //        if (!string.IsNullOrWhiteSpace(funcionarioDto.Cargo))
-        //            funcionario.Cargo = funcionarioDto.Cargo.Trim();
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Cargo))
+                    funcionario.Cargo = funcionarioDto.Cargo.Trim();
 
-        //        if (funcionarioDto.Departamento != null)
-        //            funcionario.Departamento = funcionarioDto.Departamento.Trim();
+                if (!string.IsNullOrWhiteSpace(funcionarioDto.Matricula))
+                    funcionario.Matricula = funcionarioDto.Matricula.Trim();
 
-        //        if (funcionarioDto.Salario.HasValue)
-        //            funcionario.Salario = funcionarioDto.Salario.Value;
+                if (funcionarioDto.Ativo.HasValue)
+                    funcionario.Status = funcionarioDto.Ativo.Value;
 
-        //        if (funcionarioDto.Endereco != null)
-        //            funcionario.Endereco = funcionarioDto.Endereco.Trim();
+                // Atualizar no banco
+                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                if (!atualizado)
+                    throw new InvalidOperationException("Falha ao atualizar funcionário.");
 
-        //        if (funcionarioDto.Ativo.HasValue)
-        //            funcionario.Status = funcionarioDto.Ativo.Value;
-
-        //        // Atualizar no banco
-        //        var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
-        //        if (!atualizado)
-        //            throw new InvalidOperationException("Falha ao atualizar funcionário.");
-
-        //        await _unitOfWork.CommitAsync(ct);
-
-        //        _logger.LogInformation("Funcionário ID: {Id} atualizado com sucesso", id);
-        //        return atualizado;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        await _unitOfWork.RollbackAsync(ct);
-        //        _logger.LogError(ex, "Erro ao atualizar funcionário ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
+                _logger.LogInformation("Funcionário ID: {Id} atualizado com sucesso", id);
+                return atualizado;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar funcionário ID: {Id}", id);
+                throw;
+            }
+        }
 
         //public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
         //{
@@ -530,85 +517,84 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //    }
         //}
 
-        //public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Ativando funcionário ID: {Id}", id);
+        public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
+        {
+            try
+            {
 
-        //        var funcionario = await _funcionarioRepository.ObterPorId(id);
-        //        if (funcionario == null)
-        //            throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
+                var funcionario = await ObterPorIdAsync(id, ct);
+                if (funcionario == null)
+                    throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
 
-        //        if (funcionario.Status)
-        //            return true; // Já está ativo
+                if (funcionario.Status)
+                    return true; // Já está ativo
 
-        //        // Ativar usuário também
-        //        var user = await _userManager.FindByIdAsync(funcionario.ApplicationUserId);
-        //        if (user != null)
-        //        {
-        //            user.Ativo = true;
-        //            await _userManager.UpdateAsync(user);
-        //        }
+                // Ativar usuário também
+                var user = await _userManager.FindByIdAsync(funcionario!.Usuario!.Id);
+                if (user != null)
+                {
+                    user.Ativo = true;
+                    await _userManager.UpdateAsync(user);
+                }
 
-        //        funcionario.Status = true;
-        //        var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                funcionario.Status = true;
+                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
 
-        //        _logger.LogInformation("Funcionário ID: {Id} ativado com sucesso", id);
-        //        return atualizado;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao ativar funcionário ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
+                _logger.LogInformation("Funcionário ID: {Id} ativado com sucesso", id);
+                return atualizado;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao ativar funcionário ID: {Id}", id);
+                throw;
+            }
+        }
 
-        //public async Task<bool> DesativarFuncionarioAsync(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        _logger.LogInformation("Desativando funcionário ID: {Id}", id);
+        public async Task<bool> DesativarFuncionarioAsync(int id, CancellationToken ct = default)
+        {
+            try
+            {
+                _logger.LogInformation("Desativando funcionário ID: {Id}", id);
 
-        //        var funcionario = await _funcionarioRepository.ObterPorId(id);
-        //        if (funcionario == null)
-        //            throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
+                var funcionario = await ObterPorIdAsync(id);
+                if (funcionario == null)
+                    throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
 
-        //        if (!funcionario.Status)
-        //            return true; // Já está inativo
+                if (!funcionario.Status)
+                    return true; // Já está inativo
 
-        //        // Verificar se funcionário tem locações ativas
-        //        var temLocacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(
-        //            l => l.FuncionarioId == id &&
-        //                (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
-        //            ct);
+                // Verificar se funcionário tem locações ativas
+                //var temLocacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(
+                //    l => l.FuncionarioId == id &&
+                //        (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
+                //    ct);
 
-        //        if (temLocacoesAtivas)
-        //        {
-        //            throw new InvalidOperationException(
-        //                "Funcionário possui locações ativas. Finalize as locações antes de desativar.");
-        //        }
+                //if (temLocacoesAtivas)
+                //{
+                //    throw new InvalidOperationException(
+                //        "Funcionário possui locações ativas. Finalize as locações antes de desativar.");
+                //}
 
-        //        // Desativar usuário também
-        //        var user = await _userManager.FindByIdAsync(funcionario.ApplicationUserId);
-        //        if (user != null)
-        //        {
-        //            user.Ativo = false;
-        //            await _userManager.UpdateAsync(user);
-        //        }
+                // Desativar usuário também
+                var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
+                if (user != null)
+                {
+                    user.Ativo = false;
+                    await _userManager.UpdateAsync(user);
+                }
 
-        //        funcionario.Status = false;
-        //        var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                funcionario.Status = false;
+                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
 
-        //        _logger.LogInformation("Funcionário ID: {Id} desativado com sucesso", id);
-        //        return atualizado;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao desativar funcionário ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
+                _logger.LogInformation("Funcionário ID: {Id} desativado com sucesso", id);
+                return atualizado;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao desativar funcionário ID: {Id}", id);
+                throw;
+            }
+        }
 
         //#endregion
 
