@@ -480,8 +480,10 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
         public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
         {
-           
 
+            await _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
                 // Buscar funcionário
                 var funcionario = await ObterPorIdAsync(id);
                 if (funcionario == null)
@@ -510,8 +512,14 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
                 // Excluir funcionário (cascata excluirá o usuário também)
                 await _funcionarioRepository.Excluir(funcionario, ct);
-
-                return true;           
+                await _unitOfWork.CommitAsync(ct);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                throw;
+            }
         }
 
         public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
@@ -551,8 +559,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         {
             try
             {
-                _logger.LogInformation("Desativando funcionário ID: {Id}", id);
-
                 var funcionario = await ObterPorIdAsync(id);
                 if (funcionario == null)
                     throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
@@ -583,7 +589,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
                 funcionario.Status = false;
                 var atualizado = await _funcionarioRepository.AtualizarSalvarAsync(funcionario, ct);
 
-                _logger.LogInformation("Funcionário ID: {Id} desativado com sucesso", id);
                 return atualizado;
             }
             catch (Exception ex)
