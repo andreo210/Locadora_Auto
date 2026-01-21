@@ -16,8 +16,8 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("id_endereco");
 
             builder.Property(e => e.IdCliente)
-                .HasColumnName("id_cliente")
-                .IsRequired();
+                .HasColumnName("id_cliente");
+ 
             builder.HasIndex(e => e.IdCliente)
                 .IsUnique();
 

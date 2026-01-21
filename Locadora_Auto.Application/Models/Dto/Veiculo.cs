@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Application.Models.Dto
+﻿using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
+
+namespace Locadora_Auto.Application.Models.Dto
 {
     public class VeiculoCreateDto
     {

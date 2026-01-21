@@ -24,6 +24,7 @@ namespace Locadora_Auto.Infra.Extensions
             services.AddScoped<ITokenRepository, TokenRepository>();
             services.AddScoped<IClienteRepository, ClienteRepository>();
             services.AddScoped<IFuncionarioRepository, FuncionarioRepository>();
+            services.AddScoped<IFilialRepository, FilialRepository>();
 
 
             return services;

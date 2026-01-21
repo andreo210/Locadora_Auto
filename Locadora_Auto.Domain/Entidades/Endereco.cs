@@ -4,7 +4,7 @@
     {
         public int IdEndereco { get; set; }
 
-        public int IdCliente { get; set; }
+        public int? IdCliente { get; set; }
         public string Logradouro { get; set; } = null!;
         public string Numero { get; set; } = null!;
         public string? Complemento { get; set; }
@@ -16,6 +16,7 @@
 
         //navegacao
         public Clientes Cliente { get; set; } = null!;
+        public Filial Filial { get; set; } = null!;
 
     }
 }
