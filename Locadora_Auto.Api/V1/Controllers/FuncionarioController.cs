@@ -136,6 +136,15 @@ namespace Locadora_Auto.Api.V1.Controllers
             return Ok(await _funcionarioService.ContarFuncionariosAtivosAsync());
         }
 
+
+        [HttpGet("disponibilidade-matricula")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<int>> DisponibilidadeMatricula(string? matricula, int? idExcluir, CancellationToken ct)
+        {
+            return Ok(await _funcionarioService.VerificarDisponibilidadeMatriculaAsync(matricula,idExcluir,ct));
+        }
+
         /// <summary>
         /// Ativa um funcionario
         /// </summary>
@@ -194,6 +203,27 @@ namespace Locadora_Auto.Api.V1.Controllers
             return Ok(solicitacoes);
         }
 
-       
+        /// <summary>
+        /// Exclui um funcionario
+        /// </summary>
+        /// <param name="id">ID do funcionariio</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpDelete("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken ct = default)
+        {
+            var excluido = await _funcionarioService.ExcluirFuncionarioAsync(id, ct);
+            if (!excluido)
+            {
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao excluir funcionario");
+            }
+            return NoContent();
+        }
+
+
     }
 }

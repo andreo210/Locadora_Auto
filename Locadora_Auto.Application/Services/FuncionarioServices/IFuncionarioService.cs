@@ -39,7 +39,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
        // #region Operações de CRUD
         Task<FuncionarioDto> CriarFuncionarioAsync(CriarFuncionarioDto funcionarioDto, CancellationToken ct = default);
         Task<bool> AtualizarFuncionarioAsync(int id, AtualizarFuncionarioDto funcionarioDto, CancellationToken ct = default);
-        //Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default);
+        Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default);
         Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarFuncionarioAsync(int id, CancellationToken ct = default);
         //Task<bool> AlterarCargoAsync(int id, string novoCargo, CancellationToken ct = default);
@@ -68,7 +68,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //#endregion
 
         //#region Métodos Auxiliares
-        //Task<bool> VerificarDisponibilidadeMatriculaAsync(string matricula, int? idExcluir = null, CancellationToken ct = default);
+        Task<bool> VerificarDisponibilidadeMatriculaAsync(string matricula, int? idExcluir = null, CancellationToken ct = default);
         //Task<bool> VerificarDisponibilidadeCpfAsync(string cpf, int? idExcluir = null, CancellationToken ct = default);
         //Task<bool> VerificarDisponibilidadeEmailAsync(string email, int? idExcluir = null, CancellationToken ct = default);
         //#endregion

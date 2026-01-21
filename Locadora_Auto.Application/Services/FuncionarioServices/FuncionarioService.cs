@@ -1,5 +1,6 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
@@ -21,7 +22,8 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             IFuncionarioRepository funcionarioRepository,
             UserManager<User> userManager,
             IUnitOfWork unitOfWork,
-            ILogger<FuncionarioService> logger)
+            ILogger<FuncionarioService> logger
+            )
         {
             _funcionarioRepository = funcionarioRepository ?? throw new ArgumentNullException(nameof(funcionarioRepository));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
@@ -394,8 +396,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         {
             try
             {
-                _logger.LogInformation("Atualizando funcionário ID: {Id}", id);
-
                 // Buscar funcionário existente
                 var funcionario = await ObterPorIdAsync(id);
                 if (funcionario == null)
@@ -469,8 +469,6 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
                 var atualizado = await _funcionarioRepository.AtualizarSalvarAsync(funcionario, ct);
                 if (!atualizado)
                     throw new InvalidOperationException("Falha ao atualizar funcionário.");
-
-                _logger.LogInformation("Funcionário ID: {Id} atualizado com sucesso", id);
                 return atualizado;
             }
             catch (Exception ex)
@@ -480,54 +478,41 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             }
         }
 
-        //public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
-        //{
-        //    await _unitOfWork.BeginTransactionAsync(ct);
+        public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
+        {
+           
 
-        //    try
-        //    {
-        //        _logger.LogInformation("Excluindo funcionário ID: {Id}", id);
+                // Buscar funcionário
+                var funcionario = await ObterPorIdAsync(id);
+                if (funcionario == null)
+                    throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
 
-        //        // Buscar funcionário
-        //        var funcionario = await _funcionarioRepository.ObterPorId(id);
-        //        if (funcionario == null)
-        //            throw new KeyNotFoundException($"Funcionário com ID {id} não encontrado.");
+                // Verificar se funcionário tem registros ativos
+                //var temLocacoesAtivas = await _funcionarioRepository.ExisteAsync(
+                //    l => l.IdFuncionario == id 
+                //    && (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
+                //    ct);
 
-        //        // Verificar se funcionário tem registros ativos
-        //        var temLocacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(
-        //            l => l.FuncionarioId == id &&
-        //                (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
-        //            ct);
+                //if (temLocacoesAtivas)
+                //{
+                //    throw new InvalidOperationException(
+                //        "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
+                //}
 
-        //        if (temLocacoesAtivas)
-        //        {
-        //            throw new InvalidOperationException(
-        //                "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
-        //        }
+                // Excluir usuário do Identity
+                var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
+                if (user != null)
+                {
+                    var deleteResult = await _userManager.DeleteAsync(user);
+                    if (!deleteResult.Succeeded)
+                        throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
+                }
 
-        //        // Excluir usuário do Identity
-        //        var user = await _userManager.FindByIdAsync(funcionario.ApplicationUserId);
-        //        if (user != null)
-        //        {
-        //            var deleteResult = await _userManager.DeleteAsync(user);
-        //            if (!deleteResult.Succeeded)
-        //                throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
-        //        }
+                // Excluir funcionário (cascata excluirá o usuário também)
+                await _funcionarioRepository.Excluir(funcionario, ct);
 
-        //        // Excluir funcionário (cascata excluirá o usuário também)
-        //        await _funcionarioRepository.ExcluirAsync(id, ct);
-        //        await _unitOfWork.CommitAsync(ct);
-
-        //        _logger.LogInformation("Funcionário ID: {Id} excluído com sucesso", id);
-        //        return true;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        await _unitOfWork.RollbackAsync(ct);
-        //        _logger.LogError(ex, "Erro ao excluir funcionário ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
+                return true;           
+        }
 
         public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
         {
@@ -818,53 +803,22 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //    }
         //}
 
-        
+
 
         //#endregion
 
         //#region Métodos Auxiliares
 
-        //public async Task<bool> VerificarDisponibilidadeMatriculaAsync(
-        //    string matricula, int? idExcluir = null, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var query = _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: f => f.Matricula == matricula &&
-        //                        (idExcluir == null || f.Id != idExcluir.Value),
-        //            ct: ct);
+        public async Task<bool> VerificarDisponibilidadeMatriculaAsync(string matricula, int? idExcluir = null, CancellationToken ct = default)
+        {            
+            var resultado = await _funcionarioRepository.ObterComFiltroAsync<Funcionario>(
+                filtro: f => f.Matricula == matricula && (idExcluir == null || f.IdFuncionario != idExcluir.Value),
+                ct: ct
+            );
+            return !resultado.Any();            
+        }
 
-        //        var resultado = await query;
-        //        return !resultado.Any();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao verificar disponibilidade da matrícula: {Matricula}", matricula);
-        //        throw;
-        //    }
-        //}
 
-        //public async Task<bool> VerificarDisponibilidadeCpfAsync(
-        //    string cpf, int? idExcluir = null, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var cpfLimpo = LimparCpf(cpf);
-
-        //        var query = _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: f => f.Cpf == cpfLimpo &&
-        //                        (idExcluir == null || f.Id != idExcluir.Value),
-        //            ct: ct);
-
-        //        var resultado = await query;
-        //        return !resultado.Any();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao verificar disponibilidade do CPF: {Cpf}", cpf);
-        //        throw;
-        //    }
-        //}
 
         //#endregion
 
