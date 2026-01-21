@@ -2,6 +2,7 @@
 using Locadora_Auto.Application.Services.FuncionarioServices;
 using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq.Expressions;
 using System.Net;
 
 namespace Locadora_Auto.Api.V1.Controllers
@@ -65,12 +66,6 @@ namespace Locadora_Auto.Api.V1.Controllers
         //    return sucesso ? Ok() : BadRequest();
         //}
 
-        [HttpGet]
-        public async Task<ActionResult<EstatisticasFuncionariosDto>> ObterTodos(CancellationToken ct)
-        {
-            var funcionarios = await _funcionarioService.ObterTodosAsync(ct);
-            return Ok(funcionarios);
-        }
 
 
         /// <summary>
@@ -183,5 +178,22 @@ namespace Locadora_Auto.Api.V1.Controllers
             }
             return Ok(new { Message = "Funcionario desativado com sucesso" });
         }
+
+        [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesDefaultResponseType]
+        public async Task<ActionResult<SolicitacaoDto>> GetSolicitacoes(
+            [FromQuery] bool? ativos,
+            [FromQuery] string? nome,
+            [FromQuery] string? cargo,
+            CancellationToken ct = default)
+        {
+            var solicitacoes = await _funcionarioService.ObterComFiltroAsync(ativos, nome, cargo,ct);
+            if (solicitacoes.Count == 0) return NotFound();
+            return Ok(solicitacoes);
+        }
+
+       
     }
 }

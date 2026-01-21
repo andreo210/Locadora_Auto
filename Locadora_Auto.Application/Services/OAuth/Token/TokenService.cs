@@ -137,7 +137,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
                 UserId = user.Id                
             };
 
-            var model = _tokenRepository.InserirAsync(tokenModel).Result;
+            var model = _tokenRepository.InserirSalvarAsync(tokenModel).Result;
 
 
 

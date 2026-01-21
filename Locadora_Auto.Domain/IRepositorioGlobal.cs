@@ -56,15 +56,15 @@ namespace Locadora_Auto.Domain
 
         Task<int> ContarAsync(Expression<Func<TEntity, bool>>? filtro = null,CancellationToken ct = default);
 
-        Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default);
+        Task<TEntity> InserirSalvarAsync(TEntity entidade, CancellationToken ct = default);
 
-        Task Inserir(TEntity entidade, CancellationToken ct = default);
+        Task InserirAsync(TEntity entidade, CancellationToken ct = default);
 
-        Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default);
+        Task<bool> AtualizarSalvarAsync(TEntity entidade, CancellationToken ct = default);
 
         void Atualizar(TEntity entidade);
 
-        Task ExcluirAsync(TEntity entidade, CancellationToken ct = default);
+        Task ExcluirSalvarAsync(TEntity entidade, CancellationToken ct = default);
 
         Task Excluir(TEntity entidade, CancellationToken ct = default);
 

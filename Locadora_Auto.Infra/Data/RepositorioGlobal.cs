@@ -187,20 +187,20 @@ namespace Locadora_Auto.Infra.Data
                 return await query.Select(projecao).ToListAsync(ct);
         }
 
-        public virtual async Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default)
+        public virtual async Task<TEntity> InserirSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);
             await DbSet.AddAsync(entidade, ct);
             await SalvarAsync(ct);
             return entidade;
         }
-        public virtual Task Inserir(TEntity entidade, CancellationToken ct = default)
+        public virtual Task InserirAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);
             return DbSet.AddAsync(entidade, ct).AsTask();
         }
 
-        public virtual async Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default)
+        public virtual async Task<bool> AtualizarSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             if (entidade == null)
                 throw new ArgumentNullException(nameof(entidade));
@@ -273,7 +273,7 @@ namespace Locadora_Auto.Infra.Data
             DbSet.Update(entidade);
         }
 
-        public virtual async Task ExcluirAsync(TEntity entidade, CancellationToken ct = default)
+        public virtual async Task ExcluirSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             //var entidade = await DbSet.FindAsync(new[] { id }, ct);
 

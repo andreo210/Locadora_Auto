@@ -64,7 +64,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
             //RefreshToken antigo - Atualizar - Desativar esse refreshToken
             refreshTokenDB.Revogado = true;
-            var token = await _tokenRepository.AtualizarAsync(refreshTokenDB);
+            var token = await _tokenRepository.AtualizarSalvarAsync(refreshTokenDB);
 
             return await _userRepository.ObterPorId(refreshTokenDB.UserId);;
         }
@@ -112,7 +112,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
         public virtual async Task<bool> AtualizarAsync(string id)
         {
             var model = await _userRepository.ObterPorId(id);
-            return await _userRepository.AtualizarAsync(model);
+            return await _userRepository.AtualizarSalvarAsync(model);
         }
     }
     

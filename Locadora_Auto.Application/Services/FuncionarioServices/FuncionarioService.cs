@@ -6,6 +6,7 @@ using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.FuncionarioServices
 {
@@ -301,28 +302,39 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //    }
         //}
 
-        //public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync(
-        //    Expression<Func<Funcionario, bool>>? filtro = null,
-        //    Func<IQueryable<Funcionario>, IOrderedQueryable<Funcionario>>? ordenarPor = null,
-        //    CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var funcionarios = await _repositorioGlobal.ObterComFiltroAsync<Funcionario>(
-        //            filtro: filtro,
-        //            incluir: q => q.Include(f => f.ApplicationUser),
-        //            ordenarPor: ordenarPor,
-        //            asNoTracking: true,
-        //            ct: ct);
+        public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync( 
+            bool? ativos = true, 
+            string? nome = null,
+            string cargo = null,
+            CancellationToken ct = default
+            )
+        {
+            try
+            {
 
-        //        return funcionarios.Select(f => FuncionarioDto.FromEntity(f)).ToList();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar funcionários com filtro");
-        //        throw;
-        //    }
-        //}
+                Expression<Func<Funcionario, bool>>? filtro = null;
+                if (ativos != null || nome != null || cargo != null)
+                {
+                    filtro = s =>( s.Status == ativos) &&  (s.Usuario.NomeCompleto == nome) && (s.Cargo == cargo);
+                }
+
+
+                var funcionarios = await _funcionarioRepository.ObterComFiltroAsync(
+                    filtro: filtro,
+                    incluir: q => q.Include(f => f.Usuario),
+                    ordenarPor: q=>q.OrderBy(f => f.Matricula),
+                    asNoTracking: true,
+                    asSplitQuery:true,
+                    ct: ct);
+
+                return funcionarios.ToDtoList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar funcionários com filtro");
+                throw;
+            }
+        }
 
         //#endregion
 
@@ -454,7 +466,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
                     funcionario.Status = funcionarioDto.Ativo.Value;
 
                 // Atualizar no banco
-                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                var atualizado = await _funcionarioRepository.AtualizarSalvarAsync(funcionario, ct);
                 if (!atualizado)
                     throw new InvalidOperationException("Falha ao atualizar funcionário.");
 
@@ -538,7 +550,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
                 }
 
                 funcionario.Status = true;
-                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                var atualizado = await _funcionarioRepository.AtualizarSalvarAsync(funcionario, ct);
 
                 _logger.LogInformation("Funcionário ID: {Id} ativado com sucesso", id);
                 return atualizado;
@@ -584,7 +596,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
                 }
 
                 funcionario.Status = false;
-                var atualizado = await _funcionarioRepository.AtualizarAsync(funcionario, ct);
+                var atualizado = await _funcionarioRepository.AtualizarSalvarAsync(funcionario, ct);
 
                 _logger.LogInformation("Funcionário ID: {Id} desativado com sucesso", id);
                 return atualizado;
@@ -806,29 +818,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //    }
         //}
 
-        //public async Task<bool> FuncionarioEstaDisponivelAsync(int funcionarioId, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var funcionario = await _funcionarioRepository.ObterPorId(funcionarioId);
-        //        if (funcionario == null || !funcionario.Status)
-        //            return false;
-
-        //        // Verificar se funcionário está de férias
-        //        var estaDeFerias = await _repositorioGlobal.ExisteAsync<Ferias>(
-        //            f => f.FuncionarioId == funcionarioId &&
-        //                 f.DataInicio <= DateTime.UtcNow &&
-        //                 f.DataFim >= DateTime.UtcNow,
-        //            ct);
-
-        //        return !estaDeFerias;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao verificar disponibilidade do funcionário ID: {Id}", funcionarioId);
-        //        throw;
-        //    }
-        //}
+        
 
         //#endregion
 

@@ -353,7 +353,7 @@ public class MessageSenderBackgroundService(
 
         try
         {
-            await logMensagemRepository.Inserir(logMensagem);
+            await logMensagemRepository.InserirAsync(logMensagem);
         }
         catch (Exception ex)
         {

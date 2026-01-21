@@ -288,7 +288,7 @@ namespace Locadora_Auto.Application.Services
             // Buscar cliente existente
             var cliente = await _clienteRepository.ObterPrimeiroAsync(x => x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario),rastreado:true);
             if (cliente != null) {
-                await _clienteRepository.ExcluirAsync(cliente, ct);
+                await _clienteRepository.ExcluirSalvarAsync(cliente, ct);
                 return true;
             }
             _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
@@ -318,7 +318,7 @@ namespace Locadora_Auto.Application.Services
             }
 
             cliente.Status = true;
-            var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
+            var atualizado = await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
             return atualizado;            
         }
 
@@ -343,7 +343,7 @@ namespace Locadora_Auto.Application.Services
             //}
 
             cliente.Status = false;
-            var atualizado = await _clienteRepository.AtualizarAsync(cliente, ct);
+            var atualizado = await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
             return atualizado;
            
         }
