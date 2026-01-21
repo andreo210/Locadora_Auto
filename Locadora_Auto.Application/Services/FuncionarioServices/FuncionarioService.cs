@@ -1,6 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
-using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
