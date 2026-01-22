@@ -1,7 +1,7 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
 using System.Linq.Expressions;
 
-namespace Locadora_Auto.Application.Services.Cliente
+namespace Locadora_Auto.Application.Services.ClienteServices
 {
     
         /// <summary>
@@ -9,7 +9,7 @@ namespace Locadora_Auto.Application.Services.Cliente
         /// </summary>
         public interface IClienteService
         {
-            #region Operações de Consulta
+         #region Operações de Consulta
             Task<ClienteDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
             Task<ClienteDto?> ObterPorCpfAsync(string cpf, CancellationToken ct = default);
             Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default);

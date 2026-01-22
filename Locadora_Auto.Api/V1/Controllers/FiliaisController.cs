@@ -144,28 +144,13 @@ namespace Locadora_Auto.Api.V1.Controllers
             [FromBody] AtualizarFilialDto dto,
             CancellationToken ct = default)
         {
-            try
-            {
-                var atualizado = await _filialService.AtualizarFilialAsync(id, dto, ct);
+            
+            var atualizado = await _filialService.AtualizarFilialAsync(id, dto, ct);
 
-                if (!atualizado)
-                    return StatusCode(500, new { Message = "Erro ao atualizar filial" });
+            if (!atualizado)
+                return StatusCode(500, new { Message = "Erro ao atualizar filial" });
 
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { Message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao atualizar filial ID: {Id}", id);
-                return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            return NoContent();           
         }
 
         [HttpDelete("{id}")]

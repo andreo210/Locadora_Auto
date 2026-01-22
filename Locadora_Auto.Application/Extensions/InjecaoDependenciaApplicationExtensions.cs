@@ -2,7 +2,8 @@
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
 using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
-using Locadora_Auto.Application.Services.Cliente;
+using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
+using Locadora_Auto.Application.Services.ClienteServices;
 using Locadora_Auto.Application.Services.Email;
 using Locadora_Auto.Application.Services.FilialServices;
 using Locadora_Auto.Application.Services.FuncionarioServices;
@@ -43,6 +44,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IClienteService, ClienteService>();
+            services.AddScoped<ICategoriaVeiculoService, CategoriaVeiculoService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<INotificador, Notificador>();

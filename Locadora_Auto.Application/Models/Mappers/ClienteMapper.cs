@@ -41,5 +41,11 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
             };
         }
+
+        public static List<ClienteDto> ToDtoList(this IEnumerable<Clientes> entidades)
+        {
+            if (entidades == null) return new List<ClienteDto>();
+            return entidades.Select(ToDto).ToList();
+        }
     }
 }

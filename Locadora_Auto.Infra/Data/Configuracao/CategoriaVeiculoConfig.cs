@@ -10,9 +10,9 @@ namespace Locadora_Auto.Infra.Data.Configuracao
         {
             builder.ToTable("categoria_veiculo");
 
-            builder.HasKey(e => e.IdCategoria);
+            builder.HasKey(e => e.Id);
 
-            builder.Property(e => e.IdCategoria)
+            builder.Property(e => e.Id)
                 .HasColumnName("id_categoria");
 
             builder.Property(e => e.Nome)

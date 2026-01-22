@@ -1,6 +1,6 @@
 ﻿using Locadora_Auto.Api.V1.Controllers;
 using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Services.Cliente;
+using Locadora_Auto.Application.Services.ClienteServices;
 using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;

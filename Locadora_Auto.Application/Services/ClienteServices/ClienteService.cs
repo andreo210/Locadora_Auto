@@ -2,7 +2,6 @@
 using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
-using Locadora_Auto.Application.Services.Cliente;
 using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
@@ -11,9 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
-using System.Runtime.CompilerServices;
 
-namespace Locadora_Auto.Application.Services
+namespace Locadora_Auto.Application.Services.ClienteServices
 {
     public class ClienteService : IClienteService
     {
