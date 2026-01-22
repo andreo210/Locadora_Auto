@@ -11,6 +11,7 @@ using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
+using Locadora_Auto.Application.Services.VeiculoServices;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Locadora_Auto.Application.Extensions
@@ -45,6 +46,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IClienteService, ClienteService>();
             services.AddScoped<ICategoriaVeiculoService, CategoriaVeiculoService>();
+            services.AddScoped<IVeiculoService, VeiculoService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<INotificador, Notificador>();

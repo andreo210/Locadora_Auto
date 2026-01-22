@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<CategoriaVeiculo> builder)
         {
-            builder.ToTable("categoria_veiculo");
+            builder.ToTable("tbCategoria_veiculo");
 
             builder.HasKey(e => e.Id);
 

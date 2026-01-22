@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Veiculo> builder)
         {
-            builder.ToTable("veiculo");
+            builder.ToTable("tbVeiculo");
 
             builder.HasKey(e => e.IdVeiculo);
 
@@ -33,19 +33,39 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("km_atual")
                 .IsRequired();
 
-            builder.Property(e => e.Status)
-                .HasColumnName("status")
+            builder.Property(e => e.Ativo)
+                .HasColumnName("ativo")
                 .HasMaxLength(20)
                 .IsRequired();
 
-            builder.HasOne(e => e.Categoria)
-                .WithMany()
+            builder.Property(e => e.Marca)
+                .HasColumnName("marca");
+
+            builder.Property(e => e.Modelo)
+                .HasColumnName("modelo");
+
+            builder.Property(e => e.Ano)
+                .HasColumnName("ano");
+
+
+            //chave estrangeira
+            builder.Property(e => e.IdCategoria)
+                .HasColumnName("id_categoria")
+                .IsRequired();
+
+            builder.Property(e => e.FilialAtualId)
+                .HasColumnName("id_filial_atual")
+                .IsRequired();
+
+
+            builder.HasOne(e => e.Categoria)//uma categoria tem muitos veículos
+                .WithMany(v=>v.Veiculos)
                 .HasForeignKey(e => e.IdCategoria)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(e => e.FilialAtual)
-                .WithMany()
-                .HasForeignKey(e => e.IdFilialAtual)
+                .WithMany(v => v.Veiculos)
+                .HasForeignKey(e => e.FilialAtualId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
