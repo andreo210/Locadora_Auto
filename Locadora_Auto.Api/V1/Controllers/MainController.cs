@@ -9,9 +9,9 @@ namespace Locadora_Auto.Api.V1.Controllers
 {
     public abstract class MainController : ControllerBase
     {
-        private readonly INotificador _notificador;
+        private readonly INotificadorService _notificador;
 
-        protected MainController(INotificador notificador)
+        protected MainController(INotificadorService notificador)
         {
             _notificador = notificador;
         }

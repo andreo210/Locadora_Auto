@@ -18,7 +18,7 @@ namespace Locadora_Auto.API.Controllers
         private readonly IClienteService _clienteService;
         private readonly ILogger<ClientesController> _logger;
 
-        public ClientesController(IClienteService clienteService, INotificador notificador, ILogger<ClientesController> logger) : base(notificador)
+        public ClientesController(IClienteService clienteService, INotificadorService notificador, ILogger<ClientesController> logger) : base(notificador)
         {
             _clienteService = clienteService ?? throw new ArgumentNullException(nameof(clienteService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));

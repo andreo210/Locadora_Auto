@@ -27,7 +27,7 @@ namespace Locadora_Auto.Infra.Extensions
             services.AddScoped<IFuncionarioRepository, FuncionarioRepository>();
             services.AddScoped<IVeiculosRepository, VeiculosRepository>();
             services.AddScoped<IFilialRepository, FilialRepository>();
-
+            services.AddScoped<ILocacaoRepository, LocacaoRepository>();
 
             return services;
         }

@@ -1,219 +1,97 @@
 ﻿using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.FilialServices;
+using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace Locadora_Auto.Api.V1.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class FiliaisController : ControllerBase
+    [Route("api/v1/filiais")]
+    public class FiliaisController : MainController
     {
         private readonly IFilialService _filialService;
-        private readonly ILogger<FiliaisController> _logger;
 
         public FiliaisController(
             IFilialService filialService,
-            ILogger<FiliaisController> logger)
+            INotificadorService notificador)
+            : base(notificador)
         {
-            _filialService = filialService ?? throw new ArgumentNullException(nameof(filialService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _filialService = filialService;
         }
 
-        ////[HttpGet]
-        ////public async Task<ActionResult<IEnumerable<FilialDto>>> Get(
-        ////    [FromQuery] bool? apenasAtivas = true,
-        ////    [FromQuery] string? cidade = null,
-        ////    CancellationToken ct = default)
-        ////{
-        ////    try
-        ////    {
-        ////        IEnumerable<FilialDto> filiais;
-
-        ////        if (!string.IsNullOrEmpty(cidade))
-        ////        {
-        ////            filiais = await _filialService.ObterPorCidadeAsync(cidade, ct);
-        ////        }
-        ////        else if (apenasAtivas == true)
-        ////        {
-        ////            filiais = await _filialService.ObterAtivasAsync(ct);
-        ////        }
-        ////        else
-        ////        {
-        ////            filiais = await _filialService.ObterTodasAsync(ct);
-        ////        }
-
-        ////        return Ok(filiais);
-        ////    }
-        ////    catch (Exception ex)
-        ////    {
-        ////        _logger.LogError(ex, "Erro ao buscar filiais");
-        ////        return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-        ////    }
-        ////}
-
-        //[HttpGet("resumo")]
-        //public async Task<ActionResult<IEnumerable<FilialResumoDto>>> GetResumo(CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var filiais = await _filialService.ObterResumoAsync(ct);
-        //        return Ok(filiais);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar resumo das filiais");
-        //        return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-        //    }
-        //}
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<FilialDto>> GetById(int id, CancellationToken ct = default)
-        {
-            
-            var filial = await _filialService.ObterPorIdAsync(id, ct);
-            if (filial == null)
-                return NotFound(new { Message = $"Filial com ID {id} não encontrada" });
-
-            return Ok(filial);           
-        }
+        // ========================= CONSULTAS =========================
 
         [HttpGet]
-        public async Task<ActionResult<FilialDto>> Get(CancellationToken ct = default)
-        {           
-            var filial = await _filialService.ObterTodasAsync(ct);
-            return Ok(filial);            
+        public async Task<IActionResult> ObterTodas(CancellationToken ct)
+        {
+            var filiais = await _filialService.ObterTodasAsync(ct);
+            return CustomResponse(filiais);
         }
 
-        //[HttpGet("{id}/veiculos")]
-        //public async Task<ActionResult<IEnumerable<VeiculoDto>>> GetVeiculos(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var veiculos = await _filialService.ObterVeiculosDaFilialAsync(id, ct);
-        //        return Ok(veiculos);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar veículos da filial: {Id}", id);
-        //        return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-        //    }
-        //}
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> ObterPorId(int id, CancellationToken ct)
+        {
+            var filial = await _filialService.ObterPorIdAsync(id, ct);
+            return CustomResponse(filial);
+        }
 
-        //[HttpGet("{id}/estatisticas")]
-        //public async Task<ActionResult<EstatisticasFilialDto>> GetEstatisticas(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var estatisticas = await _filialService.ObterEstatisticasFilialAsync(id, ct);
-        //        return Ok(estatisticas);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao buscar estatísticas da filial: {Id}", id);
-        //        return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-        //    }
-        //}
+        // ========================= CRIAÇÃO =========================
 
         [HttpPost]
-        public async Task<ActionResult<FilialDto>> Post([FromBody] CriarFilialDto dto, CancellationToken ct = default)
+        public async Task<IActionResult> Criar(
+            [FromBody] CriarFilialDto dto,
+            CancellationToken ct)
         {
-            try
-            {
-                var filial = await _filialService.CriarFilialAsync(dto, ct);
-                return Ok(filial);
-                //return CreatedAtAction(nameof(GetById), new { id = filial.IdFilial }, filial);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao criar filial");
-                return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-            }
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var filial = await _filialService.CriarFilialAsync(dto, ct);
+            return CustomResponse(filial, HttpStatusCode.Created);
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(
+        // ========================= ATUALIZAÇÃO =========================
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Atualizar(
             int id,
             [FromBody] AtualizarFilialDto dto,
-            CancellationToken ct = default)
+            CancellationToken ct)
         {
-            
-            var atualizado = await _filialService.AtualizarFilialAsync(id, dto, ct);
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
 
-            if (!atualizado)
-                return StatusCode(500, new { Message = "Erro ao atualizar filial" });
-
-            return NoContent();           
+            var sucesso = await _filialService.AtualizarFilialAsync(id, dto, ct);
+            return CustomResponse(sucesso, HttpStatusCode.NoContent);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
+        // ========================= EXCLUSÃO =========================
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Excluir(int id, CancellationToken ct)
         {
-            var excluido = await _filialService.ExcluirFilialAsync(id, ct);
-            if (!excluido)
-                return StatusCode(500, new { Message = "Erro ao excluir filial" });
-
-            return NoContent();          
+            var sucesso = await _filialService.ExcluirFilialAsync(id, ct);
+            return CustomResponse(sucesso, HttpStatusCode.NoContent);
         }
 
-        [HttpPatch("{id}/ativar")]
-        public async Task<IActionResult> Ativar(int id, CancellationToken ct = default)
-        {            
-            var ativado = await _filialService.AtivarFilialAsync(id, ct);
-            if (!ativado)
-                return StatusCode(500, new { Message = "Erro ao ativar filial" });
+        // ========================= STATUS =========================
 
-            return Ok(new { Message = "Filial ativada com sucesso" });            
+        [HttpPatch("{id:int}/ativar")]
+        public async Task<IActionResult> Ativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _filialService.AtivarFilialAsync(id, ct);
+            return CustomResponse(sucesso);
         }
 
-        [HttpPatch("{id}/desativar")]
-        public async Task<IActionResult> Desativar(int id, CancellationToken ct = default)
-        {            
-            var desativado = await _filialService.DesativarFilialAsync(id, ct);
-            if (!desativado)
-                return StatusCode(500, new { Message = "Erro ao desativar filial" });
-
-            return Ok(new { Message = "Filial desativada com sucesso" });           
+        [HttpPatch("{id:int}/desativar")]
+        public async Task<IActionResult> Desativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _filialService.DesativarFilialAsync(id, ct);
+            return CustomResponse(sucesso);
         }
-
-        //[HttpPost("{id}/transferir-veiculo")]
-        //public async Task<IActionResult> TransferirVeiculo(
-        //    int id,
-        //    [FromBody] TransferirVeiculoDto dto,
-        //    CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var transferido = await _filialService.TransferirVeiculoAsync(
-        //            dto.VeiculoId, id, dto.FilialDestinoId, ct);
-
-        //        if (!transferido)
-        //            return StatusCode(500, new { Message = "Erro ao transferir veículo" });
-
-        //        return Ok(new { Message = "Veículo transferido com sucesso" });
-        //    }
-        //    catch (KeyNotFoundException ex)
-        //    {
-        //        return NotFound(new { Message = ex.Message });
-        //    }
-        //    catch (InvalidOperationException ex)
-        //    {
-        //        return BadRequest(new { Message = ex.Message });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao transferir veículo da filial ID: {Id}", id);
-        //        return StatusCode(500, new { Message = "Erro interno ao processar a solicitação" });
-        //    }
-        //}
     }
+
+
     public class TransferirVeiculoDto
     {
         public int VeiculoId { get; set; }

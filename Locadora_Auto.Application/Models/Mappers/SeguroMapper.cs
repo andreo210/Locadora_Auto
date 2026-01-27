@@ -15,5 +15,15 @@ namespace Locadora_Auto.Application.Models.Mappers
                 //CobreDanos = entidade.CobreDanos
             };
         }
+        public static Seguro ToEntity(this SeguroDto dto)
+        {
+            return new Seguro
+            {
+                IdSeguro = dto.IdSeguro,
+                Nome = dto.Nome,
+                ValorDiaria = dto.ValorDiaria,
+                //CobreDanos = entidade.CobreDanos
+            };
+        }
     }
 }

@@ -19,13 +19,13 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         private readonly IUnitOfWork _transaction;
         private readonly ILogger<ClienteService> _logger;
         private readonly UserManager<User> _userManager;
-        private readonly INotificador _notificador;
+        private readonly INotificadorService _notificador;
 
         public ClienteService(
             UserManager<User> userManager,
             IClienteRepository clienteRepository,
             IUnitOfWork transaction,
-            INotificador notificador,
+            INotificadorService notificador,
             ILogger<ClienteService> logger)
         {
             _clienteRepository = clienteRepository ?? throw new ArgumentNullException(nameof(clienteRepository));
@@ -194,14 +194,8 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 PhoneNumber = LimparTelefone(clienteDto.Telefone)                
             };
 
-            var model = new Clientes
-            {
-                Usuario = user,
-                Status = clienteDto.Status,
-                NumeroHabilitacao = clienteDto.NumeroHabilitacao,
-                ValidadeHabilitacao = clienteDto.ValidadeHabilitacao,
-                Endereco = clienteDto.Endereco.ToEntity()
-            };
+            var model = new Clientes();
+            model.ci
             user.Cliente = model;
 
             var result = await _userManager.CreateAsync(user, clienteDto.Senha);
@@ -231,24 +225,24 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             // Buscar cliente existente
             var cliente = await _clienteRepository.ObterPrimeiroAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario), rastreado:true);
             if (string.IsNullOrWhiteSpace(clienteDto.Nome))
-                _notificador.Add(new Notificacao("Nome não pode ser nulo ou vazio"));
+                _notificador.Add("Nome não pode ser nulo ou vazio");
 
             if (string.IsNullOrWhiteSpace(clienteDto.Email))
-                _notificador.Add(new Notificacao("Email não pode ser nulo ou vazio"));
+                _notificador.Add("Email não pode ser nulo ou vazio");
 
             if (string.IsNullOrWhiteSpace(clienteDto.Telefone))
-                _notificador.Add(new Notificacao("Telefone não pode ser nulo ou vazio"));
+                _notificador.Add("Telefone não pode ser nulo ou vazio");
 
             if (cliente == null)
             {
-                _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
+                _notificador.Add($"Cliente com ID {id} não encontrado.");
                 return false;
 
             }
 
             if (!cliente.Status)
             {
-                _notificador.Add(new Notificacao("Não é possível atualizar um cliente inativo."));
+                _notificador.Add("Não é possível atualizar um cliente inativo.");
                 return false;
             }
 
@@ -289,16 +283,16 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 await _clienteRepository.ExcluirSalvarAsync(cliente, ct);
                 return true;
             }
-            _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
+            _notificador.Add($"Cliente com ID {id} não encontrado.");
             return false;
         }
 
         public async Task<bool> AtivarClienteAsync(int id, CancellationToken ct = default)
         {
-            var cliente = await _clienteRepository.ObterPorId(id);
+            var cliente = await _clienteRepository.ObterPorIdAsync(id);
             if (cliente == null)
             {
-                _notificador.Add(new Notificacao($"Cliente com ID {id} não encontrado."));
+                _notificador.Add($"Cliente com ID {id} não encontrado.");
                 return false;
             }
 
@@ -322,7 +316,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         public async Task<bool> DesativarClienteAsync(int id, CancellationToken ct = default)
         {
-            var cliente = await _clienteRepository.ObterPorId(id);
+            var cliente = await _clienteRepository.ObterPorIdAsync(id);
             if (cliente == null)
             {
                 throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");

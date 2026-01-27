@@ -4,6 +4,7 @@
     {
         public int IdFormaPagamento { get; set; }
         public string Descricao { get; set; } = null!;
+        
     }
 
 }

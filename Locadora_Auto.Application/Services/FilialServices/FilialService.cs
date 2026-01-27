@@ -1,5 +1,7 @@
-﻿using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
+﻿using Locadora_Auto.Application.Models;
+using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.EntityFrameworkCore;
@@ -13,32 +15,39 @@ public class FilialService : IFilialService
     private readonly IFilialRepository _filialRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<FilialService> _logger;
+    private readonly INotificadorService _notificador;
 
     public FilialService(
         IFilialRepository filialRepository,
         IUnitOfWork unitOfWork,
+        INotificadorService notificador,
         ILogger<FilialService> logger)
     {
         _filialRepository = filialRepository ?? throw new ArgumentNullException(nameof(filialRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
     }
 
     //#region Operações de Consulta
 
     public async Task<FilialDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
-    {  
-        var filtro = (Expression<Func<Filial, bool>>)(f => f.IdFilial == id);
-        var filial = await _filialRepository.ObterPrimeiroAsync(filtro: filtro,incluir:e=>e.Include(c=>c.Endereco),true, ct);
+    {
+        var filial = await _filialRepository.ObterPrimeiroAsync(
+            f => f.IdFilial == id,
+            incluir: e => e.Include(c => c.Endereco),
+            rastreado: false,
+            ct: ct);
+
         if (filial == null)
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
             return null;
+        }
 
-        // Obter estatísticas
-        //var totalVeiculos = await _filialRepository.ContarVeiculosNaFilialAsync(id, ct);
-        //var veiculosDisponiveis = await _filialRepository.ContarVeiculosDisponiveisNaFilialAsync(id, ct);
-
-        return filial.ToDto();       
+        return filial.ToDto();
     }
+
     private async Task<Filial?> ObterPorId(int id, CancellationToken ct = default)
     {
         var filtro = (Expression<Func<Filial, bool>>)(f => f.IdFilial == id);
@@ -218,34 +227,43 @@ public class FilialService : IFilialService
 
     public async Task<bool> AtualizarFilialAsync(int id, AtualizarFilialDto filialDto, CancellationToken ct = default)
     {
-        // Buscar filial existente
-        var filial = await _filialRepository.ObterPrimeiroAsync(filtro: f => f.IdFilial == id, incluir: e => e.Include(c => c.Endereco), true, ct);
+        var filial = await _filialRepository.ObterPrimeiroAsync(
+            f => f.IdFilial == id,
+            incluir: e => e.Include(c => c.Endereco),
+            rastreado: true,
+            ct: ct);
 
         if (filial == null)
-            throw new KeyNotFoundException($"Filial com ID {id} não encontrada.");
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        }
 
-        // Validações
-        await ValidarAtualizacaoFilialAsync(id, filialDto, ct);
+        if (!await ValidarAtualizacaoFilialAsync(id, filialDto, ct))
+            return false;
 
-        // Atualizar entidade
         filial.AtualizarDto(filialDto);
 
-
-        // Atualizar no banco
-        var atualizado = await _filialRepository.SalvarAsync(ct);
-        if (atualizado == 0)
-            throw new InvalidOperationException("Falha ao atualizar filial.");
+        var rows = await _filialRepository.SalvarAsync(ct);
+        if (rows == 0)
+        {
+            _notificador.Add("Nenhuma alteração foi realizada.");
+            return false;
+        }
 
         return true;
-        
     }
+
 
     public async Task<bool> ExcluirFilialAsync(int id, CancellationToken ct = default)
     {
         // Verificar se filial existe
         var filial = await _filialRepository.ObterPrimeiroAsync(filtro: f => f.IdFilial == id, incluir: e => e.Include(c => c.Endereco), true, ct);
         if (filial == null)
-            throw new KeyNotFoundException($"Filial com ID {id} não encontrada.");
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        }
 
         // Verificar se filial possui veículos
         //if (await FilialPossuiVeiculosAsync(id, ct))
@@ -265,15 +283,17 @@ public class FilialService : IFilialService
     {
         var filial = await ObterPorId(id, ct);
         if (filial == null)
-            throw new KeyNotFoundException($"Filial com ID {id} não encontrada.");
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        }
+        ;
 
         if (filial.Ativo)
             return true;
 
         filial.Ativo = true;
         var atualizado = await _filialRepository.AtualizarSalvarAsync(filial, ct);
-
-        _logger.LogInformation("Filial ID: {Id} ativada com sucesso", id);
         return atualizado;       
     }
 
@@ -281,7 +301,10 @@ public class FilialService : IFilialService
     {        
         var filial = await ObterPorId(id, ct);
         if (filial == null)
-            throw new KeyNotFoundException($"Filial com ID {id} não encontrada.");
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        }
 
         if (!filial.Ativo)
             return true; // Já está inativa
@@ -493,21 +516,13 @@ public class FilialService : IFilialService
 
     public async Task<bool> ValidarCriacaoFilialAsync(CriarFilialDto filialDto, CancellationToken ct = default)
     {
-        Expression<Func<Filial, bool>>? filtro = null;
-        if (filialDto.Nome!= null)
+        var existe = await _filialRepository.ExisteAsync(f => f.Nome == filialDto.Nome, ct);
+
+        if (existe)
         {
-            filtro = s => (s.Nome == filialDto.Nome);
+            _notificador.Add("Já existe uma filial com este nome.");
+            return false;
         }
-        // Validar nome único
-        var nomeExiste = await _filialRepository.ObterComFiltroAsync(filtro:filtro);
-        if (nomeExiste.Any())
-            throw new InvalidOperationException($"Já existe uma filial com o nome '{filialDto.Nome}'.");
-
-        // Validar cidade (opcional: limitar quantidade por cidade)
-        var filiaisNaCidade = await _filialRepository.ContarAsync(f => f.Cidade == filialDto.Cidade, ct);
-
-        if (filiaisNaCidade >= 5) // Exemplo: máximo 5 filiais por cidade
-            throw new InvalidOperationException($"Limite de filiais na cidade '{filialDto.Cidade}' atingido.");
 
         return true;
     }
@@ -518,7 +533,10 @@ public class FilialService : IFilialService
         {
             var nomeExiste = await _filialRepository.ExisteAsync(filtro:s=>s.Nome == filialDto.Nome, ct);
             if (nomeExiste)
-                throw new InvalidOperationException($"Já existe uma filial com o nome '{filialDto.Nome}'.");
+            {
+                _notificador.Add("Já existe uma filial com este nome.");
+                return false;
+            }
         }
         return true;
     }

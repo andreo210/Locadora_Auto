@@ -11,13 +11,13 @@ public class VeiculoService : IVeiculoService
     private readonly IVeiculosRepository _veiculoRepository;
     private readonly ICategoriaVeiculosRepository _categoriaRepository;
     private readonly IFilialRepository _filialRepository;
-    private readonly INotificador _notificador;
+    private readonly INotificadorService _notificador;
 
     public VeiculoService(
         IVeiculosRepository veiculoRepository,
         ICategoriaVeiculosRepository categoriaRepository,
         IFilialRepository filialRepository,
-        INotificador notificador)
+        INotificadorService notificador)
     {
         _veiculoRepository = veiculoRepository;
         _categoriaRepository = categoriaRepository;
@@ -67,25 +67,25 @@ public class VeiculoService : IVeiculoService
     {
         if (await _veiculoRepository.ExisteAsync(v => v.Placa == dto.Placa, ct))
         {
-            _notificador.Add(new Notificacao("Placa já cadastrada"));
+            _notificador.Add("Placa já cadastrada");
             return null;
         }
 
         if (dto.KmInicial < 0)
         {
-            _notificador.Add(new Notificacao("Km inicial inválido"));
+            _notificador.Add("Km inicial inválido");
             return null;
         }
 
         if (!await _categoriaRepository.ExisteAsync(c => c.Id == dto.IdCategoria, ct))
         {
-            _notificador.Add(new Notificacao("Categoria não encontrada"));
+            _notificador.Add("Categoria não encontrada");
             return null;
         }
 
         if (!await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilialAtual, ct))
         {
-            _notificador.Add(new Notificacao("Filial não encontrada"));
+            _notificador.Add("Filial não encontrada");
             return null;
         }
 
@@ -105,13 +105,13 @@ public class VeiculoService : IVeiculoService
 
         if (veiculo == null)
         {
-            _notificador.Add(new Notificacao("Veículo não encontrado"));
+            _notificador.Add("Veículo não encontrado");
             return false;
         }
 
         if (dto.KmAtual.HasValue && dto.KmAtual.Value < veiculo.KmAtual)
         {
-            _notificador.Add(new Notificacao("Km não pode ser menor que o atual"));
+            _notificador.Add("Km não pode ser menor que o atual");
             return false;
         }
 
@@ -127,10 +127,10 @@ public class VeiculoService : IVeiculoService
 
     public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
     {
-        var veiculo = await _veiculoRepository.ObterPorId(id);
+        var veiculo = await _veiculoRepository.ObterPorIdAsync(id);
         if (veiculo == null)
         {
-            _notificador.Add(new Notificacao("Veículo não encontrado"));
+            _notificador.Add("Veículo não encontrado");
             return false;
         }
 
@@ -141,10 +141,10 @@ public class VeiculoService : IVeiculoService
 
     public async Task<bool> DesativarAsync(int id, CancellationToken ct = default)
     {
-        var veiculo = await _veiculoRepository.ObterPorId(id);
+        var veiculo = await _veiculoRepository.ObterPorIdAsync(id);
         if (veiculo == null)
         {
-            _notificador.Add(new Notificacao("Veículo não encontrado"));
+            _notificador.Add("Veículo não encontrado");
             return false;
         }
 
@@ -154,4 +154,8 @@ public class VeiculoService : IVeiculoService
     }
 
     #endregion
+
+    #region metodo auxiliares
+
+    #endregion metodo auxiliares
 }

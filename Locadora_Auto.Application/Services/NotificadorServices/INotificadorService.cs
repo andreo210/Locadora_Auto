@@ -2,10 +2,10 @@
 
 namespace Locadora_Auto.Application.Services.Notificador
 {
-    public interface INotificador
+    public interface INotificadorService
     {
         bool TemNotificacao();
         List<Notificacao> ObterNotificacoes();
-        void Add(Notificacao notificacao);
+        void Add(string notificacao);
     }
 }

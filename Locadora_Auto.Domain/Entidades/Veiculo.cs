@@ -14,8 +14,10 @@
         public bool Disponivel { get; set; }
         public int FilialAtualId { get; set; }
 
+        //navegação
         public CategoriaVeiculo Categoria { get; set; } = null!;
         public Filial FilialAtual { get; set; } = null!;
+        public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
     }
 
 }

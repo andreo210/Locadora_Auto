@@ -62,23 +62,15 @@ namespace Locadora_Auto.Infra.Data
         }
 
         //buscar por id Trackeado
-        public virtual async Task<TEntity> ObterPorId(object id)
+        public virtual async Task<TEntity> ObterPorIdAsync(object id, bool? rastreado = false,CancellationToken ct = default)
         {
             var entity = await DbSet.FindAsync(id);
-            return entity;
-        }
-
-
-        public virtual async Task<TEntity> ObterPorIdNoTracker(object id)
-        {
-            var entity = await DbSet.FindAsync(id);
-            if (entity != null)
+            if (rastreado.Value)
             {
                 Context.Entry(entity).State = EntityState.Detached;
             }
             return entity;
         }
-
 
         public virtual async Task<TEntity?> ObterPrimeiroAsync(
              Expression<Func<TEntity, bool>> filtro,

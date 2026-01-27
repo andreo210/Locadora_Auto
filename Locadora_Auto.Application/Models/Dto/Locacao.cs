@@ -6,7 +6,25 @@ using System.Threading.Tasks;
 
 namespace Locadora_Auto.Application.Models.Dto
 {
-    public class LocacaoCreateDto
+    public class LocacaoDto
+    {
+        public int IdLocacao { get; set; }
+        public int IdCliente { get; set; }
+        public int IdVeiculo { get; set; }
+        public int IdFuncionario { get; set; }
+        public int IdFilialRetirada { get; set; }
+        public int? IdFilialDevolucao { get; set; }
+        public DateTime DataInicio { get; set; }
+        public DateTime DataFimPrevista { get; set; }
+        public DateTime? DataFimReal { get; set; }
+        public int KmInicial { get; set; }
+        public int? KmFinal { get; set; }
+        public decimal ValorPrevisto { get; set; }
+        public decimal? ValorFinal { get; set; }
+        public string Status { get; set; } = null!;
+    }
+
+    public class CriarLocacaoDto
     {
         public int IdCliente { get; set; }
         public int IdVeiculo { get; set; }
@@ -14,40 +32,30 @@ namespace Locadora_Auto.Application.Models.Dto
         public int IdFilialRetirada { get; set; }
         public DateTime DataInicio { get; set; }
         public DateTime DataFimPrevista { get; set; }
-        public List<LocacaoAdicionalDto>? Adicionais { get; set; }
+        public int KmInicial { get; set; }
+        public decimal ValorPrevisto { get; set; }
     }
 
-    public class LocacaoDto
+    public class AtualizarLocacaoDto
     {
-        public int IdLocacao { get; set; }
-        public ClienteDto Cliente { get; set; } = null!;
-        public VeiculoDto Veiculo { get; set; } = null!;
+        public int IdFuncionario { get; set; }
+        public int? IdFilialDevolucao { get; set; }
+        public DateTime? DataFimReal { get; set; }
+        public int? KmFinal { get; set; }
+        public decimal? ValorFinal { get; set; }
+        public string? Status { get; set; }
         public DateTime DataInicio { get; set; }
         public DateTime DataFimPrevista { get; set; }
-        public DateTime? DataFimReal { get; set; }
-        public decimal ValorFinal { get; set; }
-        public string Status { get; set; } = null!;
+        public int KmInicial { get; set; }
+        public decimal ValorPrevisto { get; set; }
     }
-
-    public class FecharLocacaoDto
+    public class FinalizarLocacaoDto
     {
-        public int KmFinal { get; set; }
+        public int Id { get; set; }
+        public int IdFilialDevolucao { get; set; }
         public DateTime DataFimReal { get; set; }
-        public List<MultaDto>? Multas { get; set; }
-        public List<DanoDto>? Danos { get; set; }
-    }
-
-    public class ResumoLocacoesDto
-    {
-        public int TotalAtivas { get; set; }
-        public int TotalAtrasadas { get; set; }
-        public decimal FaturamentoMes { get; set; }
-    }
-
-    public class LocacaoAdicionalDto
-    {
-        public int IdAdicional { get; set; }
-        public int Quantidade { get; set; }
+        public int KmFinal { get; set; }
+        public decimal ValorFinal { get; set; }
     }
 
 }

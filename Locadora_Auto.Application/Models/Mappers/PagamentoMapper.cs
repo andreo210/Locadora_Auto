@@ -16,5 +16,16 @@ namespace Locadora_Auto.Application.Models.Mappers
                 FormaPagamento = entidade.FormaPagamento?.Descricao
             };
         }
+
+        public static Pagamento ToEntity(this PagamentoDto entidade)
+        {
+            return new Pagamento
+            {
+                IdPagamento = entidade.IdPagamento,
+                Valor = entidade.Valor,
+                DataPagamento = entidade.DataPagamento,
+                Status = entidade.Status                
+            };
+        }
     }
 }

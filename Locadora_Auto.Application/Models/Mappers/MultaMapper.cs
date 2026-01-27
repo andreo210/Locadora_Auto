@@ -15,5 +15,16 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Status = entidade.Status
             };
         }
+
+        public static Multa ToEntity(this MultaDto entidade)
+        {
+            return new Multa
+            {
+                IdMulta = entidade.IdMulta,
+                Tipo = entidade.Tipo,
+                Valor = entidade.Valor,
+                Status = entidade.Status
+            };
+        }
     }
 }

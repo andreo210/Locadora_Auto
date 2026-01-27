@@ -2,18 +2,18 @@
 
 namespace Locadora_Auto.Application.Services.Notificador
 {
-    public class Notificador : INotificador
+    public class NotificadorService : INotificadorService
     {
         private List<Notificacao> _notificacoes;
 
-        public Notificador()
+        public NotificadorService()
         {
             _notificacoes = new List<Notificacao>();
         }
 
-        public void Add(Notificacao notificacao)
+        public void Add(string notificacao)
         {
-            _notificacoes.Add(notificacao);
+            _notificacoes.Add(new Notificacao(notificacao));
         }
 
         public List<Notificacao> ObterNotificacoes()

@@ -19,9 +19,7 @@ namespace Locadora_Auto.Domain
 
         IQueryable<TEntity> ObterTodos();
 
-        Task<TEntity> ObterPorIdNoTracker(object id);
-
-        Task<TEntity> ObterPorId(object id);
+        Task<TEntity> ObterPorIdAsync(object id , bool? rastreado = false, CancellationToken ct = default);
 
         Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,

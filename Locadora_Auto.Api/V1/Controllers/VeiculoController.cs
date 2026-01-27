@@ -1,5 +1,4 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.VeiculoServices;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +14,7 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         public VeiculoController(
             IVeiculoService veiculoService,
-            INotificador notificador)
+            INotificadorService notificador)
             : base(notificador)
         {
             _veiculoService = veiculoService;

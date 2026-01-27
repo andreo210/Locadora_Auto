@@ -66,7 +66,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
             refreshTokenDB.Revogado = true;
             var token = await _tokenRepository.AtualizarSalvarAsync(refreshTokenDB);
 
-            return await _userRepository.ObterPorId(refreshTokenDB.UserId);;
+            return await _userRepository.ObterPorIdAsync(refreshTokenDB.UserId);;
         }
 
 
@@ -99,7 +99,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
         public async Task<UserDto?> ObterPorIdAsync(string id)
         {
-            var user = await _userRepository.ObterPorId(id);
+            var user = await _userRepository.ObterPorIdAsync(id);
             return user!.ToDto();
         }
 
@@ -111,7 +111,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
         public virtual async Task<bool> AtualizarAsync(string id)
         {
-            var model = await _userRepository.ObterPorId(id);
+            var model = await _userRepository.ObterPorIdAsync(id);
             return await _userRepository.AtualizarSalvarAsync(model);
         }
     }

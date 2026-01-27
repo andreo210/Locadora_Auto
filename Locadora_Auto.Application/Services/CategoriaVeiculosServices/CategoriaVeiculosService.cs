@@ -11,12 +11,12 @@ namespace Locadora_Auto.Application.Services
     public class CategoriaVeiculoService : ICategoriaVeiculoService
     {
         private readonly ICategoriaVeiculosRepository _repository;
-        private readonly INotificador _notificador;
+        private readonly INotificadorService _notificador;
         private readonly ILogger<CategoriaVeiculoService> _logger;
 
         public CategoriaVeiculoService(
             ICategoriaVeiculosRepository repository,
-            INotificador notificador,
+            INotificadorService notificador,
             ILogger<CategoriaVeiculoService> logger)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -45,7 +45,7 @@ namespace Locadora_Auto.Application.Services
 
             if (categoria == null)
             {
-                _notificador.Add(new Notificacao("Categoria não encontrada."));
+                _notificador.Add("Categoria não encontrada.");
                 return null;
             }
 
@@ -60,7 +60,7 @@ namespace Locadora_Auto.Application.Services
         {
             if (string.IsNullOrWhiteSpace(dto.Nome))
             {
-                _notificador.Add(new Notificacao("Nome da categoria é obrigatório."));
+                _notificador.Add("Nome da categoria é obrigatório.");
                 return false;
             }
 
@@ -71,13 +71,13 @@ namespace Locadora_Auto.Application.Services
 
             if (existe)
             {
-                _notificador.Add(new Notificacao("Já existe uma categoria com esse nome."));
+                _notificador.Add("Já existe uma categoria com esse nome.");
                 return false;
             }
 
             if (dto.ValorDiaria <= 0)
             {
-                _notificador.Add(new Notificacao("Valor da diária deve ser maior que zero."));
+                _notificador.Add("Valor da diária deve ser maior que zero.");
                 return false;
             }
 
@@ -98,7 +98,7 @@ namespace Locadora_Auto.Application.Services
 
             if (categoria == null)
             {
-                _notificador.Add(new Notificacao("Categoria não encontrada."));
+                _notificador.Add("Categoria não encontrada.");
                 return false;
             }
 
@@ -111,7 +111,7 @@ namespace Locadora_Auto.Application.Services
 
                 if (nomeExiste)
                 {
-                    _notificador.Add(new Notificacao("Já existe outra categoria com esse nome."));
+                    _notificador.Add("Já existe outra categoria com esse nome.");
                     return false;
                 }
             }
@@ -122,7 +122,7 @@ namespace Locadora_Auto.Application.Services
 
             if (alterado == 0)
             {
-                _notificador.Add(new Notificacao("Nenhuma alteração foi realizada."));
+                _notificador.Add("Nenhuma alteração foi realizada.");
                 return false;
             }
 
@@ -138,15 +138,13 @@ namespace Locadora_Auto.Application.Services
 
             if (categoria == null)
             {
-                _notificador.Add(new Notificacao("Categoria não encontrada."));
+                _notificador.Add("Categoria não encontrada.");
                 return false;
             }
 
             if (categoria.Veiculos.Any())
             {
-                _notificador.Add(new Notificacao(
-                    "Não é possível excluir a categoria pois existem veículos vinculados a ela."
-                ));
+                _notificador.Add("Não é possível excluir a categoria pois existem veículos vinculados a ela.");
                 return false;
             }
 

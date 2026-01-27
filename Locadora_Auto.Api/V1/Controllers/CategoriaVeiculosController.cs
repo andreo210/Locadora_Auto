@@ -14,7 +14,7 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         public CategoriaVeiculosController(
             ICategoriaVeiculoService service,
-            INotificador notificador)
+            INotificadorService notificador)
             : base(notificador)
         {
             _service = service;

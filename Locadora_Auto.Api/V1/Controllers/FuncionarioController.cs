@@ -15,7 +15,7 @@ namespace Locadora_Auto.Api.V1.Controllers
     {
         private readonly IFuncionarioService _funcionarioService;
 
-        public FuncionariosController(IFuncionarioService funcionarioService, INotificador notificador) : base(notificador)
+        public FuncionariosController(IFuncionarioService funcionarioService, INotificadorService notificador) : base(notificador)
         {
             _funcionarioService = funcionarioService;
         }

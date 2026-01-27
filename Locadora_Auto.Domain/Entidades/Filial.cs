@@ -10,7 +10,9 @@
         public int IdEndereco { get; set; }
         public Endereco Endereco { get; set; } = null!;
 
-        public ICollection<Veiculo> Veiculos { get; set; } = [];
+        public ICollection<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
+        public ICollection<Locacao> LocacoesRetirada { get; set; } = new List<Locacao>();
+        public ICollection<Locacao> LocacoesDevolucao { get; set; } = new List<Locacao>();
     }
 
 }

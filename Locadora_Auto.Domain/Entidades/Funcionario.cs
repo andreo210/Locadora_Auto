@@ -16,7 +16,7 @@ namespace Locadora_Auto.Domain.Entidades
 
         //navegação
         public User? Usuario { get; set; } = null!;
-        public ICollection<Locacao> Locacoes { get; set; } = [];
+        public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
 
     }
 

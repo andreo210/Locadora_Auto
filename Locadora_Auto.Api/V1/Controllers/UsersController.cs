@@ -18,7 +18,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         private readonly IUserService _userService;
         private readonly IRoleService _roleService;
         private readonly ITokenService _tokenService;
-        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService, INotificador notificador) : base(notificador)
+        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService, INotificadorService notificador) : base(notificador)
         {
             _userService = userService;
             _roleService = roleService;
