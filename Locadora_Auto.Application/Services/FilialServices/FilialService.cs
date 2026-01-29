@@ -13,18 +13,15 @@ namespace Locadora_Auto.Application.Services.FilialServices;
 public class FilialService : IFilialService
 {
     private readonly IFilialRepository _filialRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<FilialService> _logger;
     private readonly INotificadorService _notificador;
 
     public FilialService(
         IFilialRepository filialRepository,
-        IUnitOfWork unitOfWork,
         INotificadorService notificador,
         ILogger<FilialService> logger)
     {
         _filialRepository = filialRepository ?? throw new ArgumentNullException(nameof(filialRepository));
-        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
     }
@@ -218,20 +215,19 @@ public class FilialService : IFilialService
     public async Task<FilialDto> CriarFilialAsync(CriarFilialDto filialDto, CancellationToken ct = default)
     {
         // Validações
-        await ValidarCriacaoFilialAsync(filialDto, ct);
+        var validacao = await ValidarCriacaoFilialAsync(filialDto, ct);
+        if (!validacao)
+            return null;
+
         // Criar entidade
-        var filial = filialDto.ToEntity();
+        var filial = Filial.Criar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity());
         await _filialRepository.InserirSalvarAsync(filial, ct);
         return filial.ToDto();       
     }
 
     public async Task<bool> AtualizarFilialAsync(int id, AtualizarFilialDto filialDto, CancellationToken ct = default)
     {
-        var filial = await _filialRepository.ObterPrimeiroAsync(
-            f => f.IdFilial == id,
-            incluir: e => e.Include(c => c.Endereco),
-            rastreado: true,
-            ct: ct);
+        var filial = await _filialRepository.ObterPrimeiroAsync(f => f.IdFilial == id, incluir: e => e.Include(c => c.Endereco), rastreado: true, ct: ct);
 
         if (filial == null)
         {
@@ -242,7 +238,7 @@ public class FilialService : IFilialService
         if (!await ValidarAtualizacaoFilialAsync(id, filialDto, ct))
             return false;
 
-        filial.AtualizarDto(filialDto);
+        filial.Atualizar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity());
 
         var rows = await _filialRepository.SalvarAsync(ct);
         if (rows == 0)
@@ -292,7 +288,7 @@ public class FilialService : IFilialService
         if (filial.Ativo)
             return true;
 
-        filial.Ativo = true;
+        filial.Ativar();
         var atualizado = await _filialRepository.AtualizarSalvarAsync(filial, ct);
         return atualizado;       
     }
@@ -313,7 +309,7 @@ public class FilialService : IFilialService
         //if (await FilialPossuiVeiculosAsync(id, ct))
         //    throw new InvalidOperationException("Filial possui veículos. Transfira os veículos antes de desativar.");
 
-        filial.Ativo = false;
+        filial.Desativar();
         var atualizado = await _filialRepository.AtualizarSalvarAsync(filial, ct);
 
         return atualizado;       
