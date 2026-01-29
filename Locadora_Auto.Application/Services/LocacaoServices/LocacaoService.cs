@@ -135,28 +135,20 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         }
 
         // ====================== ADICIONAR PAGAMENTO ======================
-        public async Task<bool> AdicionarPagamentoAsync(int idLocacao, PagamentoDto dto, CancellationToken ct = default)
+        public async Task<bool> AdicionarPagamentoAsync(int id,AdicionarPagamentoDto pagamento, CancellationToken ct = default)
         {
-            var locacao =  await ObterLocacao(idLocacao, ct); ;
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(x => x.IdLocacao == id, incluir: q => q.Include(l => l.Pagamentos), rastreado: true, ct);
+
             if (locacao == null)
             {
                 _notificador.Add("Locação não encontrada");
                 return false;
             }
 
-            try
-            {
-                var pagamento = dto.ToEntity();
-                //todo: entra o tipo pagamento e ja envia o pagamento
-                locacao.AdicionarPagamento(pagamento);
-                await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
-                return true;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _notificador.Add(ex.Message);
-                return false;
-            }
+            locacao.AdicionarPagamento(pagamento.Valor, (FormaPagamento)pagamento.IdFormaPagamento);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+           
         }
 
         // ====================== ADICIONAR MULTA ======================
@@ -196,7 +188,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             //Todo vai buscar seguro e adicionar na entidade
 
             var locacaos = new LocacaoSeguro(); // substituir por busca real
-            locacao.AdicionarSeguro(locacaos);
+            //locacao.AdicionarSeguro(locacaos);
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
         }
@@ -213,6 +205,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
 
             return locacao.ToDto();
         }
+
 
         // ====================== LISTAR TODAS ======================
         public async Task<IEnumerable<LocacaoDto>> ObterTodasAsync(CancellationToken ct = default)

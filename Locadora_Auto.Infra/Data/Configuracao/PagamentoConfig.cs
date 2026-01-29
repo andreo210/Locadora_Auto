@@ -2,37 +2,42 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Locadora_Auto.Infra.Data.Configuracao
+public class PagamentoConfig : IEntityTypeConfiguration<Pagamento>
 {
-    public class PagamentoConfig : IEntityTypeConfiguration<Pagamento>
+    public void Configure(EntityTypeBuilder<Pagamento> builder)
     {
-        public void Configure(EntityTypeBuilder<Pagamento> builder)
-        {
-            builder.ToTable("pagamento");
+        builder.ToTable("tbPagamento");
 
-            builder.HasKey(e => e.IdPagamento);
+        builder.HasKey(p => p.IdPagamento);
 
-            builder.Property(e => e.IdPagamento)
-                .HasColumnName("id_pagamento");
+        builder.Property(p => p.IdPagamento)
+            .HasColumnName("id_pagamento");
 
-            builder.Property(e => e.Valor)
-                .HasColumnName("valor")
-                .HasPrecision(10, 2)
-                .IsRequired();
+        builder.Property(p => p.Valor)
+            .HasColumnName("valor")
+            .HasPrecision(10, 2)
+            .IsRequired();
 
-            builder.Property(e => e.DataPagamento)
-                .HasColumnName("data_pagamento")
-                .IsRequired();
+        builder.Property(p => p.DataPagamento)
+            .HasColumnName("data_pagamento");
 
-            builder.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasMaxLength(20)
-                .IsRequired();
+        builder.Property(p => p.Status)
+            .HasColumnName("status")
+            .HasConversion<string>()
+            .IsRequired();
 
-            builder.HasOne(e => e.Locacao)
-                .WithMany()
-                .HasForeignKey(e => e.IdLocacao);
-        }
+        // FK sombra para Locação
+        builder.Property<int>("id_locacao");
+
+        builder.HasOne<Locacao>()
+            .WithMany(l => l.Pagamentos)
+            .HasForeignKey("id_locacao")
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // FK sombra para FormaPagamento
+        builder.Property(p => p.FormaPagamento)
+            .HasConversion<int>()
+            .HasColumnName("id_forma_pagamento")
+            .IsRequired();
     }
-
 }

@@ -71,11 +71,10 @@ namespace Locadora_Auto.Api.Controllers
 
         // ====================== ADICIONAR PAGAMENTO ======================
         [HttpPost("{id:int}/pagamentos")]
-        public async Task<IActionResult> AdicionarPagamento(int id,[FromBody] PagamentoDto dto, CancellationToken ct)
+        public async Task<IActionResult> AdicionarPagamento(int id,[FromBody] AdicionarPagamentoDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return CustomResponse(ModelState);
-
             var sucesso = await _locacaoService.AdicionarPagamentoAsync(id, dto, ct);
             return CustomResponse(sucesso);
         }

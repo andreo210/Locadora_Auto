@@ -11,7 +11,7 @@ namespace Locadora_Auto.Application.Models.Mappers
             {
                 IdCaucao = entidade.IdCaucao,
                 Valor = entidade.Valor,
-                Status = entidade.Status
+                //Status = entidade.Status
             };
         }
     }

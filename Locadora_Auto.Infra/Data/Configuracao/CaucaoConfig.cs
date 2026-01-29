@@ -10,25 +10,28 @@ namespace Locadora_Auto.Infra.Data.Configuracao
         {
             builder.ToTable("caucao");
 
-            builder.HasKey(e => e.IdCaucao);
+            builder.HasKey(c => c.IdCaucao);
 
-            builder.Property(e => e.IdCaucao)
-                .HasColumnName("id_caucao");
+            builder.Property(c => c.IdCaucao)
+                   .HasColumnName("id_caucao");
 
-            builder.Property(e => e.Valor)
-                .HasColumnName("valor")
-                .HasPrecision(10, 2)
-                .IsRequired();
+            builder.Property(c => c.Valor)
+                   .HasColumnName("valor")
+                   .HasPrecision(10, 2)
+                   .IsRequired();
 
-            builder.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasMaxLength(20)
-                .IsRequired();
+            builder.Property(c => c.Status)
+                   .HasColumnName("status")
+                   .HasConversion<string>()
+                   .HasMaxLength(20)
+                   .IsRequired();
 
-            builder.HasOne(e => e.Locacao)
-                .WithMany()
-                .HasForeignKey(e => e.IdLocacao);
+            builder.HasOne<Locacao>()
+                   .WithMany(l => l.Caucoes)
+                   .HasForeignKey("id_locacao")  // FK SOMBRA
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
+
 
 }

@@ -71,6 +71,16 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .HasForeignKey(e => e.ClienteId)
                    .OnDelete(DeleteBehavior.Restrict);
 
+            //builder.HasOne(e => e.Caucao)
+            //       .WithOne(x => x.Locacao)
+            //       .HasForeignKey<Locacao>()
+            //       .OnDelete(DeleteBehavior.Restrict);
+
+            //builder.HasOne(l => l.Caucao)
+            //   .WithOne() // SEM navegação inversa
+            //   .HasForeignKey("id_locacao") // FK SOMBRA
+            //   .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(e => e.Veiculo)
                    .WithMany(x => x.Locacoes)
                    .HasForeignKey(e => e.IdVeiculo)
@@ -93,9 +103,11 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             // ------------------ Relacionamentos 1:N ------------------
             builder.HasMany(l => l.Pagamentos)
-                   .WithOne(p => p.Locacao)
-                   .HasForeignKey(p => p.IdLocacao)
+                   .WithOne()
+                   .HasForeignKey("id_locacao")
                    .OnDelete(DeleteBehavior.Cascade);
+
+    
 
             builder.HasMany(l => l.Multas)
                    .WithOne(m => m.Locacao)

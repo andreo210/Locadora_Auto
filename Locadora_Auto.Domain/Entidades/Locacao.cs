@@ -29,9 +29,27 @@
         public Filial FilialRetirada { get; private set; } = null!;
         public Filial? FilialDevolucao { get; private set; }
 
-        public ICollection<Pagamento> Pagamentos { get; private set; } = new List<Pagamento>();
-        public ICollection<Multa> Multas { get; private set; } = new List<Multa>();
-        public ICollection<LocacaoSeguro> Seguros { get; private set; } = new List<LocacaoSeguro>();
+        //subentidades
+        private readonly List<Pagamento> _pagamentos = new();
+        public IReadOnlyCollection<Pagamento> Pagamentos => _pagamentos;
+
+        private readonly List<Caucao> _caucao = new();
+        public IReadOnlyCollection<Caucao> Caucoes => _caucao;
+
+        private readonly List<Multa> _multas = new();
+        public IReadOnlyCollection<Multa> Multas => _multas;
+
+        private readonly List<Dano> _danos = new();
+        public IReadOnlyCollection<Dano> Danos => _danos;
+
+        private readonly List<Vistoria> _vistorias = new();
+        public IReadOnlyCollection<Vistoria> Vistorias => _vistorias;
+
+        private readonly List<LocacaoSeguro> _seguros = new();
+        public IReadOnlyCollection<LocacaoSeguro> Seguros => _seguros;
+
+        private readonly List<LocacaoAdicional> _adicionais = new();
+        public IReadOnlyCollection<LocacaoAdicional> Adicionais => _adicionais;
 
 
         private Locacao() { }
@@ -47,6 +65,12 @@
             int kmInicial,
             decimal valorPrevisto)
         {
+            if (!cliente.PodeLocar())
+                throw new ArgumentNullException("Cliente não pode locar");
+
+            if (!veiculo.Disponivel)
+                throw new ArgumentNullException("Veículo indisponível");
+
             if (veiculo == null)
                 throw new ArgumentNullException(nameof(veiculo), "Veículo é obrigatório");
 
@@ -72,7 +96,7 @@
                 DataFimPrevista = dataFimPrevista,
                 KmInicial = kmInicial,
                 ValorPrevisto = valorPrevisto,
-                Status = StatusLocacao.Ativa
+                Status = StatusLocacao.Criada
             };
 
             // Marca veículo como indisponível
@@ -86,7 +110,7 @@
         public void Finalizar(DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao)
         {
 
-            if (Status != StatusLocacao.Ativa)
+            if (Status != StatusLocacao.Criada)
                 throw new InvalidOperationException("Somente locações ativas podem ser finalizadas");
 
             if (dataFimReal < DataInicio)
@@ -106,9 +130,75 @@
             Veiculo.Disponibilizar();
         }
 
+
+        public void Cancelar()
+        {
+            if (Status != StatusLocacao.Criada && Status != StatusLocacao.Pendente)
+                throw new InvalidOperationException("Somente locações pendentes ou ativas podem ser canceladas");
+
+            Status = StatusLocacao.Cancelada;
+
+            // Libera veículo
+            Veiculo.Disponibilizar();
+        }
+
+        //pagamentos
+        public void AdicionarPagamento(decimal valor, FormaPagamento formaPagamento)
+        {
+            if (Status != StatusLocacao.Criada)
+                throw new DomainException("Só é possível pagar locações criada");
+
+            var pagamento = new Pagamento(valor, formaPagamento);
+
+            _pagamentos.Add(pagamento);
+        }
+        public void RegistrarPagamento(decimal valor, FormaPagamento forma)
+        {
+            var pagamento = new Pagamento(valor, forma);
+            _pagamentos.Add(pagamento);
+        }
+
+        //caucão
+        public void DefinirCaucao(decimal valor)
+        {
+            if (Caucoes != null)
+                throw new InvalidOperationException("Locação já possui caução");
+
+            _caucao.Add(Caucao.Criar(valor));
+        }
+
+        //public void BloquearCaucao()
+        //{
+        //    if (Caucao == null)
+        //        throw new InvalidOperationException("Locação não possui caução");
+
+        //    Caucao.Bloquear();
+        //}
+
+
+        public void AdicionarMulta(Multa multa)
+        {
+            if (Status != StatusLocacao.Finalizada)
+                throw new InvalidOperationException("Multa só pode ser aplicada após finalização");
+
+            _multas.Add(multa);
+        }
+
+        public void RegistrarDano(Dano dano)
+        {
+            _danos.Add(dano);
+        }
+
+        public void RegistrarVistoria(Vistoria vistoria)
+        {
+            _vistorias.Add(vistoria);
+        }
+
+
+
         public void AtualizarDados(DateTime dataFimPrevista, int kmInicial, decimal valorPrevisto)
         {
-            if (Status != StatusLocacao.Pendente && Status != StatusLocacao.Ativa)
+            if (Status != StatusLocacao.Pendente && Status != StatusLocacao.Criada)
                 throw new InvalidOperationException("Somente locações pendentes ou ativas podem ser atualizadas");
 
             if (dataFimPrevista <= DataInicio)
@@ -119,42 +209,11 @@
             ValorPrevisto = valorPrevisto;
         }
 
-        public void Cancelar()
-        {
-            if (Status != StatusLocacao.Ativa && Status != StatusLocacao.Pendente)
-                throw new InvalidOperationException("Somente locações pendentes ou ativas podem ser canceladas");
-
-            Status = StatusLocacao.Cancelada;
-
-            // Libera veículo
-            Veiculo.Disponibilizar();
-        }
-
-        public void AdicionarPagamento(Pagamento pagamento)
-        {
-            if (Status != StatusLocacao.Ativa)
-                throw new InvalidOperationException("Pagamentos só podem ser adicionados a locações ativas");
-
-            Pagamentos.Add(pagamento);
-        }
-
-        public void AdicionarMulta(Multa multa)
-        {
-            if (Status != StatusLocacao.Ativa)
-                throw new InvalidOperationException("Multas só podem ser adicionadas a locações ativas");
-
-            Multas.Add(multa);
-        }
-
-        public void AdicionarSeguro(LocacaoSeguro seguro)
-        {
-            Seguros.Add(seguro);
-        }
 
         //TODO: isso é um job
         public void MarcarComoAtrasada(DateTime agora)
         {
-            if (Status == StatusLocacao.Ativa && agora.Date > DataFimPrevista.Date)
+            if (Status == StatusLocacao.Criada && agora.Date > DataFimPrevista.Date)
             {
                 Status = StatusLocacao.Atrasada;
             }
@@ -164,10 +223,11 @@
     public enum StatusLocacao
     {
         Pendente,
-        Ativa,
+        Criada,
         Cancelada,
         Atrasada,
-        Finalizada
+        Finalizada,
+        EmAndamento
     }
 
 }
