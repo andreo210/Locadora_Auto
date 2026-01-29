@@ -3,6 +3,7 @@ using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
+using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.Extensions.Logging;
 
@@ -28,21 +29,14 @@ namespace Locadora_Auto.Application.Services
 
         public async Task<IReadOnlyList<CategoriaVeiculoDto>> ObterTodosAsync(CancellationToken ct = default)
         {
-            var categorias = await _repository.ObterAsync(
-                ordenarPor: q => q.OrderBy(c => c.Nome),
-                ct: ct
-            );
+            var categorias = await _repository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
 
             return categorias.Select(c => c.ToDto()).ToList();
         }
 
         public async Task<CategoriaVeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(
-                c => c.Id == id,
-                ct: ct
-            );
-
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, ct: ct);
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -64,10 +58,7 @@ namespace Locadora_Auto.Application.Services
                 return false;
             }
 
-            var existe = await _repository.ExisteAsync(
-                c => c.Nome == dto.Nome.Trim(),
-                ct
-            );
+            var existe = await _repository.ExisteAsync(c => c.Nome == dto.Nome.Trim(), ct);
 
             if (existe)
             {
@@ -81,8 +72,7 @@ namespace Locadora_Auto.Application.Services
                 return false;
             }
 
-            var entidade = dto.ToEntity();
-
+            var entidade = CategoriaVeiculo.Criar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
             await _repository.InserirSalvarAsync(entidade, ct);
 
             return true;
@@ -90,12 +80,7 @@ namespace Locadora_Auto.Application.Services
 
         public async Task<bool> AtualizarAsync(int id, AtualizarCategoriaVeiculoDto dto, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(
-                c => c.Id == id,
-                rastreado: true,
-                ct: ct
-            );
-
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct);
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -104,11 +89,7 @@ namespace Locadora_Auto.Application.Services
 
             if (!string.IsNullOrWhiteSpace(dto.Nome))
             {
-                var nomeExiste = await _repository.ExisteAsync(
-                    c => c.Nome == dto.Nome.Trim() && c.Id != id,
-                    ct
-                );
-
+                var nomeExiste = await _repository.ExisteAsync(c => c.Nome == dto.Nome.Trim() && c.Id != id,ct);
                 if (nomeExiste)
                 {
                     _notificador.Add("Já existe outra categoria com esse nome.");
@@ -116,8 +97,7 @@ namespace Locadora_Auto.Application.Services
                 }
             }
 
-            categoria.AtualizarDto(dto);
-
+            categoria.Atualizar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
             var alterado = await _repository.SalvarAsync(ct);
 
             if (alterado == 0)
@@ -131,10 +111,7 @@ namespace Locadora_Auto.Application.Services
 
         public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(
-                c => c.Id == id,
-                ct: ct
-            );
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, ct: ct);
 
             if (categoria == null)
             {

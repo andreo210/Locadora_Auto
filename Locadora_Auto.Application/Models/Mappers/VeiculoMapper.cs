@@ -19,10 +19,8 @@ namespace Locadora_Auto.Application.Models.Mappers
                 KmAtual = veiculo.KmAtual,
                 Ativo = veiculo.Ativo,
                 Disponivel = veiculo.Disponivel,
-
                 IdCategoria = veiculo.IdCategoria,
                 Categoria = veiculo.Categoria?.Nome ?? string.Empty,
-
                 IdFilialAtual = veiculo.FilialAtualId,
                 Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };
