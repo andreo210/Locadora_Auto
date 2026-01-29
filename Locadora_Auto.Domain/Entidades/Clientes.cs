@@ -24,29 +24,61 @@ namespace Locadora_Auto.Domain.Entidades
 
         //navegação
         public User? Usuario { get; set; } = null!;
-        public Endereco? Endereco { get; set; } = null!;
+        public Endereco? Endereco { get; private set; } = null!;
         public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
         public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();
 
+        private Clientes(){  }
 
-        public static Clientes Criar(string numeroHabilitacao, DateTime validadeCnh)
+        public static Clientes Criar(string numeroHabilitacao, DateTime validadeCnh, Endereco endereco)
         {
             if (string.IsNullOrWhiteSpace(numeroHabilitacao))
-                throw new InvalidOperationException("Nome é obrigatório");
-
-            if (validadeCnh < DateTime.Today)
-                throw new InvalidOperationException("CNH inválida");
+                throw new InvalidOperationException("Numero de habilitação é obrigatório");
+            
+            if (endereco == null)
+                throw new InvalidOperationException("endereço não pode ser nulo");
 
             return new Clientes
             {
                 NumeroHabilitacao = numeroHabilitacao,
                 ValidadeHabilitacao = validadeCnh,
-                Status = StatusCliente.Ativo,
+                Status = StatusCliente.Habilitado,
                 Ativo = true,
-                DataCriacao = DateTime.Now,
-                TotalLocacoes = 0
+                TotalLocacoes = 0,
+                Endereco = Endereco.Criar(endereco.Logradouro, endereco.Numero, endereco.Bairro, endereco.Cidade, endereco.Estado, endereco.Cep, endereco.Complemento)
             };
         }
+
+
+       
+
+        public void Atualizar(string numeroHabilitacao, DateTime validadeCnh, Endereco endereco)
+        {
+            if (string.IsNullOrWhiteSpace(numeroHabilitacao))
+                throw new InvalidOperationException("Numero de habilitação é obrigatório");
+
+            if (endereco == null)
+                throw new InvalidOperationException("endereço não pode ser nulo");
+
+            NumeroHabilitacao = numeroHabilitacao;
+            ValidadeHabilitacao = validadeCnh;
+            Status = StatusCliente.Habilitado;
+            Ativo = true;
+            Endereco.Atualizar(endereco.Logradouro, endereco.Numero, endereco.Bairro, endereco.Cidade, endereco.Estado, endereco.Cep, endereco.Complemento);
+        }
+
+        //private void ClienteMaiorDeIdade(DateTime dataNascimento)
+        //{
+        //    var idade = DateTime.UtcNow.Year - dataNascimento.Year;
+
+        //    // Ajustar se ainda não fez aniversário este ano
+        //    if (DateTime.UtcNow < dataNascimento.AddYears(idade))
+        //    {
+        //        idade--;
+        //    }
+
+        //    return idade >= 18;
+        //}
 
         public void Bloquear()
         {
@@ -60,12 +92,21 @@ namespace Locadora_Auto.Domain.Entidades
 
         public void Regularizar()
         {
-            Status = StatusCliente.Ativo;
+            Status = StatusCliente.Habilitado;
+        }
+
+        public void Ativar()
+        {
+            Ativo = true;
+        }
+        public void Desativar()
+        {
+            Ativo = false;
         }
 
         public bool PodeLocar()
         {
-            return Status == StatusCliente.Ativo &&
+            return Status == StatusCliente.Habilitado &&
                    ValidadeHabilitacao >= DateTime.Today;
         }
 
@@ -73,8 +114,10 @@ namespace Locadora_Auto.Domain.Entidades
     }
     public enum StatusCliente
     {
-        Ativo,
+        Habilitado,
         Inadimplente,
         Bloqueado
     }
+
+    
 }

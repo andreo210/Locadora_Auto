@@ -27,7 +27,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("cargo")
                 .HasMaxLength(50);
 
-            builder.Property(e => e.Status)
+            builder.Property(e => e.Ativo)
                 .HasColumnName("status")
                 .IsRequired();
             //chave estrangeira

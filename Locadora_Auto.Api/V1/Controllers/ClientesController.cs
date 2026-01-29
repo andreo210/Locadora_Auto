@@ -129,7 +129,7 @@ namespace Locadora_Auto.API.Controllers
         public async Task<ActionResult<ClienteDto>> Post([FromBody] CriarClienteDto clienteDto, CancellationToken ct = default)
         {
             var cliente = await _clienteService.CriarClienteAsync(clienteDto, ct);
-            return CustomResponse(HttpStatusCode.Created);  
+            return CustomResponse(cliente,HttpStatusCode.Created);  
         }
 
         /// <summary>

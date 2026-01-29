@@ -56,16 +56,16 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Nome = dto.Nome.Trim(),
                 Cidade = dto.Cidade.Trim(),
                 Ativo = dto.Ativo,
-                Endereco = new Endereco
-                {
-                    Logradouro = dto.Logradouro.Trim(),
-                    Numero = dto.Numero.Trim(),
-                    Complemento = dto.Complemento?.Trim(),
-                    Bairro = dto.Bairro.Trim(),
-                    Cidade = dto.Cidade.Trim(),
-                    Estado = dto.Estado.Trim().ToUpper(),
-                    Cep = dto.Cep.Trim()
-                }
+                //Endereco = new Endereco
+                //{
+                //    Logradouro = dto.Logradouro.Trim(),
+                //    Numero = dto.Numero.Trim(),
+                //    Complemento = dto.Complemento?.Trim(),
+                //    Bairro = dto.Bairro.Trim(),
+                //    Cidade = dto.Cidade.Trim(),
+                //    Estado = dto.Estado.Trim().ToUpper(),
+                //    Cep = dto.Cep.Trim()
+                //}
             };
         }
 

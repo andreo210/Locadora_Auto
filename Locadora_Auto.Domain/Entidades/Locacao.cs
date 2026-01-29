@@ -34,10 +34,9 @@
         public ICollection<LocacaoSeguro> Seguros { get; private set; } = new List<LocacaoSeguro>();
 
 
-        // ======================= CONSTRUTOR PRIVADO PARA EF =======================
         private Locacao() { }
 
-        // ======================= FÁBRICA / CRIAÇÃO =======================
+
         public static Locacao Criar(
             Clientes cliente,
             Veiculo veiculo,

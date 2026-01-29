@@ -15,11 +15,13 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.IdCliente)
                 .HasColumnName("id_cliente")
                 .ValueGeneratedOnAdd();
-         
+
 
             builder.Property(e => e.Status)
-                .HasColumnName("status")
-                .IsRequired();
+                  .HasColumnName("status")
+                  .HasConversion<string>() 
+                  .HasMaxLength(20)
+                  .IsRequired();
 
             builder.Property(e => e.NumeroHabilitacao)
                .HasColumnName("numero_habilitacao");

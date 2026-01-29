@@ -28,19 +28,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
             _tokenRepository = tokenRepository;
         }
 
-        public async Task<UserDto> CriarAsync(CreateUserDto dto)
-        {
-            var user = dto.CreateToEntity();
-
-            var result = await _userManager.CreateAsync(user, dto.Password);
-
-            if (!result.Succeeded)
-                throw new InvalidOperationException(
-                    string.Join(", ", result.Errors.Select(e => e.Description))
-                );
-
-            return user.ToDto();
-        }
+       
 
 
         public async Task<SignInResult> LoginAsync(LoginDto dto)

@@ -5,23 +5,6 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class ClienteMapper
     {
-        public static Clientes ToEntity(this CriarClienteDto dto)
-        {
-            return new Clientes
-            {
-                Status = true,
-                Endereco = dto.Endereco.ToEntity()
-            };
-        }
-
-        public static Clientes ToEntity(this AtualizarClienteDto dto)
-        {
-            return new Clientes
-            {
-                Status = dto.Status,
-                Endereco = dto.Endereco.ToEntity()
-            };
-        }
 
         public static ClienteDto ToDto(this Clientes entidade)
         {
@@ -30,7 +13,7 @@ namespace Locadora_Auto.Application.Models.Mappers
             return new ClienteDto
             {
                 IdCliente = entidade.IdCliente,
-                Status = entidade.Status,
+                Ativo = entidade.Ativo,
                 Endereco = entidade.Endereco?.ToDto(),
                 NumeroHabilitacao = entidade.NumeroHabilitacao,
                 TotalLocacoes = entidade.TotalLocacoes,

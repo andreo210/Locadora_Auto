@@ -99,30 +99,7 @@ namespace Locadora_Auto.Api.V1.Controllers
             return Ok(user);
         }
 
-        /// <summary>
-        /// Cria um novo usuário.
-        /// </summary>
-        /// <param name="dto">Dados do usuário a ser criado</param>
-        /// <returns>Usuário criado</returns>
-        [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesDefaultResponseType]
-        public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto usuarioRegistro)
-        {
-
-            var usuario = await _userService.ObterPorEmail(usuarioRegistro.Email);
-
-            if (usuario != null)
-            {
-                throw new Exception("Usuário já cadastrado");
-            }
-            if (usuarioRegistro.Password != usuarioRegistro.RepeatPassword)
-            {
-                throw new Exception("Senha diferente");
-            }
-            var user =await _userService.CriarAsync(usuarioRegistro);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
+        
 
         /// <summary>
         /// Atualiza um usuário existente.
@@ -207,8 +184,6 @@ namespace Locadora_Auto.Api.V1.Controllers
             }
             return ValidationResponse("Token inválido", "Token inválido");
         }
-
-
 
         private (string token ,DateTime validade)  ObterIdToken(string token)
         {

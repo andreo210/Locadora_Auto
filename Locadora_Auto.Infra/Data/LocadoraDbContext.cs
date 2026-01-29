@@ -50,6 +50,7 @@ namespace Locadora_Auto.Infra.Data
         //sobreescreve o saveChange para criar histórico temporal
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            AplicarAuditoria();
             CriarHistoricoTemporal();
             return await base.SaveChangesAsync(cancellationToken);
         }
@@ -101,6 +102,26 @@ namespace Locadora_Auto.Infra.Data
                     continue;
 
                 historyProp.SetValue(history, entry.OriginalValues[prop.Name]);
+            }
+        }
+
+        private void AplicarAuditoria()
+        {
+            var entries = ChangeTracker.Entries<IAuditoria>();
+
+            foreach (var entry in entries)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.DataCriacao = DateTime.UtcNow;
+                    entry.Entity.IdUsuarioCriacao = _currentUser.UserId ?? "SYSTEM";
+                }
+
+                if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.DataModificacao = DateTime.UtcNow;
+                    entry.Entity.IdUsuarioModificacao = _currentUser.UserId ?? "SYSTEM";
+                }
             }
         }
     }

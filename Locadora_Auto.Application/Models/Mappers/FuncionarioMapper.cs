@@ -5,29 +5,6 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class FuncionarioMapper
     {
-        public static Funcionario ToEntity(this CriarFuncionarioDto dto)
-        {
-            if (dto == null) return null;
-            return new Funcionario
-            {
-                Cargo = dto.Cargo,
-                Status = true,
-                IdFuncionario = 0,
-                IdUser = string.Empty,                
-            };
-        }
-
-        public static Funcionario ToEntity(this AtualizarFuncionarioDto dto)
-        {
-            if (dto == null) return null;
-            return new Funcionario
-            {
-                Cargo = dto.Cargo,
-                Status = dto.Status
-                
-            };
-        }
-
         public static FuncionarioDto ToDto(this Funcionario entidade)
         {
             if (entidade == null) return null;
@@ -36,7 +13,7 @@ namespace Locadora_Auto.Application.Models.Mappers
             {
                 IdFuncionario = entidade.IdFuncionario,
                 UsuarioId = entidade.Usuario?.Id ?? string.Empty,
-                Status = entidade.Status,
+                Status = entidade.Ativo,
                 Cpf = entidade.Usuario?.Cpf ?? string.Empty,
                 Nome = entidade.Usuario?.NomeCompleto ?? string.Empty,
                 Email = entidade.Usuario?.Email ?? string.Empty,

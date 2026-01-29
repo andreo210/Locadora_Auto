@@ -1,5 +1,4 @@
 ﻿using Locadora_Auto.Application.Configuration.UtilExtensions;
-using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.Notificador;
@@ -16,8 +15,6 @@ namespace Locadora_Auto.Application.Services.ClienteServices
     public class ClienteService : IClienteService
     {
         private readonly IClienteRepository _clienteRepository;
-        private readonly IUnitOfWork _transaction;
-        private readonly ILogger<ClienteService> _logger;
         private readonly UserManager<User> _userManager;
         private readonly INotificadorService _notificador;
 
@@ -29,8 +26,6 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             ILogger<ClienteService> logger)
         {
             _clienteRepository = clienteRepository ?? throw new ArgumentNullException(nameof(clienteRepository));
-            _transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(logger));
             _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
         }
@@ -66,7 +61,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         public async Task<IReadOnlyList<ClienteDto>> ObterAtivosAsync(CancellationToken ct = default)
         {
-            var entidades = await _clienteRepository.ObterAsync( filtro: c => c.Status, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync( filtro: c => c.Ativo, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
 
         }
@@ -74,7 +69,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<IReadOnlyList<ClienteDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default)
         {
             
-            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.NomeCompleto.Contains(nome) && c.Status, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.NomeCompleto.Contains(nome) && c.Ativo, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d=>d.ToDto()).ToList();
 
         }
@@ -82,7 +77,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<IReadOnlyList<ClienteDto>> ObterPorEmailAsync(string email, CancellationToken ct = default)
         {
 
-            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.Email == email && c.Status,ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
+            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.Email == email && c.Ativo,ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
 
         }
@@ -96,7 +91,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<int> ContarClientesAtivosAsync(CancellationToken ct = default)
         {            
             var model = await ObterTodosAsync();
-            return model.Count(c => c.Status);           
+            return model.Count(c => c.Ativo);           
         }
 
         public async Task<IReadOnlyList<ClienteDto>> ObterPaginadoAsync(int pagina,int tamanhoPagina, CancellationToken ct = default)
@@ -109,7 +104,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             var skip = (pagina - 1) * tamanhoPagina;
 
             var entidades = await _clienteRepository.ObterPaginadoAsync(
-                filtro: c => c.Status,
+                filtro: c => c.Ativo,
                 skip: skip,
                 take: tamanhoPagina,
                 ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto),
@@ -119,17 +114,17 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         }
 
         public async Task<List<ClienteDto>> ObterSolicitacoesComFiltroAsync(
-           bool? status = null,
+           bool? ativo = null,
            string? cpf = null,
            string? nome = null,
            string? email = null
          )
         {
             Expression<Func<Clientes, bool>>? filtro = null;
-            if (status != null || cpf != null || nome != null || email != null)
+            if (ativo != null || cpf != null || nome != null || email != null)
             {
                 filtro = s =>
-                    (status == null || s.Status == status) &&
+                    (ativo == null || s.Ativo == ativo) &&
                     (cpf == null || s.Usuario.Cpf == cpf) &&
                     (nome == null || s.Usuario.NomeCompleto == nome) &&
                     (email == null || (s.Usuario.Email == email));
@@ -158,80 +153,36 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         #region Operações de CRUD
 
-        //public async Task<ClienteDto> CriarClienteAsync(CriarClienteDto clienteDto, CancellationToken ct = default)
-        //{
-        //    // ✅ TUDO dentro da transação para evitar race conditions
-        //    return await _transaction.ExecuteTransactionAsync(async () =>
-        //    {
-        //        // Validações DENTRO da transação
-        //        await ValidarCriacaoClienteAsync(clienteDto, ct);
-
-        //        // Inserir no banco
-        //        var model = await _clienteRepository.InserirAsync(clienteDto.CriarToEntity(), ct);
-
-        //        // Operações adicionais que devem ser atômicas
-        //        //await CriarAuditoriaClienteAsync(model.IdCliente, ct);
-        //        // await EnviarNotificacaoCadastroAsync(model.Email, ct); // ⚠️ Cuidado com operações externas!
-
-        //        return model.ToDto();
-        //    }, ct);
-        //}
-
         public async Task<ClienteDto> CriarClienteAsync(CriarClienteDto clienteDto, CancellationToken ct = default)
-        {
-            
+        {            
             // Validações
-            await ValidarCriacaoClienteAsync(clienteDto, ct);
+            if(!await ValidarCriacaoClienteAsync(clienteDto, ct)) return null;
 
             // Inserir no banco
-            //var model = await _clienteRepository.InserirAsync(clienteDto.ToEntity(), ct);
-            var user = new User
-            {
-                UserName = clienteDto.Cpf,
-                Email = clienteDto.Email,
-                NomeCompleto = clienteDto.Nome,
-                Cpf = LimparCpf(clienteDto.Cpf),
-                PhoneNumber = LimparTelefone(clienteDto.Telefone)                
-            };
-
-            var model = new Clientes();
-            model.ci
-            user.Cliente = model;
+            var user = User.Criar(clienteDto.Nome, clienteDto.Cpf, clienteDto.Telefone, clienteDto.Email);
+            user.Cliente = Clientes.Criar(clienteDto.NumeroHabilitacao, clienteDto.ValidadeHabilitacao.Value,clienteDto.Endereco.ToEntity());
 
             var result = await _userManager.CreateAsync(user, clienteDto.Senha);
 
             if (!result.Succeeded)
-                throw new InvalidOperationException(
-                    string.Join(", ", result.Errors.Select(e => e.Description))
-                );
+                throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
             // Operações adicionais que devem ser atômicas
-            //await CriarAuditoriaClienteAsync(model.IdCliente, ct);
             // await EnviarNotificacaoCadastroAsync(model.Email, ct); // ⚠️ Cuidado com operações externas!
 
-            var cliente = model.ToDto();
+            var cliente = user.Cliente.ToDto();
             cliente.Cpf = user.Cpf;
             cliente.Email = user.Email;
             cliente.Telefone= user.PhoneNumber;
             cliente.Nome = user.NomeCompleto;
-            return cliente;
-           
+            return cliente;           
         }
 
 
         public async Task<bool> AtualizarClienteAsync(int id, AtualizarClienteDto clienteDto, CancellationToken ct = default)
-        {    
-            
+        {  
             // Buscar cliente existente
             var cliente = await _clienteRepository.ObterPrimeiroAsync(x=>x.IdCliente == id, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario), rastreado:true);
-            if (string.IsNullOrWhiteSpace(clienteDto.Nome))
-                _notificador.Add("Nome não pode ser nulo ou vazio");
-
-            if (string.IsNullOrWhiteSpace(clienteDto.Email))
-                _notificador.Add("Email não pode ser nulo ou vazio");
-
-            if (string.IsNullOrWhiteSpace(clienteDto.Telefone))
-                _notificador.Add("Telefone não pode ser nulo ou vazio");
 
             if (cliente == null)
             {
@@ -240,30 +191,18 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
             }
 
-            if (!cliente.Status)
+            if (!cliente.Ativo)
             {
                 _notificador.Add("Não é possível atualizar um cliente inativo.");
                 return false;
             }
 
             // Validações de campos únicos
-            //if (!string.IsNullOrWhiteSpace(clienteDto.Email) && clienteDto.Email != cliente.Email)
-            //{
-            //    if (await VerificarDisponibilidadeEmailAsync(clienteDto.Email, id, ct))
-            //    {
-            //        throw new InvalidOperationException($"Email {clienteDto.Email} já está em uso.");
-            //    }
-            //}
-
+            if (!await ValidarAtualizacaoClienteAsync(clienteDto,ct)) return false;
+           
             // Atualizar campos
-            cliente.Endereco = clienteDto.Endereco.ToEntity();
-            cliente.DataModificacao = DateTime.Now;
-            cliente.IdUsuarioModificacao = "TODO"; // Obter ID do usuário atual
-            cliente.NumeroHabilitacao = clienteDto.NumeroHabilitacao;
-            cliente.ValidadeHabilitacao = clienteDto.ValidadeHabilitacao;
-            cliente.Usuario.NomeCompleto = clienteDto.Nome.Trim();
-            cliente.Usuario.Email = clienteDto.Email.Trim().ToLower();
-            cliente.Usuario.PhoneNumber = LimparTelefone(clienteDto.Telefone);
+            cliente.Atualizar(clienteDto!.NumeroHabilitacao,clienteDto.ValidadeHabilitacao!.Value,clienteDto.Endereco.ToEntity());
+            cliente.Usuario.Atualizar(clienteDto.Nome, clienteDto.Telefone, clienteDto.Email);
 
 
             // Atualizar no banco
@@ -296,20 +235,19 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 return false;
             }
 
-            if (cliente.Status)
+            if (cliente.Ativo)
             {
                 return true; // Já está ativo
             }
 
             // Validar habilitação se necessário
-            if (cliente.ValidadeHabilitacao.HasValue &&
-                cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
+            if (cliente.ValidadeHabilitacao.HasValue && cliente.ValidadeHabilitacao.Value < DateTime.UtcNow)
             {
-                throw new InvalidOperationException(
-                    "Habilitação do cliente está vencida. Não é possível ativar.");
+                _notificador.Add("Habilitação do cliente está vencida. Não é possível ativar.");
+                return false;
             }
 
-            cliente.Status = true;
+            cliente.Ativar();
             var atualizado = await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
             return atualizado;            
         }
@@ -319,10 +257,11 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             var cliente = await _clienteRepository.ObterPorIdAsync(id);
             if (cliente == null)
             {
-                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado.");
+               _notificador.Add($"Cliente com ID {id} não encontrado.");
+                return false;
             }
 
-            if (!cliente.Status)
+            if (!cliente.Ativo)
             {
                 return true; // Já está inativo
             }
@@ -334,7 +273,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             //        "Cliente possui locações ativas. Finalize as locações antes de desativar.");
             //}
 
-            cliente.Status = false;
+            cliente.Desativar();
             var atualizado = await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
             return atualizado;
            
@@ -347,12 +286,13 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<bool> ValidarClienteParaLocacaoAsync(int id, CancellationToken ct = default)
         {            
             var cliente = await _clienteRepository.ObterPrimeiroAsync(
-                c => c.IdCliente == id && c.Status,
+                c => c.IdCliente == id && c.Ativo,
                 ct: ct);
 
             if (cliente == null)
             {
-                throw new KeyNotFoundException($"Cliente com ID {id} não encontrado ou inativo.");
+                _notificador.Add($"Cliente com ID {id} não encontrado ou inativo.");
+                return false;
             }                
 
             // Verificar habilitação válida
@@ -392,31 +332,21 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         //    }
         //}
 
-        //public async Task<bool> ClienteEstaEmDiaComPagamentosAsync(int id, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        // Implementação simplificada - você precisaria ajustar para sua estrutura
-        //        var query = from pagamento in _dbContext.Set<Pagamento>()
-        //                    join locacao in _dbContext.Set<Locacao>()
-        //                         on pagamento.LocacaoId equals locacao.Id
-        //                    where locacao.ClienteId == id
-        //                          && pagamento.Status == PagamentoStatus.Pendente
-        //                          && pagamento.DataVencimento < DateTime.UtcNow
-        //                    select pagamento.Id;
 
-        //        return !await query.AnyAsync(ct);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao verificar pagamentos do cliente ID: {Id}", id);
-        //        throw;
-        //    }
-        //}
 
         #endregion
 
         #region Métodos Auxiliares
+        private async Task<bool> VerificarDisponibilidadeEmailAsync(string email, CancellationToken ct = default)
+        {
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Email == email, ct: ct, incluir: q => q.Include(c => c.Usuario));
+            if (entidade == null)
+            {
+                return true;
+            }
+            return false;
+        }
+
 
         //public async Task<bool> VerificarDisponibilidadeEmailAsync(
         //    string email,
@@ -444,73 +374,69 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         //    }
         //}
 
-        //public async Task<bool> VerificarDisponibilidadeCpfAsync(
-        //    string cpf,
-        //    int? idExcluir = null,
-        //    CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        var cpfLimpo = LimparCpf(cpf);
-
-        //        var query = _dbContext.Set<ClienteDto>()
-        //            .Where(c => c.Cpf == cpfLimpo);
-
-        //        if (idExcluir.HasValue)
-        //        {
-        //            query = query.Where(c => c.IdCliente != idExcluir.Value);
-        //        }
-
-        //        return !await query.AnyAsync(ct);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Erro ao verificar disponibilidade do CPF: {Cpf}", cpf);
-        //        throw;
-        //    }
-        //}
+        private async Task<bool> VerificarDisponibilidadeCpfAsync(string cpf, CancellationToken ct = default)
+        {
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.UserName == cpf, ct: ct, incluir: q => q.Include(c => c.Usuario));
+            if (entidade == null)
+            {
+                return true;
+            }
+            return false;
+        }
 
         #endregion
 
         #region Métodos Privados
 
-        private async Task ValidarCriacaoClienteAsync(CriarClienteDto clienteDto, CancellationToken ct)
+        private async Task<bool> ValidarCriacaoClienteAsync(CriarClienteDto clienteDto, CancellationToken ct)
         {
             // Validar CPF
-            if (!DocumentoExtensionMethods.EhCpfValido(clienteDto.Cpf))
-            {
-                throw new ArgumentException("CPF inválido.");
-            }
+            if (!DocumentoExtensionMethods.EhCpfValido(clienteDto.Cpf)) _notificador.Add("CPF inválido.");
 
             // Verificar se CPF já existe
-            if (await ExisteClienteAsync(clienteDto.Cpf, ct))
-            {
-                throw new InvalidOperationException($"CPF {clienteDto.Cpf} já cadastrado.");
-            }
+            if (await ExisteClienteAsync(clienteDto.Cpf, ct)) _notificador.Add($"CPF {clienteDto.Cpf} já cadastrado.");
 
             // Verificar se email já existe
-            //if (await VerificarDisponibilidadeEmailAsync(clienteDto.Email, null, ct))
-            //{
-            //    throw new InvalidOperationException($"Email {clienteDto.Email} já cadastrado.");
-            //}
+            if (!await VerificarDisponibilidadeEmailAsync(clienteDto.Email, ct)) _notificador.Add($"Email {clienteDto.Email} já cadastrado.");
+
+            // Verificar se email já existe
+            if (!await VerificarDisponibilidadeCpfAsync(clienteDto.Cpf, ct)) _notificador.Add($"CPF {clienteDto.Cpf} já cadastrado.");            
 
             // Validar email
-            if (!ValidarEmail(clienteDto.Email))
-            {
-                throw new ArgumentException("Email inválido.");
-            }
+            if (!ValidarEmail(clienteDto.Email)) _notificador.Add("Email inválido.");
+
+            //Validar Cnh
+            if (clienteDto.ValidadeHabilitacao < DateTime.Today) _notificador.Add("CNH inválida.");
+
+
+            var notificacoes = _notificador.ObterNotificacoes();
+            if (notificacoes.Any()) return false;
+            return true;
         }
+
+        private async Task<bool> ValidarAtualizacaoClienteAsync(AtualizarClienteDto clienteDto, CancellationToken ct)
+        {
+            // Verificar se email já existe
+            if (!await VerificarDisponibilidadeEmailAsync(clienteDto.Email, ct)) _notificador.Add($"Email {clienteDto.Email} já cadastrado.");
+
+            // Validar email
+            if (!ValidarEmail(clienteDto.Email)) _notificador.Add("Email inválido.");
+
+            //Validar Cnh
+            if (clienteDto.ValidadeHabilitacao < DateTime.Today) _notificador.Add("CNH inválida.");
+
+
+            var notificacoes = _notificador.ObterNotificacoes();
+            if (notificacoes.Any()) return false;
+            return true;
+        }
+               
 
         private string LimparCpf(string cpf)
         {
             return new string(cpf.Where(char.IsDigit).ToArray());
         }
-
-        private string LimparTelefone(string telefone)
-        {
-            return new string(telefone.Where(char.IsDigit).ToArray());
-        }
-              
+   
 
         private bool ValidarEmail(string email)
         {
@@ -523,19 +449,6 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             {
                 return false;
             }
-        }
-
-        private bool ClienteMaiorDeIdade(DateTime dataNascimento)
-        {
-            var idade = DateTime.UtcNow.Year - dataNascimento.Year;
-
-            // Ajustar se ainda não fez aniversário este ano
-            if (DateTime.UtcNow < dataNascimento.AddYears(idade))
-            {
-                idade--;
-            }
-
-            return idade >= 18;
         }
 
         #endregion

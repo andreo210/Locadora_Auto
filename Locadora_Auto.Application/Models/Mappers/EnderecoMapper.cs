@@ -17,7 +17,6 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Cidade = entidade.Cidade,
                 Estado = entidade.Estado,
                 Cep = entidade.Cep,
-                DataCriacao = entidade.DataCriacao,
                 Complemento = entidade.Complemento               
             };
         }

@@ -42,9 +42,6 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.Cep)
                 .HasColumnName("cep");
 
-            builder.Property(e => e.DataCriacao)
-                .HasColumnName("data_criacao")
-                .IsRequired();
         }
     }
 

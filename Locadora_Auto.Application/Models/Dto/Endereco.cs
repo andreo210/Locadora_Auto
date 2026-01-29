@@ -13,9 +13,6 @@
 
     public class EnderecoDto : EnderecoBase
     {
-        //public int IdEndereco { get; set; }
-       // public int IdCliente { get; set; }
-        public DateTime DataCriacao { get; set; } = DateTime.Now;
     }
 
     public class CriarEnderecoDto : EnderecoBase
