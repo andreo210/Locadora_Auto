@@ -1,6 +1,6 @@
 ﻿using Locadora_Auto.Application.Models;
 
-namespace Locadora_Auto.Application.Services.Notificador
+namespace Locadora_Auto.Application.Configuration.Ultils.NotificadorServices
 {
     public interface INotificadorService
     {

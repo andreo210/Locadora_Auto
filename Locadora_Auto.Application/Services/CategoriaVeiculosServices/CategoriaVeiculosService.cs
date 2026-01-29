@@ -1,8 +1,8 @@
-﻿using Locadora_Auto.Application.Models;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
-using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.Extensions.Logging;
 

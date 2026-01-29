@@ -1,6 +1,6 @@
-﻿using Locadora_Auto.Application.Models.Dto;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
-using Locadora_Auto.Application.Services.Notificador;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 

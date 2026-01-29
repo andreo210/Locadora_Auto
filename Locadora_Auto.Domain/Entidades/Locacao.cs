@@ -76,7 +76,7 @@
             };
 
             // Marca veículo como indisponível
-            veiculo.Disponivel = false;
+            veiculo.Indisponibilizar();
 
             return locacao;
         }
@@ -103,7 +103,7 @@
             Status = StatusLocacao.Finalizada;
 
             // Libera veículo
-            Veiculo.Disponivel = true;
+            Veiculo.Disponibilizar();
         }
 
         public void AtualizarDados(DateTime dataFimPrevista, int kmInicial, decimal valorPrevisto)
@@ -127,7 +127,7 @@
             Status = StatusLocacao.Cancelada;
 
             // Libera veículo
-            Veiculo.Disponivel = true;
+            Veiculo.Disponibilizar();
         }
 
         public void AdicionarPagamento(Pagamento pagamento)

@@ -26,41 +26,6 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdFilialAtual = veiculo.FilialAtualId,
                 Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };
-        }
-
-        public static Veiculo ToEntity(this CriarVeiculoDto dto)
-        {
-            return new Veiculo
-            {
-                Placa = dto.Placa.Trim().ToUpper(),
-                Marca = dto.Marca.Trim(),
-                Modelo = dto.Modelo.Trim(),
-                Ano = dto.Ano,
-                Chassi = dto.Chassi.Trim().ToUpper(),
-                KmAtual = dto.KmInicial,
-                IdCategoria = dto.IdCategoria,
-                FilialAtualId = dto.IdFilialAtual,
-                Ativo = true,
-                Disponivel = true
-            };
-        }
-
-        public static void Atualizar(this Veiculo veiculo, AtualizarVeiculoDto dto)
-        {
-            if (dto.Marca != null)
-                veiculo.Marca = dto.Marca.Trim();
-
-            if (dto.Modelo != null)
-                veiculo.Modelo = dto.Modelo.Trim();
-
-            if (dto.Ano.HasValue)
-                veiculo.Ano = dto.Ano.Value;
-
-            if (dto.KmAtual.HasValue)
-                veiculo.KmAtual = dto.KmAtual.Value;
-
-            if (dto.IdFilialAtual.HasValue)
-                veiculo.FilialAtualId = dto.IdFilialAtual.Value;
-        }
+        }              
     }
 }

@@ -1,8 +1,9 @@
-﻿using Locadora_Auto.Application.Models;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
-using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.VeiculoServices;
+using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,44 +66,44 @@ public class VeiculoService : IVeiculoService
 
     public async Task<VeiculoDto?> CriarAsync(CriarVeiculoDto dto, CancellationToken ct = default)
     {
-        if (await _veiculoRepository.ExisteAsync(v => v.Placa == dto.Placa, ct))
-        {
-            _notificador.Add("Placa já cadastrada");
-            return null;
-        }
+        var validacao = await ValidadorCriacaoVeiculo(dto, ct);
+        if(!validacao) return null;
 
-        if (dto.KmInicial < 0)
-        {
-            _notificador.Add("Km inicial inválido");
-            return null;
-        }
-
-        if (!await _categoriaRepository.ExisteAsync(c => c.Id == dto.IdCategoria, ct))
-        {
-            _notificador.Add("Categoria não encontrada");
-            return null;
-        }
-
-        if (!await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilialAtual, ct))
-        {
-            _notificador.Add("Filial não encontrada");
-            return null;
-        }
-
-        var veiculo = dto.ToEntity();
+        var veiculo = Veiculo.Criar(dto.Placa,dto.Marca,dto.Modelo,dto.Ano,dto.Chassi,dto.KmInicial,dto.IdCategoria,dto.IdFilialAtual);
 
         await _veiculoRepository.InserirSalvarAsync(veiculo, ct);
 
         return await ObterPorIdAsync(veiculo.IdVeiculo, ct);
     }
 
+    private async Task<bool> ValidadorCriacaoVeiculo(CriarVeiculoDto dto, CancellationToken ct = default)
+    {
+        if (await _veiculoRepository.ExisteAsync(v => v.Placa == dto.Placa, ct))
+        {
+            _notificador.Add("Placa já cadastrada");
+        }
+
+        if (dto.KmInicial < 0)
+        {
+            _notificador.Add("Km inicial inválido");
+        }
+
+        if (!await _categoriaRepository.ExisteAsync(c => c.Id == dto.IdCategoria, ct))
+        {
+            _notificador.Add("Categoria não encontrada");
+        }
+
+        if (!await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilialAtual, ct))
+        {
+            _notificador.Add("Filial não encontrada");
+        }
+        if(_notificador.TemNotificacao()) return false;
+        return true;
+    }
+
     public async Task<bool> AtualizarAsync(int id, AtualizarVeiculoDto dto, CancellationToken ct = default)
     {
-        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
-            v => v.IdVeiculo == id,
-            rastreado: true,
-            ct: ct);
-
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(v => v.IdVeiculo == id, rastreado: true,ct: ct);
         if (veiculo == null)
         {
             _notificador.Add("Veículo não encontrado");
@@ -114,12 +115,8 @@ public class VeiculoService : IVeiculoService
             _notificador.Add("Km não pode ser menor que o atual");
             return false;
         }
-
-        if (dto.Marca != null) veiculo.Marca = dto.Marca.Trim();
-        if (dto.Modelo != null) veiculo.Modelo = dto.Modelo.Trim();
-        if (dto.Ano.HasValue) veiculo.Ano = dto.Ano.Value;
-        if (dto.KmAtual.HasValue) veiculo.KmAtual = dto.KmAtual.Value;
-        if (dto.IdFilialAtual.HasValue) veiculo.FilialAtualId = dto.IdFilialAtual.Value;
+ 
+        veiculo.Atualizar(dto.KmAtual.Value, dto.IdFilialAtual.Value);
 
         await _veiculoRepository.SalvarAsync(ct);
         return true;
@@ -134,8 +131,7 @@ public class VeiculoService : IVeiculoService
             return false;
         }
 
-        veiculo.Ativo = true;
-        veiculo.Disponivel = true;
+        veiculo.Ativar();
         return await _veiculoRepository.AtualizarSalvarAsync(veiculo, ct);
     }
 
@@ -148,8 +144,7 @@ public class VeiculoService : IVeiculoService
             return false;
         }
 
-        veiculo.Ativo = false;
-        veiculo.Disponivel = false;
+        veiculo.Desativar();
         return await _veiculoRepository.AtualizarSalvarAsync(veiculo, ct);
     }
 

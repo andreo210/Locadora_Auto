@@ -11,7 +11,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Locadora_Auto.Application.Services.Email;
+namespace Locadora_Auto.Application.Configuration.Ultils.Email;
 
 public class MailService(
     IOptions<EmailConfig> emailSettings,

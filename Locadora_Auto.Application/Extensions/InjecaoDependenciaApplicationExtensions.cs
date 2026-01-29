@@ -1,14 +1,14 @@
-﻿using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
+﻿using Locadora_Auto.Application.Configuration.Ultils.Email;
+using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
 using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Application.Services.ClienteServices;
-using Locadora_Auto.Application.Services.Email;
 using Locadora_Auto.Application.Services.FilialServices;
 using Locadora_Auto.Application.Services.FuncionarioServices;
 using Locadora_Auto.Application.Services.LocacaoServices;
-using Locadora_Auto.Application.Services.Notificador;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
