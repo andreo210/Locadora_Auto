@@ -151,8 +151,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
            
         }
 
-        // ====================== ADICIONAR MULTA ======================
-        public async Task<bool> AdicionarMultaAsync(int idLocacao, MultaDto dto, CancellationToken ct = default)
+        public async Task<bool> AdicionarCalcaoAsync(int idLocacao, decimal valor, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(idLocacao, ct); ;
             if (locacao == null)
@@ -161,21 +160,48 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
 
-            try
-            {
-                var multa = dto.ToEntity();
-                //todo: entra o tipo e ele ja manda a multa
-                locacao.AdicionarMulta(multa);
-                await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
-                return true;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _notificador.Add(ex.Message);
-                return false;
-            }
+            locacao.DefinirCaucao(valor);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+
         }
 
+        #region multas
+        public async Task<bool> AdicionarMultaAsync(int idLocacao, CriarMultaDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.AdicionarMulta((TipoMulta)dto.Tipo,dto.Valor);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+          
+        }
+
+        public async Task<bool> CompensarMultaAsync(int idLocacao, int idMulta,CancellationToken ct = default)
+        {
+            // 1. Buscar locação pelo repositório
+            var locacao = await ObterLocacao(idLocacao,ct);
+            if (locacao == null)
+                _notificador.Add("Locação não encontrada");
+
+            // 2. Delegar para o aggregate Locacao
+            locacao.CompensarMultaComCaucao(idMulta);
+
+            // 3. Persistir mudanças
+            var atualiza =await _locacaoRepository.AtualizarSalvarAsync(locacao,ct);
+            if(!atualiza)
+            {
+                _notificador.Add("Erro ao atualizar locação");
+                return false;
+            }
+            return true;
+        }
+        #endregion multas
         // ====================== ADICIONAR SEGURO ======================
         public async Task<bool> AdicionarSeguroAsync(int idLocacao, LocacaoSeguroDto dto, CancellationToken ct = default)
         {
@@ -218,9 +244,9 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(
                 x => x.IdLocacao == id, 
-                incluir: q => q.Include(c => c.Veiculo),
-                //.Include(c => c.Seguros)
-                // .Include(m=>m.Multas),
+                incluir: q => q.Include(c => c.Veiculo)
+                .Include(c => c.Caucoes)
+                .Include(m=>m.Multas),
                 
                 rastreado: true);
             return locacao!;

@@ -16,9 +16,10 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("id_multa");
 
             builder.Property(e => e.Tipo)
-                .HasColumnName("tipo")
-                .HasMaxLength(30)
-                .IsRequired();
+                 .HasColumnName("tipo")
+                 .HasConversion<string>()  // Enum -> string
+                 .HasMaxLength(20)
+                 .IsRequired();
 
             builder.Property(e => e.Valor)
                 .HasColumnName("valor")
@@ -26,13 +27,16 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .IsRequired();
 
             builder.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasMaxLength(20)
-                .IsRequired();
+                 .HasColumnName("status")
+                 .HasConversion<string>()  // Enum -> string
+                 .HasMaxLength(20)
+                 .IsRequired();
 
-            builder.HasOne(e => e.Locacao)
-                .WithMany()
-                .HasForeignKey(e => e.IdLocacao);
+            //chave estrangeira
+            builder.HasOne<Locacao>()
+                   .WithMany(l => l.Multas)
+                   .HasForeignKey("id_locacao")  // FK SOMBRA
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 

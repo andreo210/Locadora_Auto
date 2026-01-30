@@ -3,11 +3,8 @@
     public class Caucao
     {
         public int IdCaucao { get; private set; }
-        public int IdLocacao { get; private set; }
         public decimal Valor { get; private set; }
         public StatusCaucao Status { get; private set; }
-
-        public Locacao Locacao { get; set; }
 
         protected Caucao() { } // EF
 
@@ -21,6 +18,11 @@
                 Valor = valor,
                 Status = StatusCaucao.Pendente
             };
+        }
+
+        internal decimal Deduzir( decimal valor)
+        {
+            return Valor- valor;
         }
 
         internal void Bloquear()

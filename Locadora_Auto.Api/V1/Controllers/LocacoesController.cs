@@ -83,7 +83,7 @@ namespace Locadora_Auto.Api.Controllers
         [HttpPost("{id:int}/multas")]
         public async Task<IActionResult> AdicionarMulta(
             int id,
-            [FromBody] MultaDto dto,
+            [FromBody] CriarMultaDto dto,
             CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -93,6 +93,26 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(sucesso);
         }
 
+        [HttpPost("{id:int}/multas/{idMulta:int}/compensar")]
+        public async Task<IActionResult> CompensarMulta(int id,int idMulta,CancellationToken ct)  
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.CompensarMultaAsync(id,idMulta, ct);
+            return CustomResponse(sucesso);
+        }
+
+
+        [HttpPost("{id:int}/caulcao/{valor:decimal}")]
+        public async Task<IActionResult> DefinirCaucao(int id, decimal valor, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.AdicionarCalcaoAsync(id, valor, ct);
+            return CustomResponse(sucesso);
+        }
         // ====================== ADICIONAR SEGURO ======================
         [HttpPost("{id:int}/seguros")]
         public async Task<IActionResult> AdicionarSeguro(

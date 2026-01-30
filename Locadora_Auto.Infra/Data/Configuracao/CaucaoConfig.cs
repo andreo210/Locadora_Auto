@@ -8,10 +8,9 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Caucao> builder)
         {
-            builder.ToTable("caucao");
+            builder.ToTable("tbCaucao");
 
             builder.HasKey(c => c.IdCaucao);
-
             builder.Property(c => c.IdCaucao)
                    .HasColumnName("id_caucao");
 
@@ -26,6 +25,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .HasMaxLength(20)
                    .IsRequired();
 
+            //chave estrangeira
             builder.HasOne<Locacao>()
                    .WithMany(l => l.Caucoes)
                    .HasForeignKey("id_locacao")  // FK SOMBRA

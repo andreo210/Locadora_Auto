@@ -142,7 +142,7 @@
             Veiculo.Disponibilizar();
         }
 
-        //pagamentos
+        #region pagamento
         public void AdicionarPagamento(decimal valor, FormaPagamento formaPagamento)
         {
             if (Status != StatusLocacao.Criada)
@@ -157,12 +157,14 @@
             var pagamento = new Pagamento(valor, forma);
             _pagamentos.Add(pagamento);
         }
+        #endregion pagamento
 
-        //caucão
+
+        #region caucao
         public void DefinirCaucao(decimal valor)
         {
-            if (Caucoes != null)
-                throw new InvalidOperationException("Locação já possui caução");
+            //if (Caucoes != null)
+            //    throw new InvalidOperationException("Locação já possui caução");
 
             _caucao.Add(Caucao.Criar(valor));
         }
@@ -174,15 +176,68 @@
 
         //    Caucao.Bloquear();
         //}
+        #endregion caucao
 
-
-        public void AdicionarMulta(Multa multa)
+        #region multa
+        // Adicionar multa
+        public void AdicionarMulta(TipoMulta tipo, decimal valor)
         {
-            if (Status != StatusLocacao.Finalizada)
-                throw new InvalidOperationException("Multa só pode ser aplicada após finalização");
+            if (valor <= 0)
+                throw new DomainException("Valor da multa deve ser maior que zero");
 
+            // Por exemplo, só gerar multa após devolução
+            if (Status != StatusLocacao.Finalizada)
+                throw new DomainException("Multa só pode ser gerada após a devolução");
+
+            var multa = Multa.Criar(valor,tipo);
             _multas.Add(multa);
         }
+
+        // Pagar multa
+        public void PagarMulta(int idMulta)
+        {
+            var multa = _multas.FirstOrDefault(m => m.IdMulta == idMulta);
+            if (multa == null)
+                throw new DomainException("Multa não encontrada");
+
+            multa.MarcarComoPaga();
+        }
+
+        // Compensar multa com caução
+        public void CompensarMultaComCaucao(int idMulta)
+        {
+            var multa = _multas.FirstOrDefault(m => m.IdMulta == idMulta);
+            if (multa == null)
+                throw new DomainException("Multa não encontrada");
+
+            if (Caucoes == null || Caucoes.Sum(c => c.Valor) < multa.Valor)
+                throw new DomainException("Caução insuficiente para compensar a multa");
+
+            // Deduz o valor da multa das cauções, usando múltiplas se necessário
+            decimal valorRestante = multa.Valor;
+            foreach (var caucao in Caucoes.Where(c => c.Valor > 0))
+            {
+                if (valorRestante <= 0)
+                    break;
+
+                var deduzir = Math.Min(caucao.Valor, valorRestante);
+                caucao.Deduzir(deduzir);
+                //valorRestante -= deduzir;
+            }
+
+            multa.CompensarComCaucao();
+        }
+
+        // Cancelar multa
+        public void CancelarMulta(int idMulta)
+        {
+            var multa = _multas.FirstOrDefault(m => m.IdMulta == idMulta);
+            if (multa == null)
+                throw new DomainException("Multa não encontrada");
+
+            multa.Cancelar();
+        }
+        #endregion caucao
 
         public void RegistrarDano(Dano dano)
         {
