@@ -239,6 +239,8 @@
         }
         #endregion caucao
 
+
+
         public void RegistrarDano(Dano dano)
         {
             _danos.Add(dano);

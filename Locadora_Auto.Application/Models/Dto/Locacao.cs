@@ -22,6 +22,7 @@ namespace Locadora_Auto.Application.Models.Dto
         public decimal ValorPrevisto { get; set; }
         public decimal? ValorFinal { get; set; }
         public string Status { get; set; } = null!;
+        public List<MultaDto> Multas { get; set; } = new List<MultaDto>();
     }
 
     public class CriarLocacaoDto

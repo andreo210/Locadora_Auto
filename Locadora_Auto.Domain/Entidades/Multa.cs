@@ -1,6 +1,4 @@
-﻿using static Locadora_Auto.Domain.Entidades.Caucao;
-
-namespace Locadora_Auto.Domain.Entidades
+﻿namespace Locadora_Auto.Domain.Entidades
 {
     public class Multa
     {
@@ -21,7 +19,6 @@ namespace Locadora_Auto.Domain.Entidades
                 Status = StatusMulta.Pendente,
                 Tipo = tipo
             };
-
         }
 
         internal void MarcarComoPaga()

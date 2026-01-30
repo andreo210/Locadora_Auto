@@ -9,6 +9,7 @@ using Locadora_Auto.Application.Services.ClienteServices;
 using Locadora_Auto.Application.Services.FilialServices;
 using Locadora_Auto.Application.Services.FuncionarioServices;
 using Locadora_Auto.Application.Services.LocacaoServices;
+using Locadora_Auto.Application.Services.MultaServices;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
@@ -21,9 +22,6 @@ namespace Locadora_Auto.Application.Extensions
     {
         public static IServiceCollection AddInjecaoDependenciaApplicationsConfig(this IServiceCollection services)
         {
-
-
-
             // Singletons
             services.AddSingleton<IMailService, MailService>();
             services.AddSingleton<IMessageQueue, MessageQueue>();
@@ -51,6 +49,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();
+            services.AddScoped<IMultaService, MultaService>();
             services.AddScoped<INotificadorService, NotificadorService>();
             services.AddSingleton<RsaKeyService>();
 

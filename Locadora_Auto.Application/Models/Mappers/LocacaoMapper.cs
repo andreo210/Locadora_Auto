@@ -25,7 +25,13 @@ namespace Locadora_Auto.Application.Mappers
                 KmFinal = locacao.KmFinal,
                 ValorPrevisto = locacao.ValorPrevisto,
                 ValorFinal = locacao.ValorFinal,
-                Status = locacao.Status.ToString()
+                Status = locacao.Status.ToString(),
+                Multas = locacao.Multas.Select(m => new MultaDto
+                {
+                    IdMulta = m.IdMulta,
+                    Tipo = m.Tipo.ToString(),
+                    Valor = m.Valor
+                }).ToList()
             };
         }
 

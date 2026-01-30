@@ -2,7 +2,7 @@
 
 namespace Locadora_Auto.Domain.IRepositorio
 {
-    public interface IClienteRepository : IRepositorioGlobal<Clientes>
+    public interface IMultaRepository : IRepositorioGlobal<Multa>
     {
     }      
 }
