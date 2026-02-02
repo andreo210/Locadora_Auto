@@ -20,9 +20,18 @@
             };
         }
 
-        internal decimal Deduzir( decimal valor)
+        internal void Deduzir(decimal valor)
         {
-            return Valor- valor;
+            if (valor <= 0)
+                throw new DomainException("Valor inválido para dedução");
+
+            if (valor > Valor)
+                throw new DomainException("Valor excede a caução");
+
+            Valor -= valor;
+
+            if (Valor == 0)
+                Status = StatusCaucao.Bloqueada;
         }
 
         internal void Bloquear()
@@ -33,18 +42,20 @@
             Status = StatusCaucao.Bloqueada;
         }
 
-        internal void MarcarComoInadimplente()
-        {
-            if (Status == StatusCaucao.Inadimplente)
-                throw new InvalidOperationException("Caução já está inadimplente");
 
-            Status = StatusCaucao.Inadimplente;
+        internal void Devolver()
+        {
+            if (Status != StatusCaucao.Pendente)
+                throw new DomainException("Somente caução pendente pode ser devolvida");
+
+            Status = StatusCaucao.Devolvida;
         }
         public enum StatusCaucao
         {
             Pendente,
             Bloqueada,
-            Inadimplente
+            Utilizada,
+            Devolvida
         }
     }
 

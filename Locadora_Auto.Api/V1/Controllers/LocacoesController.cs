@@ -69,17 +69,8 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(sucesso);
         }
 
-        // ====================== ADICIONAR PAGAMENTO ======================
-        [HttpPost("{id:int}/pagamentos")]
-        public async Task<IActionResult> AdicionarPagamento(int id,[FromBody] AdicionarPagamentoDto dto, CancellationToken ct)
-        {
-            if (!ModelState.IsValid)
-                return CustomResponse(ModelState);
-            var sucesso = await _locacaoService.AdicionarPagamentoAsync(id, dto, ct);
-            return CustomResponse(sucesso);
-        }
 
-        // ====================== ADICIONAR MULTA ======================
+        #region Multa
         [HttpPost("{id:int}/multas")]
         public async Task<IActionResult> AdicionarMulta(
             int id,
@@ -103,9 +94,72 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(sucesso);
         }
 
+        [HttpPost("{id:int}/multas/{idMulta:int}/cancelar")]
+        public async Task<IActionResult> CancelarMulta(int id, int idMulta, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
 
-        [HttpPost("{id:int}/caulcao/{valor:decimal}")]
-        public async Task<IActionResult> DefinirCaucao(int id, decimal valor, CancellationToken ct)
+            var sucesso = await _locacaoService.CancelarMultaAsync(id, idMulta, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/multas/{idMulta:int}/pagar")]
+        public async Task<IActionResult> PagarMulta(int id, int idMulta, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.PagarMultaAsync(id, idMulta, ct);
+            return CustomResponse(sucesso);
+        }
+        #endregion Multa
+
+        #region Pagamento
+        [HttpPost("{id:int}/pagamento")]
+        public async Task<IActionResult> AdicionarPagamento(int id,[FromBody] AdicionarPagamentoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.AdicionarPagamentoAsync(id, dto, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/pagamento/{idPagamento:int}/comfirmar")]
+        public async Task<IActionResult> ComfirmarPagamento(int id, int idPagamento, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.ConfirmarPagamentoAsync(id, idPagamento, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/pagamento/{idPagamento:int}/marcar-falha")]
+        public async Task<IActionResult> MarcarComoFalha(int id, int idPagamento, string motivo, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.MarcarComoFalhaAsync(id, idPagamento, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/pagamento/{idPagamento:int}/cancelar")]
+        public async Task<IActionResult> CancelarPagamento(int id, int idPagamento, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.PagarMultaAsync(id, idPagamento, ct);
+            return CustomResponse(sucesso);
+        }
+        #endregion Multa
+
+        #region Caucao
+        [HttpPost("{id:int}/caucao/{valor:decimal}")]
+        public async Task<IActionResult> AdicionarCaucao(int id, decimal valor, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return CustomResponse(ModelState);
@@ -113,6 +167,41 @@ namespace Locadora_Auto.Api.Controllers
             var sucesso = await _locacaoService.AdicionarCalcaoAsync(id, valor, ct);
             return CustomResponse(sucesso);
         }
+
+        
+
+        [HttpPost("{id:int}/caucao/{idCaucao:int}/devolver")]
+        public async Task<IActionResult> DevolverCaucao(int id, int idCaucao, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.DevolverCalcaoAsync(id, idCaucao, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/caucao/{idCaucao:int}/bloquear")]
+        public async Task<IActionResult> BloquarCaucao(int id, int idCaucao, string motivo, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.BloquearCalcaoAsync(id, idCaucao, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/caucao/{idCaucao:int}/deduzir")]
+        public async Task<IActionResult> DeduzirCaucao(int id, int idCaucao,decimal valor, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var sucesso = await _locacaoService.DeduzirCalcaoAsync(id, idCaucao,valor,ct);
+            return CustomResponse(sucesso);
+        }
+
+        #endregion Caucao
+
         // ====================== ADICIONAR SEGURO ======================
         [HttpPost("{id:int}/seguros")]
         public async Task<IActionResult> AdicionarSeguro(

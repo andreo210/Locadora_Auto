@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Domain.Entidades
+﻿using System.Runtime.Intrinsics.X86;
+
+namespace Locadora_Auto.Domain.Entidades
 {
     public class Locacao
     {
@@ -147,35 +149,69 @@
         {
             if (Status != StatusLocacao.Criada)
                 throw new DomainException("Só é possível pagar locações criada");
+            if (valor > ValorFinal)
+                throw new DomainException("Valor excede o saldo da locação");
 
             var pagamento = new Pagamento(valor, formaPagamento);
-
             _pagamentos.Add(pagamento);
         }
-        public void RegistrarPagamento(decimal valor, FormaPagamento forma)
+
+        public void ConfirmarPagamento(int idPagamento)
         {
-            var pagamento = new Pagamento(valor, forma);
-            _pagamentos.Add(pagamento);
+            var pagamento = _pagamentos.FirstOrDefault(p=>p.IdPagamento ==idPagamento);
+
+            pagamento.Confirmar();
+
+            if (ValorFinal == 0)
+                Status = StatusLocacao.Finalizada;
+        }
+
+        public void CancelarPagamento(int idPagamento, string motivo)
+        {
+            var pagamento = _pagamentos.FirstOrDefault(p => p.IdPagamento == idPagamento);
+            pagamento.Cancelar(motivo);
+        }
+
+        public void MarcarComoFalha(int idPagamento)
+        {
+            var pagamento = _pagamentos.FirstOrDefault(p => p.IdPagamento == idPagamento);
+            pagamento.MarcarComoFalhou();
         }
         #endregion pagamento
 
 
         #region caucao
-        public void DefinirCaucao(decimal valor)
+        public void RegistrarCaucao(decimal valor)
         {
-            //if (Caucoes != null)
-            //    throw new InvalidOperationException("Locação já possui caução");
-
             _caucao.Add(Caucao.Criar(valor));
         }
 
-        //public void BloquearCaucao()
-        //{
-        //    if (Caucao == null)
-        //        throw new InvalidOperationException("Locação não possui caução");
+        public void BloquearCaucao(int idCaucao)
+        {
+            if (_caucao.Count == 0)
+                throw new InvalidOperationException("Locação não possui caução");
 
-        //    Caucao.Bloquear();
-        //}
+            var Caucao = _caucao.FirstOrDefault(c => c.IdCaucao == idCaucao);
+            Caucao.Bloquear();
+        }
+
+        public void DeduzirCaucao(int idCaucao,decimal valor)
+        {
+            if (_caucao.Count == 0)
+                throw new InvalidOperationException("Locação não possui caução");
+
+            var Caucao = _caucao.FirstOrDefault(c => c.IdCaucao == idCaucao);
+            Caucao.Deduzir(valor);
+        }
+
+        public void DevolverCaucao(int idCaucao)
+        {
+            if (_caucao.Count == 0)
+                throw new InvalidOperationException("Locação não possui caução");
+
+            var Caucao = _caucao.FirstOrDefault(c => c.IdCaucao == idCaucao);
+            Caucao.Devolver();
+        }
         #endregion caucao
 
         #region multa

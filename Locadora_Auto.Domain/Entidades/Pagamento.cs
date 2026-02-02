@@ -30,7 +30,7 @@
                 throw new DomainException("Somente pagamentos pendentes podem ser confirmados");
 
             Status = StatusPagamento.Pago;
-            DataPagamento = DateTime.UtcNow;
+            DataPagamento = DateTime.Now;
         }
 
         internal void Cancelar(string motivo)

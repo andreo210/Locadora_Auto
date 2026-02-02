@@ -134,7 +134,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             }
         }
 
-        // ====================== ADICIONAR PAGAMENTO ======================
+        #region Pagamento
         public async Task<bool> AdicionarPagamentoAsync(int id,AdicionarPagamentoDto pagamento, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(x => x.IdLocacao == id, incluir: q => q.Include(l => l.Pagamentos), rastreado: true, ct);
@@ -151,6 +151,56 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
            
         }
 
+        public async Task<bool> ConfirmarPagamentoAsync(int id, int idPagamento, CancellationToken ct = default)
+        {
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(x => x.IdLocacao == id, incluir: q => q.Include(l => l.Pagamentos), rastreado: true, ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.ConfirmarPagamento(idPagamento);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+
+        }
+
+        public async Task<bool> CancelarPagamentoAsync(int id, int idPagamento,string motivo, CancellationToken ct = default)
+        {
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(x => x.IdLocacao == id, incluir: q => q.Include(l => l.Pagamentos), rastreado: true, ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.CancelarPagamento(idPagamento,motivo);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+
+        public async Task<bool> MarcarComoFalhaAsync(int id, int idPagamento,CancellationToken ct = default)
+        {
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(x => x.IdLocacao == id, incluir: q => q.Include(l => l.Pagamentos), rastreado: true, ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.MarcarComoFalha(idPagamento);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+
+
+        #endregion Pagamento
+
+        #region Caucao
         public async Task<bool> AdicionarCalcaoAsync(int idLocacao, decimal valor, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(idLocacao, ct); ;
@@ -160,11 +210,51 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
 
-            locacao.DefinirCaucao(valor);
+            locacao.RegistrarCaucao(valor);
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
-
         }
+
+        public async Task<bool> DevolverCalcaoAsync(int idLocacao, int idCaucao, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.DevolverCaucao(idCaucao);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+
+        public async Task<bool>BloquearCalcaoAsync(int idLocacao, int idCaucao, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            locacao.BloquearCaucao(idCaucao);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+
+        public async Task<bool> DeduzirCalcaoAsync(int idLocacao, int idCaucao,decimal valor, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            locacao.DeduzirCaucao(idCaucao, valor);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+        #endregion Caucao
 
         #region multas
         public async Task<bool> AdicionarMultaAsync(int idLocacao, CriarMultaDto dto, CancellationToken ct = default)
@@ -175,11 +265,61 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add("Locação não encontrada");
                 return false;
             }
-
             locacao.AdicionarMulta((TipoMulta)dto.Tipo,dto.Valor);
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
           
+        }
+
+        public async Task<bool> PagarMultaAsync(int idLocacao, int idMulta, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var multa = locacao.Multas.Where(m => m.IdMulta == idMulta).FirstOrDefault();
+            if (multa == null)
+            {
+                _notificador.Add("Multa não encontrada");
+                return false;
+            }
+            if (multa.Status != StatusMulta.Pendente)
+            {
+                _notificador.Add("Somente multas pendentes podem ser pagas");
+                return false;
+            }
+            locacao.PagarMulta(idMulta);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+
+        }
+
+        public async Task<bool> CancelarMultaAsync(int idLocacao, int idMulta, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct); ;
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var multa = locacao.Multas.Where(m => m.IdMulta == idMulta).FirstOrDefault();
+            if (multa == null)
+            {
+                _notificador.Add("Multa não encontrada");
+                return false;
+            }
+            if (multa.Status == StatusMulta.Paga)
+            {
+                _notificador.Add("Multa paga não pode ser cancelada, ja foi paga");
+                return false;
+            }
+
+            locacao.CancelarMulta(idMulta);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+
         }
 
         public async Task<bool> CompensarMultaAsync(int idLocacao, int idMulta,CancellationToken ct = default)
@@ -218,6 +358,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
         }
+
+
 
         // ====================== OBTER POR ID ======================
         public async Task<LocacaoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)

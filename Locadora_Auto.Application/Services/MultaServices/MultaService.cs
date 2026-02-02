@@ -64,11 +64,11 @@ namespace Locadora_Auto.Application.Services.MultaServices
             return multasDto;
         }
 
-        public async Task<IEnumerable<MultaDto>> ObterMultasStatusAsync(int status = 0, CancellationToken ct = default)
+        public async Task<IEnumerable<MultaDto>> ObterMultasStatusAsync(int status, CancellationToken ct = default)
         {
-            var locacoes = await ObterTodosComMulta(ct);
+            var locacoes = await ObterTodasLocacaoComMulta(ct);
 
-            var multas = locacoes.SelectMany(l => l.Multas).Where(m => m.Status == (StatusMulta)0);
+             var multas = locacoes.SelectMany(l => l.Multas).Where(m => m.Status == (StatusMulta)status);
 
             //if (tipo.HasValue)
             //    multas = multas.Where(m => m.Tipo == tipo.Value);
@@ -77,11 +77,11 @@ namespace Locadora_Auto.Application.Services.MultaServices
             {
                 IdMulta = m.IdMulta,
                 Tipo = m.Tipo.ToString(),
-                Valor = m.Valor
+                Valor = m.Valor,
             });
         }
 
-        private async Task<IEnumerable<Locacao>> ObterTodosComMulta(CancellationToken ct=default)
+        private async Task<IEnumerable<Locacao>> ObterTodasLocacaoComMulta(CancellationToken ct=default)
         {
             var entidade = await _locacaoRepository.ObterAsync(l => l.Multas.Count > 0,incluir: m=>m.Include(m=>m.Multas));
             if (entidade.Count == 0)
