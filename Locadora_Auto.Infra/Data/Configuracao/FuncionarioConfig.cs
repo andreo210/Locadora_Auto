@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Funcionario> builder)
         {
-            builder.ToTable("funcionario");
+            builder.ToTable("tbFuncionario");
 
             builder.HasKey(e => e.IdFuncionario);
 
@@ -23,19 +23,21 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.HasIndex(e => e.Matricula)
                 .IsUnique();
 
-            builder.Property(e => e.Nome)
-                .HasColumnName("nome")
-                .HasMaxLength(150)
-                .IsRequired();
-
             builder.Property(e => e.Cargo)
                 .HasColumnName("cargo")
                 .HasMaxLength(50);
 
-            builder.Property(e => e.Status)
+            builder.Property(e => e.Ativo)
                 .HasColumnName("status")
-                .HasMaxLength(20)
                 .IsRequired();
+            //chave estrangeira
+            builder.Property(e => e.IdUser)
+                .HasColumnName("id_user");
+
+            builder.HasOne(u => u.Usuario)//o funcionario é usuário
+               .WithOne(f => f.Funcionario)//o usuario pode ser um fucionario
+               .HasForeignKey<Funcionario>(c => c.IdUser)
+               .OnDelete(DeleteBehavior.Cascade);//ao deletar o funcionario, deletar o usuário
         }
     }
 

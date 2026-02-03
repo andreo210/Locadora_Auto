@@ -1,12 +1,8 @@
 ﻿using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Configuration;
+using Locadora_Auto.Infra.Data;
 using Locadora_Auto.Infra.Data.CurrentUsers;
 using Locadora_Auto.Infra.Data.Repositorio;
-using Locadora_Auto.Infra.ServiceHttp.Configuration;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadadastroBase;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadadastroBaseAdmin;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.CadastroBase.CadastroBaseRead;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
 using Locadora_Auto.Infra.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,16 +15,24 @@ namespace Locadora_Auto.Infra.Extensions
         //adiciona os repositórios
         public static IServiceCollection AddSqlServerRepositories(this IServiceCollection services)
         {
-            //usuario corrente
-            services.AddScoped<ICurrentUser, CurrentUser>();
-
             //injetar repositorios
-            services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
+            //services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ITokenRepository, TokenRepository>();
+            services.AddScoped<IClienteRepository, ClienteRepository>();
+            services.AddScoped<ICategoriaVeiculosRepository, CategoriaVeiculosRepository>();
+            services.AddScoped<IFuncionarioRepository, FuncionarioRepository>();
+            services.AddScoped<IVeiculosRepository, VeiculosRepository>();
+            services.AddScoped<IFilialRepository, FilialRepository>();
+            services.AddScoped<ILocacaoRepository, LocacaoRepository>();
+            services.AddScoped<ILocacaoSeguroRepository, LocacaoSeguroRepository>();
+            services.AddScoped<ISeguroRepository, SeguroRepository>();
+            services.AddScoped<IMultaRepository, MultaRepository>();
 
             return services;
         }
+
+
         //adiciona o dbcontext
         public static IServiceCollection AddMySqlDbContext<TContext>(this IServiceCollection services, string ConnectionString) where TContext : DbContext
         {
@@ -43,8 +47,15 @@ namespace Locadora_Auto.Infra.Extensions
                             maxRetryCount: 5,
                             maxRetryDelay: TimeSpan.FromSeconds(10),
                             errorNumbersToAdd: null);
-                    });
+                    }
+                );
             });
+
+            //usuario corrente
+            services.AddScoped<ICurrentUser, CurrentUser>();
+
+            //transaction
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             return services;
         }
 
@@ -52,28 +63,9 @@ namespace Locadora_Auto.Infra.Extensions
         public static IServiceCollection AddHttpServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddScoped<IUsersAsp, UsersAsp>();
-            services.AddHttpClient<ILoginService, LoginService>();
 
             //registrando servicos
             services.AddHttpContextAccessor();
-            //configuração de tokens
-            services.AddTransient<HttpClientAuthorizationAdminInterno>();
-            services.AddTransient<HttpClientAuthorizationAdminExterno>();
-            services.AddTransient<HttpClientAuthorizationUser>();
-
-
-            ///httpClients
-            services.AddHttpClient<ICadastroBaseService, CadastroBaseService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationUser>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
-
-            services.AddHttpClient<ICadastroBaseReadService, CadastroBaseReadService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationAdminInterno>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
-
-            services.AddHttpClient<ICadastroBaseAdminService, CadastroBaseAdminService>()
-              .AddHttpMessageHandler<HttpClientAuthorizationAdminInterno>()
-              .AddPolicyHandler(PollyExtensions.TentarTrezVezes());
 
 
             //configuraçoes do appsetting

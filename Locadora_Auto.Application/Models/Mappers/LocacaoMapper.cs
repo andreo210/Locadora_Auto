@@ -1,68 +1,43 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 
-namespace Locadora_Auto.Application.Models.Mappers
+namespace Locadora_Auto.Application.Mappers
 {
     public static class LocacaoMapper
     {
-        public static Locacao ToEntity(this LocacaoCreateDto dto)
+        // Locacao → LocacaoDto
+        public static LocacaoDto ToDto(this Locacao locacao)
         {
-            return new Locacao
-            {
-                IdCliente = dto.IdCliente,
-                IdVeiculo = dto.IdVeiculo,
-                IdFuncionario = dto.IdFuncionario,
-                IdFilialRetirada = dto.IdFilialRetirada,
-                DataInicio = dto.DataInicio,
-                DataFimPrevista = dto.DataFimPrevista,
-                //KmInicial = dto.KmInicial,
-                //ValorPrevisto = dto.ValorPrevisto,
-                Status = "ABERTA"
-            };
-        }
+            if (locacao == null) return null!;
 
-        public static LocacaoDto ToDto(this Locacao entidade)
-        {
             return new LocacaoDto
             {
-                IdLocacao = entidade.IdLocacao,
-                DataInicio = entidade.DataInicio,
-                DataFimPrevista = entidade.DataFimPrevista,
-                DataFimReal = entidade.DataFimReal,
-               // ValorPrevisto = entidade.ValorPrevisto,
-                //ValorFinal = entidade.ValorFinal,
-                Status = entidade.Status
+                IdLocacao = locacao.IdLocacao,
+                //IdCliente = locacao.ClienteId,
+                //IdVeiculo = locacao.IdVeiculo,
+                IdFuncionario = locacao.IdFuncionario,
+                IdFilialRetirada = locacao.IdFilialRetirada,
+                IdFilialDevolucao = locacao.IdFilialDevolucao,
+                DataInicio = locacao.DataInicio,
+                DataFimPrevista = locacao.DataFimPrevista,
+                DataFimReal = locacao.DataFimReal,
+                KmInicial = locacao.KmInicial,
+                KmFinal = locacao.KmFinal,
+                ValorPrevisto = locacao.ValorPrevisto,
+                ValorFinal = locacao.ValorFinal,
+                Status = locacao.Status.ToString(),
+                Multas = locacao.Multas.ToDtoList(),
+                Pagamentos = locacao.Pagamentos.ToDtoList(),
+                ClienteDto = locacao.Cliente.ToDto(),
+                FuncionarioDto = locacao.Funcionario.ToDto()
             };
         }
 
-        public static LocacaoDto ToViewDto(this Locacao entidade)
+        public static List<LocacaoDto> ToDtoList(this IEnumerable<Locacao> entidades)
         {
-            return new LocacaoDto
-            {
-                IdLocacao = entidade.IdLocacao,
-                Cliente = entidade.Cliente?.ToDto()!,
-                Veiculo = entidade.Veiculo?.ToDto()!,
-                //Funcionario = entidade.Funcionario?.ToDto(),
-               // FilialRetirada = entidade.FilialRetirada?.ToDto(),
-                //FilialDevolucao = entidade.FilialDevolucao?.ToDto(),
-                DataInicio = entidade.DataInicio,
-                DataFimPrevista = entidade.DataFimPrevista,
-                DataFimReal = entidade.DataFimReal,
-                Status = entidade.Status,
-                //ValorFinal = entidade.ValorFinal,
-                //Pagamentos = entidade.Pagamentos?.Select(p => p.ToDto()).ToList(),
-                //Multas = entidade.Multas?.Select(m => m.ToDto()).ToList(),
-                //Vistorias = entidade.Vistorias?.Select(v => v.ToDto()).ToList()
-            };
-        }
-
-        public static LocacaoAdicionalDto ToDto(this LocacaoAdicional entidade)
-        {
-            return new LocacaoAdicionalDto
-            {
-                Quantidade = entidade.Quantidade,
-                //Adicional = entidade.Adicional?.ToDto()
-            };
+            if (entidades == null) return new List<LocacaoDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 }

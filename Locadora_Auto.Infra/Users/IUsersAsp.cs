@@ -13,7 +13,7 @@ namespace Locadora_Auto.Infra.Users
         /// <summary>
         /// Retorna o ID do usuário no Keycloak.
         /// </summary>
-        string ObterIdKeycloak();
+        string ObterIdUsuario();
 
         /// <summary>
         /// Retorna o e-mail do usuário.
@@ -33,7 +33,7 @@ namespace Locadora_Auto.Infra.Users
         /// <summary>
         /// Retorna o código do Cadastro Único do usuário.
         /// </summary>
-        int ObterCodigoCadastroUnico();
+        int ObterCodigoUsuario();
 
         /// <summary>
         /// Retorna o token de acesso do usuário.

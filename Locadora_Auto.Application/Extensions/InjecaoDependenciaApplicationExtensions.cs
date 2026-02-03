@@ -1,12 +1,20 @@
-﻿using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
+﻿using Locadora_Auto.Application.Configuration.Ultils.Email;
+using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
+using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
-using Locadora_Auto.Application.Services.Email;
-using Locadora_Auto.Application.Services.JobsBackgroundService;
+using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
+using Locadora_Auto.Application.Services.ClienteServices;
+using Locadora_Auto.Application.Services.FilialServices;
+using Locadora_Auto.Application.Services.FuncionarioServices;
+using Locadora_Auto.Application.Services.LocacaoServices;
+using Locadora_Auto.Application.Services.MultaServices;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
-using Locadora_Auto.Infra.ServiceHttp.Servicos.LoginAdmin;
+using Locadora_Auto.Application.Services.SeguroServices;
+using Locadora_Auto.Application.Services.VeiculoServices;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Locadora_Auto.Application.Extensions
@@ -15,10 +23,6 @@ namespace Locadora_Auto.Application.Extensions
     {
         public static IServiceCollection AddInjecaoDependenciaApplicationsConfig(this IServiceCollection services)
         {
-            //TODO: aqui voçe registra os serviços específicos da sua Applications
-            services.AddHostedService<TokenExternoBackgroundService>();
-
-
             // Singletons
             services.AddSingleton<IMailService, MailService>();
             services.AddSingleton<IMessageQueue, MessageQueue>();
@@ -40,11 +44,23 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITokenService, TokenService>();
+
+            //regras de negócio
+            services.AddScoped<IClienteService, ClienteService>();
+            services.AddScoped<ISeguroService, SeguroService>();
+            services.AddScoped<ICategoriaVeiculoService, CategoriaVeiculoService>();
+            services.AddScoped<IVeiculoService, VeiculoService>();
+            services.AddScoped<IFuncionarioService, FuncionarioService>();
+            services.AddScoped<IFilialService, FilialService>();
+            services.AddScoped<ILocacaoService, LocacaoService>();
+            services.AddScoped<IMultaService, MultaService>();
+
+            //notificador
+            services.AddScoped<INotificadorService, NotificadorService>();
+
+            //serviço de chaves RSA
             services.AddSingleton<RsaKeyService>();
 
-
-
-            services.AddSingleton<ILoginService, LoginService>();
 
             return services;
         }

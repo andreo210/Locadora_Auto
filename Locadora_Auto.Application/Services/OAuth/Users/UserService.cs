@@ -28,19 +28,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
             _tokenRepository = tokenRepository;
         }
 
-        public async Task<UserDto> CriarAsync(CreateUserDto dto)
-        {
-            var user = dto.CreateToEntity();
-
-            var result = await _userManager.CreateAsync(user, dto.Password);
-
-            if (!result.Succeeded)
-                throw new InvalidOperationException(
-                    string.Join(", ", result.Errors.Select(e => e.Description))
-                );
-
-            return user.ToDto();
-        }
+       
 
 
         public async Task<SignInResult> LoginAsync(LoginDto dto)
@@ -64,17 +52,18 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
             //RefreshToken antigo - Atualizar - Desativar esse refreshToken
             refreshTokenDB.Revogado = true;
-            var token = await _tokenRepository.AtualizarAsync(refreshTokenDB);
+            var token = await _tokenRepository.AtualizarSalvarAsync(refreshTokenDB);
 
-            return await _userRepository.ObterPorId(refreshTokenDB.UserId);;
+            return await _userRepository.ObterPorIdAsync(refreshTokenDB.UserId);;
         }
 
 
 
-        public async Task DesativarAsync(string id)
-        {
-            await _userRepository.ExcluirAsync(id);
-        }
+        //public async Task DesativarAsync(string id)
+        //{
+
+        //    await _userRepository.ExcluirAsync(id);
+        //}
 
         public async Task<IEnumerable<UserDto>> ListarAsync()
         {
@@ -98,7 +87,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
         public async Task<UserDto?> ObterPorIdAsync(string id)
         {
-            var user = await _userRepository.ObterPorId(id);
+            var user = await _userRepository.ObterPorIdAsync(id);
             return user!.ToDto();
         }
 
@@ -110,8 +99,8 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
         public virtual async Task<bool> AtualizarAsync(string id)
         {
-            var model = await _userRepository.ObterPorId(id);
-            return await _userRepository.AtualizarAsync(model);
+            var model = await _userRepository.ObterPorIdAsync(id);
+            return await _userRepository.AtualizarSalvarAsync(model);
         }
     }
     

@@ -15,7 +15,7 @@ namespace Locadora_Auto.Infra.Users
 
         public string? Nome => _accessor.HttpContext.User.Identity.Name;
 
-        public string ObterIdKeycloak()
+        public string ObterIdUsuario()
         {
             return EstaAutenticado() ? _accessor.HttpContext.User.ObterIdKeycloakUsuario() : "";
         }
@@ -35,7 +35,7 @@ namespace Locadora_Auto.Infra.Users
             return EstaAutenticado() ? _accessor.HttpContext.User.ObterNomeUsuario() : "";
         }
 
-        public int ObterCodigoCadastroUnico()
+        public int ObterCodigoUsuario()
         {
             return EstaAutenticado() ? _accessor.HttpContext.User.ObterIdCadastroUnicoUsuario() : 0;
         }

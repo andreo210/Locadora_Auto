@@ -1,8 +1,7 @@
 ﻿namespace Locadora_Auto.Application.Models.Dto
 {
-    public class PagamentoCreateDto
+    public class AdicionarPagamentoDto
     {
-        public int IdLocacao { get; set; }
         public int IdFormaPagamento { get; set; }
         public decimal Valor { get; set; }
     }

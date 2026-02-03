@@ -8,40 +8,40 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Endereco> builder)
         {
-            builder.ToTable("endereco");
+            builder.ToTable("tbEndereco");
 
             builder.HasKey(e => e.IdEndereco);
 
             builder.Property(e => e.IdEndereco)
                 .HasColumnName("id_endereco");
 
+            builder.Property(e => e.IdCliente)
+                .HasColumnName("id_cliente");
+ 
+            builder.HasIndex(e => e.IdCliente)
+                .IsUnique();
+
             builder.Property(e => e.Logradouro)
-                .HasColumnName("logradouro")
-                .HasMaxLength(150)
-                .IsRequired();
+                .HasColumnName("logradouro");
 
             builder.Property(e => e.Numero)
-                .HasColumnName("numero")
-                .HasMaxLength(20);
+                .HasColumnName("numero");
+
+            builder.Property(e => e.Complemento)
+                .HasColumnName("complemento");
 
             builder.Property(e => e.Bairro)
-                .HasColumnName("bairro")
-                .HasMaxLength(100);
+                .HasColumnName("bairro");
 
             builder.Property(e => e.Cidade)
-                .HasColumnName("cidade")
-                .HasMaxLength(100)
-                .IsRequired();
+                .HasColumnName("cidade");
 
             builder.Property(e => e.Estado)
-                .HasColumnName("uf")
-                .HasMaxLength(2)
-                .IsRequired();
+                .HasColumnName("estado");
 
             builder.Property(e => e.Cep)
-                .HasColumnName("cep")
-                .HasMaxLength(8)
-                .IsRequired();
+                .HasColumnName("cep");
+
         }
     }
 

@@ -1,20 +1,11 @@
 ﻿using Locadora_Auto.Domain;
-using Locadora_Auto.Infra.Data.CurrentUsers;
+using Locadora_Auto.Domain.Entidades;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace Locadora_Auto.Infra.Data
 {
-    /// <summary>
-    /// Interface para auditoria automática.
-    /// </summary>
-    public interface IAuditable
-    {
-        DateTime DataCriacao { get; set; }
-        string? IdUsuarioCriacao { get; set; }
-        DateTime? DataModificacao { get; set; }
-        string? IdUsuarioModificacao { get; set; }
-    }
+   
 
     /// <summary>
     /// Repositório genérico base refatorado:
@@ -45,9 +36,12 @@ namespace Locadora_Auto.Infra.Data
             Expression<Func<TEntity, bool>>? filtro = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default)
         {
-            IQueryable<TEntity> query = DbSet.AsNoTracking();
+            IQueryable<TEntity> query = rastreado
+               ? DbSet
+               : DbSet.AsNoTracking();
 
             if (incluir != null)
                 query = incluir(query);
@@ -68,36 +62,32 @@ namespace Locadora_Auto.Infra.Data
         }
 
         //buscar por id Trackeado
-        public virtual async Task<TEntity> ObterPorId(object id)
+        public virtual async Task<TEntity> ObterPorIdAsync(object id, bool? rastreado = false,CancellationToken ct = default)
         {
             var entity = await DbSet.FindAsync(id);
-            return entity;
-        }
-
-
-        public virtual async Task<TEntity> ObterPorIdNoTracker(object id)
-        {
-            var entity = await DbSet.FindAsync(id);
-            if (entity != null)
+            if (rastreado.Value)
             {
                 Context.Entry(entity).State = EntityState.Detached;
             }
             return entity;
         }
 
-
         public virtual async Task<TEntity?> ObterPrimeiroAsync(
-            Expression<Func<TEntity, bool>> filtro,
-            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
-            CancellationToken ct = default)
+             Expression<Func<TEntity, bool>> filtro,
+             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+             bool rastreado = false,
+             CancellationToken ct = default)
         {
-            IQueryable<TEntity> query = DbSet.AsNoTracking();
+            IQueryable<TEntity> query = rastreado
+                ? DbSet
+                : DbSet.AsNoTracking();
 
             if (incluir != null)
                 query = incluir(query);
 
             return await query.FirstOrDefaultAsync(filtro, ct);
         }
+                
 
         public virtual async Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,
@@ -130,8 +120,9 @@ namespace Locadora_Auto.Infra.Data
             return await query.Skip(skip).Take(take).ToListAsync(ct);
         }
 
-        public async Task<List<TEntity>> ObterComFiltroAsync<TEntity>(
+        public async Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(
             Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             bool asNoTracking = true,
             bool asSplitQuery = false,
@@ -156,20 +147,52 @@ namespace Locadora_Auto.Infra.Data
         }
 
 
-        public virtual async Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default)
+        public async Task<IReadOnlyList<TResult>> ObterComFiltroEProjecaoAsync<TEntity, TResult>(
+        Expression<Func<TEntity, TResult>> projecao,
+        Expression<Func<TEntity, bool>>? filtro = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+        bool asNoTracking = true,
+        bool asSplitQuery = false,
+        CancellationToken ct = default)
+        where TEntity : class
+        where TResult : class
+            {
+                IQueryable<TEntity> query = Context.Set<TEntity>();
+
+                if (asNoTracking)
+                    query = query.AsNoTracking();
+
+                if (asSplitQuery)
+                    query = query.AsSplitQuery();
+
+                if (incluir != null)
+                    query = incluir(query);
+
+                if (filtro != null)
+                    query = query.Where(filtro);
+
+                if (ordenarPor != null)
+                    query = ordenarPor(query);
+
+                // Aplica projeção ANTES de materializar
+                return await query.Select(projecao).ToListAsync(ct);
+        }
+
+        public virtual async Task<TEntity> InserirSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);
             await DbSet.AddAsync(entidade, ct);
             await SalvarAsync(ct);
             return entidade;
         }
-        public virtual Task Inserir(TEntity entidade, CancellationToken ct = default)
+        public virtual Task InserirAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);
             return DbSet.AddAsync(entidade, ct).AsTask();
         }
 
-        public virtual async Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default)
+        public virtual async Task<bool> AtualizarSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             if (entidade == null)
                 throw new ArgumentNullException(nameof(entidade));
@@ -202,6 +225,39 @@ namespace Locadora_Auto.Infra.Data
 
             return result > 0; // retorna true se houve alterações no banco
         }
+        //public virtual async Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default)
+        //{
+        //    if (entidade == null)
+        //        throw new ArgumentNullException(nameof(entidade));
+
+        //    // Anexa se não estiver rastreada
+        //    var entry = Context.Entry(entidade);
+
+        //    if (entry.State == EntityState.Detached)
+        //    {
+        //        DbSet.Attach(entidade);
+        //        entry = Context.Entry(entidade);
+        //    }
+
+        //    // Marca como Modified (EF gera UPDATE)
+        //    entry.State = EntityState.Modified;
+
+        //    var dd = Context.Entry(entidade);
+
+        //    Console.WriteLine($"State: {dd.State}");
+
+        //    foreach (var prop in dd.Properties)
+        //    {
+        //        if (prop.Metadata.IsPrimaryKey())
+        //        {
+        //            Console.WriteLine($"PK {prop.Metadata.Name} = {prop.CurrentValue}");
+        //        }
+        //    }
+
+        //    var affected = await Context.SaveChangesAsync(ct);
+        //    return affected > 0;
+        //}
+
 
         public virtual void Atualizar(TEntity entidade)
         {
@@ -209,9 +265,9 @@ namespace Locadora_Auto.Infra.Data
             DbSet.Update(entidade);
         }
 
-        public virtual async Task ExcluirAsync(object id, CancellationToken ct = default)
+        public virtual async Task ExcluirSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
-            var entidade = await DbSet.FindAsync(new[] { id }, ct);
+            //var entidade = await DbSet.FindAsync(new[] { id }, ct);
 
             if (entidade == null)
                 throw new KeyNotFoundException("Entidade não encontrada.");
@@ -219,9 +275,9 @@ namespace Locadora_Auto.Infra.Data
             await SalvarAsync(ct);
         }
 
-        public virtual async Task Excluir(object id, CancellationToken ct = default)
+        public virtual async Task Excluir(TEntity entidade, CancellationToken ct = default)
         {
-            var entidade = await DbSet.FindAsync(new[] { id }, ct);
+            //var entidade = await DbSet.FindAsync(new[] { id }, ct);
 
             if (entidade == null)
                 throw new KeyNotFoundException("Entidade não encontrada.");
@@ -233,26 +289,6 @@ namespace Locadora_Auto.Infra.Data
         {
             //AplicarAuditoria(_currentUser.UserId);
             return await Context.SaveChangesAsync(ct);
-        }
-
-        protected virtual void AplicarAuditoria(string? usuario)
-        {
-            var agora = DateTime.UtcNow;
-
-            foreach (var entry in Context.ChangeTracker.Entries<IAuditable>())
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    entry.Entity.DataCriacao = agora;
-                    entry.Entity.IdUsuarioCriacao = usuario;
-                }
-
-                if (entry.State == EntityState.Modified)
-                {
-                    entry.Entity.DataModificacao = agora;
-                    entry.Entity.IdUsuarioModificacao = usuario;
-                }
-            }
-        }
+        }        
     }
 }

@@ -8,18 +8,18 @@ namespace Locadora_Auto.Domain
             Expression<Func<TEntity, bool>>? filtro = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default);
 
         Task<TEntity?> ObterPrimeiroAsync(
             Expression<Func<TEntity, bool>> filtro,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            bool rastreado = false,
             CancellationToken ct = default);
 
         IQueryable<TEntity> ObterTodos();
 
-        Task<TEntity> ObterPorIdNoTracker(object id);
-
-        Task<TEntity> ObterPorId(object id);
+        Task<TEntity> ObterPorIdAsync(object id , bool? rastreado = false, CancellationToken ct = default);
 
         Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,
@@ -32,25 +32,39 @@ namespace Locadora_Auto.Domain
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             CancellationToken ct = default);
 
-        Task<List<TEntity>> ObterComFiltroAsync<TEntity>(
+        Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(
             Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
             bool asNoTracking = true,
             bool asSplitQuery = false,
             CancellationToken ct = default)
             where TEntity : class;
 
-        Task<TEntity> InserirAsync(TEntity entidade, CancellationToken ct = default);
+        Task<IReadOnlyList<TResult>> ObterComFiltroEProjecaoAsync<TEntity, TResult>(
+        Expression<Func<TEntity, TResult>> projecao,
+        Expression<Func<TEntity, bool>>? filtro = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+        bool asNoTracking = true,
+        bool asSplitQuery = false,
+        CancellationToken ct = default)
+        where TEntity : class
+        where TResult : class;
 
-        Task Inserir(TEntity entidade, CancellationToken ct = default);
+        Task<int> ContarAsync(Expression<Func<TEntity, bool>>? filtro = null,CancellationToken ct = default);
 
-        Task<bool> AtualizarAsync(TEntity entidade, CancellationToken ct = default);
+        Task<TEntity> InserirSalvarAsync(TEntity entidade, CancellationToken ct = default);
+
+        Task InserirAsync(TEntity entidade, CancellationToken ct = default);
+
+        Task<bool> AtualizarSalvarAsync(TEntity entidade, CancellationToken ct = default);
 
         void Atualizar(TEntity entidade);
 
-        Task ExcluirAsync(object id, CancellationToken ct = default);
+        Task ExcluirSalvarAsync(TEntity entidade, CancellationToken ct = default);
 
-        Task Excluir(object id, CancellationToken ct = default);
+        Task Excluir(TEntity entidade, CancellationToken ct = default);
 
         Task<int> SalvarAsync(CancellationToken ct = default);
 

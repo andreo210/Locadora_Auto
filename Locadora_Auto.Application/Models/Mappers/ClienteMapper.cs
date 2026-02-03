@@ -5,45 +5,30 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class ClienteMapper
     {
-        public static Cliente ToEntity(this ClienteCreateDto dto)
-        {
-            return new Cliente
-            {
-                Nome = dto.Nome,
-                Cpf = dto.Cpf,
-                Telefone = dto.Telefone,
-                Email = dto.Email,
-                Status = "ATIVO"
-            };
-        }
 
-        public static ClienteDto ToDto(this Cliente entidade)
+        public static ClienteDto ToDto(this Clientes entidade)
         {
             if (entidade == null) return null;
 
             return new ClienteDto
             {
                 IdCliente = entidade.IdCliente,
-                Nome = entidade.Nome,
-                Cpf = entidade.Cpf,
-                Telefone = entidade.Telefone,
-                Email = entidade.Email,
-                Status = entidade.Status
+                Ativo = entidade.Ativo,
+                Endereco = entidade.Endereco?.ToDto(),
+                NumeroHabilitacao = entidade.NumeroHabilitacao,
+                TotalLocacoes = entidade.TotalLocacoes,
+                ValidadeHabilitacao = entidade.ValidadeHabilitacao,
+                Cpf = entidade.Usuario?.Cpf ?? string.Empty,
+                Nome = entidade.Usuario?.NomeCompleto ?? string.Empty,
+                Email = entidade.Usuario?.Email ?? string.Empty,
+                Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
             };
         }
 
-        public static ClienteDto ToViewDto(this Cliente entidade)
+        public static List<ClienteDto> ToDtoList(this IEnumerable<Clientes> entidades)
         {
-            return new ClienteDto
-            {
-                IdCliente = entidade.IdCliente,
-                Nome = entidade.Nome,
-                Cpf = entidade.Cpf,
-                Telefone = entidade.Telefone,
-                Email = entidade.Email,
-                Status = entidade.Status,
-                Endereco = entidade.Endereco?.ToDto()
-            };
+            if (entidades == null) return new List<ClienteDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 }

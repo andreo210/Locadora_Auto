@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Filial> builder)
         {
-            builder.ToTable("filial");
+            builder.ToTable("tbFilial");
 
             builder.HasKey(e => e.IdFilial);
 
@@ -26,8 +26,18 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .IsRequired();
 
             builder.Property(e => e.Ativo)
-                .HasColumnName("ativo")
+                .HasColumnName("ativo");
+
+            //chave estrangeira
+            builder.Property(e => e.IdEndereco)
+                .HasColumnName("idEndereco")
                 .IsRequired();
+
+            builder.HasOne(u => u.Endereco)//uma filial tem um endereço
+                .WithOne(f => f.Filial)//um endereço tem uma filial
+                .HasForeignKey<Filial>(f => f.IdEndereco)
+                .OnDelete(DeleteBehavior.Cascade);//ao deletar a filial, deletar o endereço
+
         }
     }
 

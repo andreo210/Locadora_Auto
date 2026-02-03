@@ -47,7 +47,7 @@ namespace Locadora_Auto.Api.Configurations
                 Contact = new OpenApiContact()
                 {
                     Name = "Equipe Alcântara",
-                    Email = "servicosdigitais@praiagrande.sp.gov.br."
+                    Email = "andreoa@praiagrande.sp.gov.br."
                 }
             };
 

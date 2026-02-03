@@ -64,7 +64,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
             var identityRefreshToken = await ObterClaims(user, false,idRefresh);
             var refreshToken = CriarToken(identityRefreshToken);
 
-            return ObterRespostaToken(accessToken, user, claims,refreshToken);
+            return ObterRespostaToken(accessToken, user, claims,refreshToken,idRefresh);
         }
 
              
@@ -111,7 +111,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
         }
 
         //retorna o objeto com o token
-        private TokenDto ObterRespostaToken(string accessToken, User user, IEnumerable<Claim> claims, string refreshToken)
+        private TokenDto ObterRespostaToken(string accessToken, User user, IEnumerable<Claim> claims, string refreshToken, string idRefresh)
         {
             var dto = new TokenDto
             {
@@ -130,14 +130,14 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
             };
             var tokenModel = new RefreshToken()
             {
-                Token = refreshToken,
+                Token = idRefresh,
                 ExpiraEm = DateTime.Now.AddHours(3),
                 CriadoEm = DateTime.Now,
                 Revogado = false,
                 UserId = user.Id                
             };
 
-            var model = _tokenRepository.InserirAsync(tokenModel).Result;
+            var model = _tokenRepository.InserirSalvarAsync(tokenModel).Result;
 
 
 

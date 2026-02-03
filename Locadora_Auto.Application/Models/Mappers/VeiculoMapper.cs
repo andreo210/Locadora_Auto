@@ -5,43 +5,25 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class VeiculoMapper
     {
-        public static Veiculo ToEntity(this VeiculoCreateDto dto)
+        public static VeiculoDto ToDto(this Veiculo veiculo)
         {
-            return new Veiculo
-            {
-                Placa = dto.Placa,
-                Chassi = dto.Chassi,
-                IdCategoria = dto.IdCategoria,
-                KmAtual = dto.KmAtual,
-                Status = "DISPONIVEL",
-                IdFilialAtual = dto.IdFilialAtual
-            };
-        }
+            if (veiculo == null) return null;
 
-        public static VeiculoDto ToDto(this Veiculo entidade)
-        {
             return new VeiculoDto
             {
-                IdVeiculo = entidade.IdVeiculo,
-                Placa = entidade.Placa,
-                Chassi = entidade.Chassi,
-                KmAtual = entidade.KmAtual,
-                Status = entidade.Status
+                IdVeiculo = veiculo.IdVeiculo,
+                Placa = veiculo.Placa,
+                Marca = veiculo.Marca,
+                Modelo = veiculo.Modelo,
+                Ano = veiculo.Ano,
+                KmAtual = veiculo.KmAtual,
+                Ativo = veiculo.Ativo,
+                Disponivel = veiculo.Disponivel,
+                IdCategoria = veiculo.IdCategoria,
+                Categoria = veiculo.Categoria?.Nome ?? string.Empty,
+                IdFilialAtual = veiculo.FilialAtualId,
+                Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };
-        }
-
-        public static VeiculoDto ToViewDto(this Veiculo entidade)
-        {
-            return new VeiculoDto
-            {
-                IdVeiculo = entidade.IdVeiculo,
-                Placa = entidade.Placa,
-                Chassi = entidade.Chassi,
-                KmAtual = entidade.KmAtual,
-                Status = entidade.Status,
-                Categoria = entidade.Categoria?.ToDto(),
-                //Filial = entidade.FilialAtual?.ToDto()
-            };
-        }
+        }              
     }
 }

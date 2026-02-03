@@ -1,21 +1,25 @@
-﻿using Locadora_Auto.Application.Extensions;
+﻿using Locadora_Auto.Api.Controllers;
+using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 
 namespace Locadora_Auto.Api.V1.Controllers
 {
+
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
     public class UsersController : MainController
     {
         private readonly IUserService _userService;
         private readonly IRoleService _roleService;
         private readonly ITokenService _tokenService;
-        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService)
+        public UsersController(IUserService userService, IRoleService roleService, ITokenService tokenService, INotificadorService notificador) : base(notificador)
         {
             _userService = userService;
             _roleService = roleService;
@@ -73,7 +77,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         {
             var user = await _userService.ObterPorIdAsync(id);
             if (user == null)
-                return NotFound(ProblemFactory.Create(HttpStatusCode.NotFound, "Usúario não encontrado."));
+                return NotFound("Usúario não encontrado.");
 
             return Ok(user);
         }
@@ -87,39 +91,16 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> GetByCpf(string cpf)
+        public async Task<ActionResult<UserDto>> GetByCpf(string cpf)
         {
             var user = await _userService.ObterPorCpfAsync(cpf);
             if (user == null)
-                return NotFound("Usuário não encontrado"); ;
+                return NotFound("Usuário não encontrado");
 
             return Ok(user);
         }
 
-        /// <summary>
-        /// Cria um novo usuário.
-        /// </summary>
-        /// <param name="dto">Dados do usuário a ser criado</param>
-        /// <returns>Usuário criado</returns>
-        [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesDefaultResponseType]
-        public async Task<ActionResult<UserDto>> Create([FromBody] CreateUserDto usuarioRegistro)
-        {
-
-            var usuario = await _userService.ObterPorEmail(usuarioRegistro.Email);
-
-            if (usuario != null)
-            {
-                throw new Exception("Usuário já cadastrado");
-            }
-            if (usuarioRegistro.Password != usuarioRegistro.RepeatPassword)
-            {
-                throw new Exception("Senha diferente");
-            }
-            var user =await _userService.CriarAsync(usuarioRegistro);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
+        
 
         /// <summary>
         /// Atualiza um usuário existente.
@@ -146,24 +127,24 @@ namespace Locadora_Auto.Api.V1.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Desativa (exclui) um usuário.
-        /// </summary>
-        /// <param name="id">ID do usuário a ser desativado</param>
-        /// <returns>Status da operação</returns>
-        [HttpDelete("{id:guid}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesDefaultResponseType]
-        public async Task<IActionResult> Delete(string id)
-        {
-            var existingUser = await _userService.ObterPorIdAsync(id);
-            if (existingUser == null)
-                return ProblemResponse(HttpStatusCode.NotFound, "usuario não encontrado");
+        ///// <summary>
+        ///// Desativa (exclui) um usuário.
+        ///// </summary>
+        ///// <param name="id">ID do usuário a ser desativado</param>
+        ///// <returns>Status da operação</returns>
+        //[HttpDelete("{id:guid}")]
+        //[ProducesResponseType(StatusCodes.Status204NoContent)]
+        //[ProducesResponseType(StatusCodes.Status404NotFound)]
+        //[ProducesDefaultResponseType]
+        //public async Task<IActionResult> Delete(string id)
+        //{
+        //    var existingUser = await _userService.ObterPorIdAsync(id);
+        //    if (existingUser == null)
+        //        return ProblemResponse(HttpStatusCode.NotFound, "usuario não encontrado");
 
-            await _userService.DesativarAsync(id);
-            return NoContent();
-        }
+        //    await _userService.DesativarAsync(id);
+        //    return NoContent();
+        //}
 
 
         [HttpPost("autenticar")]
@@ -194,13 +175,27 @@ namespace Locadora_Auto.Api.V1.Controllers
         [HttpPost("renovar")]
         public async Task<IActionResult> Renovar([FromBody] string refreshToken)
         {
-            
-            var user = await _userService.DesativarToken(refreshToken);
+            var (idRefreshToken, validade) = ObterIdToken(refreshToken);
+            if (validade<DateTime.Now) return ValidationResponse("Token", "token expirado");
+
+            var user = await _userService.DesativarToken(idRefreshToken);
             if (user != null)
             {
                 return Ok(await _tokenService.GerarToken(user.UserName));
             }
             return ValidationResponse("Token inválido", "Token inválido");
+        }
+
+        private (string token ,DateTime validade)  ObterIdToken(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            // Ler claims
+            var idrefreshToken = jwt.Claims.First(c => c.Type == "jti").Value;
+            var expiracao = Convert.ToInt32(jwt.Claims.First(c => c.Type == "exp").Value);
+            DateTime data = DateTimeOffset.FromUnixTimeSeconds(expiracao).LocalDateTime;
+            return (idrefreshToken, data);
         }
     }
 }

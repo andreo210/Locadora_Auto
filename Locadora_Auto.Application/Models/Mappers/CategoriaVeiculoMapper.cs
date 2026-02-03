@@ -5,16 +5,24 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class CategoriaVeiculoMapper
     {
-        public static CategoriaVeiculoDto ToDto(this CategoriaVeiculo entidade)
+        public static CategoriaVeiculoDto ToDto(this CategoriaVeiculo categoria)
         {
+            if (categoria == null) return null;
+
             return new CategoriaVeiculoDto
             {
-                IdCategoria = entidade.IdCategoria,
-                Nome = entidade.Nome,
-                ValorDiaria = entidade.ValorDiaria,
-                LimiteKm = entidade.LimiteKm,
-                ValorKmExcedente = entidade.ValorKmExcedente
+                Id = categoria.Id,
+                Nome = categoria.Nome,
+                ValorDiaria = categoria.ValorDiaria,
+                LimiteKm = categoria.LimiteKm,
+                ValorKmExcedente = categoria.ValorKmExcedente
             };
+        }
+
+        public static List<CategoriaVeiculoDto> ToDtoList(this IEnumerable<CategoriaVeiculo> entidades)
+        {
+            if (entidades == null) return new List<CategoriaVeiculoDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 }
