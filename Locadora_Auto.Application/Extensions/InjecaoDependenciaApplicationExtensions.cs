@@ -13,6 +13,7 @@ using Locadora_Auto.Application.Services.MultaServices;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
+using Locadora_Auto.Application.Services.SeguroServices;
 using Locadora_Auto.Application.Services.VeiculoServices;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -43,14 +44,21 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITokenService, TokenService>();
+
+            //regras de negócio
             services.AddScoped<IClienteService, ClienteService>();
+            services.AddScoped<ISeguroService, SeguroService>();
             services.AddScoped<ICategoriaVeiculoService, CategoriaVeiculoService>();
             services.AddScoped<IVeiculoService, VeiculoService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
+
+            //notificador
             services.AddScoped<INotificadorService, NotificadorService>();
+
+            //serviço de chaves RSA
             services.AddSingleton<RsaKeyService>();
 
 

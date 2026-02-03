@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
 
-namespace Locadora_Auto.Api.V1.Controllers
+namespace Locadora_Auto.Api.Controllers
 {
     public abstract class MainController : ControllerBase
     {

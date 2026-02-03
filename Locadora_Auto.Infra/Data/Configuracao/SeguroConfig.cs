@@ -8,16 +8,21 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Seguro> builder)
         {
-            builder.ToTable("seguro");
+            builder.ToTable("tbSeguro");
 
             builder.HasKey(e => e.IdSeguro);
 
             builder.Property(e => e.IdSeguro)
                 .HasColumnName("id_seguro");
 
+            builder.Property(e => e.Descricao)
+                .HasColumnName("descricao")
+                .HasMaxLength(100)
+                .IsRequired();
+
             builder.Property(e => e.Nome)
                 .HasColumnName("nome")
-                .HasMaxLength(100)
+                .HasMaxLength(45)
                 .IsRequired();
 
             builder.Property(e => e.ValorDiaria)

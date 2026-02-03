@@ -1,4 +1,5 @@
-﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+﻿using Locadora_Auto.Api.Controllers;
+using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.FuncionarioServices;
 using Microsoft.AspNetCore.Mvc;

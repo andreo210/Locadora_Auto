@@ -342,6 +342,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             return true;
         }
         #endregion multas
+
         // ====================== ADICIONAR SEGURO ======================
         public async Task<bool> AdicionarSeguroAsync(int idLocacao, LocacaoSeguroDto dto, CancellationToken ct = default)
         {

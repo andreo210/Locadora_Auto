@@ -150,7 +150,4 @@ public class VeiculoService : IVeiculoService
 
     #endregion
 
-    #region metodo auxiliares
-
-    #endregion metodo auxiliares
 }

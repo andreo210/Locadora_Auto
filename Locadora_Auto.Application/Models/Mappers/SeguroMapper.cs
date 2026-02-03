@@ -12,18 +12,15 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdSeguro = entidade.IdSeguro,
                 Nome = entidade.Nome,
                 ValorDiaria = entidade.ValorDiaria,
-                //CobreDanos = entidade.CobreDanos
+                Descricao = entidade.Descricao,
+                Cobertura = entidade.Cobertura
             };
         }
-        public static Seguro ToEntity(this SeguroDto dto)
+
+        public static List<SeguroDto> ToDtoList(this IEnumerable<Seguro> entidades)
         {
-            return new Seguro
-            {
-                IdSeguro = dto.IdSeguro,
-                Nome = dto.Nome,
-                ValorDiaria = dto.ValorDiaria,
-                //CobreDanos = entidade.CobreDanos
-            };
+            if (entidades == null) return new List<SeguroDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 }
