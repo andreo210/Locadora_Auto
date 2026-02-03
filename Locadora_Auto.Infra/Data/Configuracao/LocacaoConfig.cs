@@ -107,17 +107,6 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .HasForeignKey("id_locacao")
                    .OnDelete(DeleteBehavior.Cascade);
 
-    
-
-            //builder.HasMany(l => l.Multas)
-            //       .WithOne(m => m.Locacao)
-            //       .HasForeignKey(m => m.IdLocacao)
-            //       .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(l => l.Seguros)
-                   .WithOne(s => s.Locacao)
-                   .HasForeignKey(s => s.IdLocacao)
-                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -23,7 +23,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         Task<bool> CancelarMultaAsync(int idLocacao, int idMulta, CancellationToken ct = default);
         #endregion Multa
 
-        Task<bool> AdicionarSeguroAsync(int idLocacao, LocacaoSeguroDto dto, CancellationToken ct = default);
         Task<LocacaoDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         Task<IEnumerable<LocacaoDto>> ObterTodasAsync(CancellationToken ct = default);
 
@@ -31,8 +30,13 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         Task<bool> AdicionarCalcaoAsync(int idLocacao, decimal valor, CancellationToken ct = default);
         Task<bool> DevolverCalcaoAsync(int idLocacao, int idCaucao, CancellationToken ct = default);
         Task<bool> BloquearCalcaoAsync(int idLocacao, int idCaucao, CancellationToken ct = default);
-        Task<bool> DeduzirCalcaoAsync(int idLocacao, int idCaucao, decimal valor, CancellationToken ct = default);       
+        Task<bool> DeduzirCalcaoAsync(int idLocacao, int idCaucao, decimal valor, CancellationToken ct = default);
         #endregion Caucao
+
+        #region Seguro
+        Task<bool> AdicionarSeguroAsync(int idLocacao, int idSeguro, CancellationToken ct = default);
+        Task<bool> CancelarSeguroAsync(int idLocacao, int idLocacaoSeguro, CancellationToken ct = default);
+        #endregion Seguro
     }
 
 }

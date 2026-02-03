@@ -12,9 +12,7 @@ namespace Locadora_Auto.Application.Services.SeguroServices
         private readonly ISeguroRepository _seguroRepository;
         private readonly INotificadorService _notificador;
 
-        public SeguroService(
-            ISeguroRepository seguroRepository,
-            INotificadorService notificador)
+        public SeguroService(ISeguroRepository seguroRepository, INotificadorService notificador)
         {
             _seguroRepository = seguroRepository;
             _notificador = notificador;
@@ -22,9 +20,9 @@ namespace Locadora_Auto.Application.Services.SeguroServices
 
         #region Consultas
 
-        public async Task<SeguroDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
+        public async Task<SeguroDto?> ObterPorIdAsync(int idLocacao, CancellationToken ct = default)
         {
-            var seguro = await _seguroRepository.ObterPrimeiroAsync(v => v.IdSeguro == id, ct: ct);
+            var seguro = await _seguroRepository.ObterPrimeiroAsync(v => v.IdSeguro == idLocacao, ct: ct);
 
             return seguro?.ToDto();
         }

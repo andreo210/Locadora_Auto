@@ -11,8 +11,10 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
     public class LocacaoService : ILocacaoService
     {
         private readonly ILocacaoRepository _locacaoRepository;
+        private readonly ILocacaoSeguroRepository _locacaoSeguroRepository;
         private readonly IClienteRepository _clienteRepository;
         private readonly IVeiculosRepository _veiculoRepository;
+        private readonly ISeguroRepository _seguroRepository;
         private readonly IFilialRepository _filialRepository;
         private readonly IFuncionarioRepository _funcionarioRepository;
         private readonly INotificadorService _notificador;
@@ -22,6 +24,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             IClienteRepository clienteRepository,
             IVeiculosRepository veiculoRepository,
             IFilialRepository filialRepository,
+            ISeguroRepository seguroRepository,
+            ILocacaoSeguroRepository locacaoSeguroRepository,
             IFuncionarioRepository funcionarioRepository,
             INotificadorService notificador)
         {
@@ -31,6 +35,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _filialRepository = filialRepository;
             _funcionarioRepository = funcionarioRepository;
             _notificador = notificador;
+            _seguroRepository = seguroRepository;
+            _locacaoSeguroRepository = locacaoSeguroRepository;
         }
 
         // ====================== CRIAR LOCACAO ======================
@@ -343,8 +349,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         }
         #endregion multas
 
-        // ====================== ADICIONAR SEGURO ======================
-        public async Task<bool> AdicionarSeguroAsync(int idLocacao, LocacaoSeguroDto dto, CancellationToken ct = default)
+        #region Seguro
+        public async Task<bool> AdicionarSeguroAsync(int idLocacao, int idSeguro, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(idLocacao, ct);
             if (locacao == null)
@@ -352,17 +358,40 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add("Locação não encontrada");
                 return false;
             }
-            //Todo vai buscar seguro e adicionar na entidade
+            var seguro = await _seguroRepository.ObterPorIdAsync(idSeguro, false, ct);
+            if(seguro == null)
+            {
+                _notificador.Add("Seguro não encontrado");
+                return false;
+            }
 
-            var locacaos = new LocacaoSeguro(); // substituir por busca real
+            locacao.AdicionarSeguro(idSeguro); // substituir por busca real
             //locacao.AdicionarSeguro(locacaos);
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
         }
 
+        public async Task<bool> CancelarSeguroAsync(int idLocacao, int idLocacaoSeguro, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var locacaoSeguro = await _locacaoSeguroRepository.ObterPorIdAsync(idLocacaoSeguro, false, ct);
+            if(locacaoSeguro == null)
+            {
+                _notificador.Add("Locação Seguro não encontrado");
+                return false;
+            }
+            locacao.CancelarSeguro(idLocacaoSeguro); // substituir por busca real
+            await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+            return true;
+        }
+        #endregion Seguro
 
-
-        // ====================== OBTER POR ID ======================
+        #region Leitura
         public async Task<LocacaoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(id, ct);
@@ -371,28 +400,39 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add("Locação não encontrada");
                 return null;
             }
-
             return locacao.ToDto();
         }
-
-
-        // ====================== LISTAR TODAS ======================
         public async Task<IEnumerable<LocacaoDto>> ObterTodasAsync(CancellationToken ct = default)
         {
-            var locacoes = await _locacaoRepository.ObterTodos().ToListAsync(ct);
-            return locacoes.Select(x => x.ToDto()).ToList();
+            var locacao = await _locacaoRepository.ObterAsync(
+                incluir: q => q
+                .Include(c => c.Veiculo)
+                .Include(c => c.Cliente).ThenInclude(u => u.Usuario)
+                .Include(c => c.Funcionario).ThenInclude(u => u.Usuario)
+                .Include(c => c.Caucoes)
+                .Include(m => m.Multas)
+                .Include(m => m.Pagamentos)
+                .Include(m => m.Seguros),
+                rastreado: true);
+            return locacao.ToDtoList();
         }
-
         private async Task<Locacao> ObterLocacao(int id, CancellationToken ct)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(
                 x => x.IdLocacao == id, 
-                incluir: q => q.Include(c => c.Veiculo)
+                incluir: q => q
+                .Include(c => c.Veiculo)
+                .Include(c => c.Cliente).ThenInclude(u=>u.Usuario)
+                .Include(c => c.Funcionario).ThenInclude(u => u.Usuario)
                 .Include(c => c.Caucoes)
-                .Include(m=>m.Multas),
-                
+                .Include(m=>m.Multas)
+                .Include(m => m.Pagamentos)
+                .Include(m => m.Seguros),
+
                 rastreado: true);
             return locacao!;
         }
+
+        #endregion Leitura
     }
 }

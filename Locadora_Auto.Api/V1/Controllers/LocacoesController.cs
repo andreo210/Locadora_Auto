@@ -2,6 +2,7 @@
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.LocacaoServices;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel;
 
 namespace Locadora_Auto.Api.Controllers
 {
@@ -15,6 +16,24 @@ namespace Locadora_Auto.Api.Controllers
         {
             _locacaoService= locacaoService;
         }
+
+        #region Leitura
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> ObterPorId(int id, CancellationToken ct)
+        {
+            var locacao = await _locacaoService.ObterPorIdAsync(id, ct);
+            return CustomResponse(locacao);
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> ObterTodas(CancellationToken ct)
+        {
+            var locacoes = await _locacaoService.ObterTodasAsync(ct);
+            return CustomResponse(locacoes);
+        }
+
+        #endregion Leitura
 
         // ====================== CRIAR LOCAÇÃO ======================
         [HttpPost]
@@ -201,34 +220,28 @@ namespace Locadora_Auto.Api.Controllers
 
         #endregion Caucao
 
+        #region Seguro
         // ====================== ADICIONAR SEGURO ======================
-        [HttpPost("{id:int}/seguros")]
-        public async Task<IActionResult> AdicionarSeguro(
-            int id,
-            [FromBody] LocacaoSeguroDto dto,
-            CancellationToken ct)
+        [HttpPost("{id:int}/seguros/{idSeguro:int}/adicionar")]
+        public async Task<IActionResult> AdicionarSeguro(int id, int idSeguro, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return CustomResponse(ModelState);
 
-            var sucesso = await _locacaoService.AdicionarSeguroAsync(id, dto, ct);
+            var sucesso = await _locacaoService.AdicionarSeguroAsync(id, idSeguro, ct);
             return CustomResponse(sucesso);
         }
 
-        // ====================== OBTER POR ID ======================
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> ObterPorId(int id, CancellationToken ct)
+        [HttpPost("{id:int}/seguros/{idLocacaoSeguro:int}/cancelar")]
+        public async Task<IActionResult> CancelarSeguro(int id, int idLocacaoSeguro, CancellationToken ct)
         {
-            var locacao = await _locacaoService.ObterPorIdAsync(id, ct);
-            return CustomResponse(locacao);
-        }
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
 
-        // ====================== LISTAR TODAS ======================
-        [HttpGet]
-        public async Task<IActionResult> ObterTodas(CancellationToken ct)
-        {
-            var locacoes = await _locacaoService.ObterTodasAsync(ct);
-            return CustomResponse(locacoes);
+            var sucesso = await _locacaoService.CancelarSeguroAsync(id, idLocacaoSeguro, ct);
+            return CustomResponse(sucesso);
         }
+        #endregion Seguro
+        
     }
 }

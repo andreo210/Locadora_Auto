@@ -9,8 +9,8 @@ namespace Locadora_Auto.Application.Models.Dto
     public class LocacaoDto
     {
         public int IdLocacao { get; set; }
-        public int IdCliente { get; set; }
-        public int IdVeiculo { get; set; }
+        //public int IdCliente { get; set; }
+        //public int IdVeiculo { get; set; }
         public int IdFuncionario { get; set; }
         public int IdFilialRetirada { get; set; }
         public int? IdFilialDevolucao { get; set; }
@@ -22,7 +22,10 @@ namespace Locadora_Auto.Application.Models.Dto
         public decimal ValorPrevisto { get; set; }
         public decimal? ValorFinal { get; set; }
         public string Status { get; set; } = null!;
+        public ClienteDto ClienteDto { get; set; } = null!;
+        public FuncionarioDto FuncionarioDto { get; set; } = null!;
         public List<MultaDto> Multas { get; set; } = new List<MultaDto>();
+        public List<PagamentoDto> Pagamentos { get; set; } = new List<PagamentoDto>();
     }
 
     public class CriarLocacaoDto

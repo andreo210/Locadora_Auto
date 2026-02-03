@@ -54,6 +54,8 @@ namespace Locadora_Auto.Domain.Entidades
         public IReadOnlyCollection<LocacaoAdicional> Adicionais => _adicionais;
 
 
+
+
         private Locacao() { }
 
 
@@ -179,7 +181,6 @@ namespace Locadora_Auto.Domain.Entidades
         }
         #endregion pagamento
 
-
         #region caucao
         public void RegistrarCaucao(decimal valor)
         {
@@ -275,6 +276,33 @@ namespace Locadora_Auto.Domain.Entidades
         }
         #endregion caucao
 
+        #region Seguro
+
+        public void AdicionarSeguro(int seguro)
+        {
+            if (Status != StatusLocacao.Criada)
+                throw new DomainException("Seguro só pode ser adicionado em locação criada");
+
+            if (_seguros.Any(s => s.Ativo == true))
+                throw new DomainException("Locação já possui seguro ativo");
+
+            var locacaoSeguro = LocacaoSeguro.Contratar(seguro);
+            _seguros.Add(locacaoSeguro);
+        }
+
+        public void CancelarSeguro(int idLocacaoSeguro)
+        {
+            var seguro = _seguros.FirstOrDefault(s => s.IdLocacaoSeguro == idLocacaoSeguro);
+            if (seguro == null)
+                throw new DomainException("Locação nao tem esse seguro");
+
+            if (seguro.Ativo == false)
+                throw new DomainException("esse seguro já esta desativado esse seguro");
+
+            seguro.Cancelar();
+        }
+
+        #endregion Seguro
 
 
         public void RegistrarDano(Dano dano)

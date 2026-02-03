@@ -15,9 +15,6 @@ namespace Locadora_Auto.Infra.Extensions
         //adiciona os repositórios
         public static IServiceCollection AddSqlServerRepositories(this IServiceCollection services)
         {
-            //usuario corrente
-            services.AddScoped<ICurrentUser, CurrentUser>();
-
             //injetar repositorios
             //services.AddScoped<ILogMensagemRepository, LogMensagemRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
@@ -28,11 +25,14 @@ namespace Locadora_Auto.Infra.Extensions
             services.AddScoped<IVeiculosRepository, VeiculosRepository>();
             services.AddScoped<IFilialRepository, FilialRepository>();
             services.AddScoped<ILocacaoRepository, LocacaoRepository>();
+            services.AddScoped<ILocacaoSeguroRepository, LocacaoSeguroRepository>();
             services.AddScoped<ISeguroRepository, SeguroRepository>();
             services.AddScoped<IMultaRepository, MultaRepository>();
 
             return services;
         }
+
+
         //adiciona o dbcontext
         public static IServiceCollection AddMySqlDbContext<TContext>(this IServiceCollection services, string ConnectionString) where TContext : DbContext
         {
@@ -47,8 +47,12 @@ namespace Locadora_Auto.Infra.Extensions
                             maxRetryCount: 5,
                             maxRetryDelay: TimeSpan.FromSeconds(10),
                             errorNumbersToAdd: null);
-                    });
+                    }
+                );
             });
+
+            //usuario corrente
+            services.AddScoped<ICurrentUser, CurrentUser>();
 
             //transaction
             services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -59,6 +63,7 @@ namespace Locadora_Auto.Infra.Extensions
         public static IServiceCollection AddHttpServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddScoped<IUsersAsp, UsersAsp>();
+
             //registrando servicos
             services.AddHttpContextAccessor();
 

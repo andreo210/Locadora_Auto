@@ -6,6 +6,7 @@
         public string? Tipo { get; set; }
         public decimal Valor { get; set; }
         public int IdLocacao { get; set; }
+        public string? Status { get; set; }
 
     }
     public class CriarMultaDto

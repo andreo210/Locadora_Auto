@@ -10,10 +10,15 @@ namespace Locadora_Auto.Application.Models.Mappers
             return new MultaDto
             {
                 IdMulta = entidade.IdMulta,
-               // Tipo = entidade.Tipo,
+                Tipo = entidade.Tipo.ToString(),
                 Valor = entidade.Valor,
-               // Status = entidade.Status
+                Status = entidade.Status.ToString()
             };
-        }       
+        }
+        public static List<MultaDto> ToDtoList(this IEnumerable<Multa> entidades)
+        {
+            if (entidades == null) return new List<MultaDto>();
+            return entidades.Select(ToDto).ToList();
+        }
     }
 }

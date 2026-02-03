@@ -2,11 +2,32 @@
 {
     public class LocacaoSeguro
     {
-        public int IdLocacao { get; set; }
-        public Locacao Locacao { get; set; } = null!;
+        public int IdLocacao{ get; private set; }
+        public int IdSeguro { get; private set; }
+        public int IdLocacaoSeguro { get; set; }
+        public bool Ativo { get; set; }
 
-        public int IdSeguro { get; set; }
-        public Seguro Seguro { get; set; } = null!;
-    }
+
+        protected LocacaoSeguro() { } // EF
+
+        internal static LocacaoSeguro Contratar(int idSeguro)
+        {
+
+            return new LocacaoSeguro
+            {
+                IdSeguro = idSeguro,
+                Ativo = true
+            };
+        }
+
+        internal void Cancelar()
+        {
+            if (Ativo != true)
+                throw new DomainException("Seguro não pode ser cancelado");
+
+            Ativo = false;
+        }
+    }    
+
 }
 
