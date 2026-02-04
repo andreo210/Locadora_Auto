@@ -39,7 +39,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _locacaoSeguroRepository = locacaoSeguroRepository;
         }
 
-        // ====================== CRIAR LOCACAO ======================
+        #region Locacao
         public async Task<LocacaoDto?> CriarAsync(CriarLocacaoDto dto, CancellationToken ct = default)
         {
             var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente, false, ct);
@@ -70,8 +70,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             await _locacaoRepository.InserirSalvarAsync(locacao, ct);
             return locacao.ToDto();
         }
-
-        // ====================== ATUALIZAR LOCACAO ======================
         public async Task<LocacaoDto?> AtualizarAsync(int id, AtualizarLocacaoDto dto, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPorIdAsync(id, false, ct);
@@ -93,8 +91,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
         }
-
-        // ====================== FINALIZAR LOCACAO ======================
         public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(x=>x.IdLocacao == id,incluir: q => q.Include(c => c.Veiculo),rastreado:true);
@@ -116,8 +112,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
         }
-
-        // ====================== CANCELAR LOCACAO ======================
         public async Task<bool> CancelarAsync(int id, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(id, ct);
@@ -139,6 +133,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
         }
+        #endregion Locacao
 
         #region Pagamento
         public async Task<bool> AdicionarPagamentoAsync(int id,AdicionarPagamentoDto pagamento, CancellationToken ct = default)

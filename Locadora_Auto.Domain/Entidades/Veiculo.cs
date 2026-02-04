@@ -13,10 +13,12 @@
         public bool Ativo { get; private set; }
         public bool Disponivel { get; private set; }
         public int FilialAtualId { get; private set; }
+        public StatusVeiculo Status { get; private set; }
 
         //navegação
         public CategoriaVeiculo Categoria { get; set; } = null!;
         public Filial FilialAtual { get; set; } = null!;
+
         public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
 
         public static Veiculo Criar(string placa, string marca, string modelo, int ano, string chassi, int kmAtual,int idCategoria, int idFilialAtual)
@@ -101,8 +103,14 @@
                 throw new InvalidOperationException("idCategoria tem que ser um numero positivo");
             if (!int.IsPositive(idFilialAtual))
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
-
         }
+    }
+
+    public enum StatusVeiculo
+    {
+        Disponivel,
+        Indisponivel,
+        Manutencao
     }
 
 }

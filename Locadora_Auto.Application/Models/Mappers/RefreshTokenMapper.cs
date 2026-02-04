@@ -1,5 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Domain.Entidades;
+using Locadora_Auto.Domain.Entidades.Indentity;
 
 namespace Locadora_Auto.Application.Models.Mappers
 {

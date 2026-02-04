@@ -12,6 +12,7 @@
 
         public decimal? ValorKmExcedente { get; private set; }
 
+        public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();
         public ICollection<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
 
         public static CategoriaVeiculo Criar(string nome, decimal valorDiaria, int limiteKm, decimal valorKmExcedente)

@@ -22,6 +22,7 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdCategoria = veiculo.IdCategoria,
                 Categoria = veiculo.Categoria?.Nome ?? string.Empty,
                 IdFilialAtual = veiculo.FilialAtualId,
+                Status = veiculo.Status.ToString(),
                 Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };
         }              

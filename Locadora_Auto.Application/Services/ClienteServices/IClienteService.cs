@@ -9,7 +9,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         /// </summary>
         public interface IClienteService
         {
-         #region Operações de Consulta
+        #region Operações de Consulta
             Task<ClienteDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
             Task<ClienteDto?> ObterPorCpfAsync(string cpf, CancellationToken ct = default);
             Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default);
@@ -39,18 +39,23 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             Task<bool> ExcluirClienteAsync(int id, CancellationToken ct = default);
             Task<bool> AtivarClienteAsync(int id, CancellationToken ct = default);
             Task<bool> DesativarClienteAsync(int id, CancellationToken ct = default);
-            #endregion
+        #endregion
 
-            #region Validações e Regras de Negócio
-            //Task<bool> ValidarClienteParaLocacaoAsync(int id, CancellationToken ct = default);
-            //Task<bool> ClientePossuiLocacoesAtivasAsync(int id, CancellationToken ct = default);
-            //Task<bool> ClienteEstaEmDiaComPagamentosAsync(int id, CancellationToken ct = default);
-            #endregion
+        #region Reservar e Cancelar Reserva
+        Task<bool> CriarReservaAsync(CriarReservaDto dto, CancellationToken ct = default);
+        Task<bool> CancelarReservaAsync(int idReserva,int id, CancellationToken ct = default);
+        #endregion Reservar e Cancelar Reserva
 
-            #region Métodos Auxiliares
-            //Task<bool> VerificarDisponibilidadeEmailAsync(string email, int? idExcluir = null, CancellationToken ct = default);
-            //Task<bool> VerificarDisponibilidadeCpfAsync(string cpf, int? idExcluir = null, CancellationToken ct = default);
-            #endregion
-        }
+        #region Validações e Regras de Negócio
+        //Task<bool> ValidarClienteParaLocacaoAsync(int id, CancellationToken ct = default);
+        //Task<bool> ClientePossuiLocacoesAtivasAsync(int id, CancellationToken ct = default);
+        //Task<bool> ClienteEstaEmDiaComPagamentosAsync(int id, CancellationToken ct = default);
+        #endregion
 
+        #region Métodos Auxiliares
+        //Task<bool> VerificarDisponibilidadeEmailAsync(string email, int? idExcluir = null, CancellationToken ct = default);
+        //Task<bool> VerificarDisponibilidadeCpfAsync(string cpf, int? idExcluir = null, CancellationToken ct = default);
+        #endregion
     }
+
+}

@@ -215,6 +215,49 @@ namespace Locadora_Auto.API.Controllers
             return Ok(new { Message = "Cliente desativado com sucesso" });           
         }
 
+
+        /// <summary>
+        /// Cria um novo cliente
+        /// </summary>
+        /// <param name="clienteDto">Dados do cliente a ser criado</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Cliente criado</returns>
+        [HttpPost("reserva")]
+        [ProducesResponseType(typeof(ClienteDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ClienteDto>> CriarReserva([FromBody] CriarReservaDto dto, CancellationToken ct = default)
+        {
+            var cliente = await _clienteService.CriarReservaAsync(dto, ct);
+            return CustomResponse(cliente, HttpStatusCode.Created);
+        }
+
+        /// <summary>
+        /// Cancela uma reserva ativa de um cliente
+        /// </summary>
+        /// <param name="idReserva"></param>
+        /// <param name=""></param>
+        /// <param name="id">ID do cliente</param>
+        /// <param name="ct">Token de cancelamento</param>
+        /// <returns>Resultado da operação</returns>
+        [HttpPatch("{id:int}/cancelar-reserva/{idReserva:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CancelarReserva([FromRoute] int idReserva, [FromRoute] int id, CancellationToken ct = default)
+        {
+            var cancelado = await _clienteService.CancelarReservaAsync(idReserva,id, ct);
+
+            if (!cancelado)
+            {
+                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao desativar cliente");
+            }
+            return Ok(new { Message = "Cliente desativado com sucesso" });
+        }
+
+
         ///// <summary>
         ///// Verifica se um cliente está apto para locação
         ///// </summary>

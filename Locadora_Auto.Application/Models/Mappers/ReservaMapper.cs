@@ -12,7 +12,6 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdReserva = entidade.IdReserva,
                 DataInicio = entidade.DataInicio,
                 DataFim = entidade.DataFim,
-                Status = entidade.Status,
                 //Cliente = entidade.Cliente?.ToDto(),
                 //Categoria = entidade.Categoria?.ToDto()
             };

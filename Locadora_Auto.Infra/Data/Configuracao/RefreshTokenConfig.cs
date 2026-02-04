@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades.Indentity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<RefreshToken> builder)
         {
-            builder.ToTable("refresh_tokens");
+            builder.ToTable("Refresh_tokens");
 
             builder.HasKey(e => e.Id);
 
