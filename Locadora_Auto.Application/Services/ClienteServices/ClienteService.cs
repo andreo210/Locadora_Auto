@@ -15,6 +15,10 @@ namespace Locadora_Auto.Application.Services.ClienteServices
     public class ClienteService : IClienteService
     {
         private readonly IClienteRepository _clienteRepository;
+        private readonly IReservaRepository _reservaRepository;
+        private readonly ILocacaoRepository _locacaoRepository;
+        private readonly ICategoriaVeiculosRepository _categoriaVeiculoRepository;
+        private readonly IVeiculosRepository _veiculoRepository;
         private readonly UserManager<User> _userManager;
         private readonly INotificadorService _notificador;
 
@@ -23,11 +27,19 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             IClienteRepository clienteRepository,
             IUnitOfWork transaction,
             INotificadorService notificador,
-            ILogger<ClienteService> logger)
+            ICategoriaVeiculosRepository categoriaVeiculoRepository,
+            IReservaRepository reservaRepository,
+            IVeiculosRepository veiculoRepository,
+            ILocacaoRepository locacaoRepository,
+        ILogger<ClienteService> logger)
         {
             _clienteRepository = clienteRepository ?? throw new ArgumentNullException(nameof(clienteRepository));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(logger));
             _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
+            _categoriaVeiculoRepository = categoriaVeiculoRepository?? throw new ArgumentNullException(nameof(categoriaVeiculoRepository));
+            _reservaRepository = reservaRepository ?? throw new ArgumentNullException(nameof(reservaRepository));
+            _veiculoRepository = veiculoRepository ?? throw new ArgumentNullException(nameof(veiculoRepository));
+            _locacaoRepository = locacaoRepository ?? throw new ArgumentNullException(nameof(locacaoRepository));
         }
 
         #region Operações de Consulta
@@ -42,7 +54,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         {
 
             var cpfLimpo = LimparCpf(cpf);
-            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario).Include(c => c.Reservas));
             return entidade?.ToDto();
       
         }
@@ -50,7 +62,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default)
         {
            
-            var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario).Include(c => c.Reservas));
             if(entidade == null)
             {
                 return new List<ClienteDto>();
@@ -151,7 +163,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         #endregion
 
-        #region Operações de CRUD
+        #region Operações de gravação Cliente
 
         public async Task<ClienteDto> CriarClienteAsync(CriarClienteDto clienteDto, CancellationToken ct = default)
         {            
@@ -279,7 +291,76 @@ namespace Locadora_Auto.Application.Services.ClienteServices
            
         }
 
-        #endregion
+        #endregion Operações de gravação Cliente
+
+        #region Reservar e Cancelar Reserva
+        public async Task<bool> CriarReservaAsync(CriarReservaDto dto, CancellationToken ct = default)
+        {
+            var veiculo = await _categoriaVeiculoRepository.ObterPrimeiroAsync(x=>x.Id == dto.IdCategoriaVeiculo,null,true, ct);
+            var cliente= await _clienteRepository.ObterPrimeiroAsync(x => x.IdCliente == dto.IdCliente, incluir:x=>x.Include(u=>u.Usuario), true, ct);
+            if (!await PodeReservar(dto))
+            {
+                _notificador.Add("reserva não autorizada");
+            }
+
+            if (cliente == null)
+            {
+                _notificador.Add($"Cliente com ID {dto.IdCliente} não encontrado.");
+            }
+            if (!cliente.PodeLocar())
+            {
+                _notificador.Add("Cliente não está apto para realizar uma locação.");
+            }
+            if (veiculo== null)
+            {
+                _notificador.Add($"Categoria de Veículo com ID {dto.IdCategoriaVeiculo} não encontrado.");
+            }
+
+            if (dto.DataInicio< DateTime.Now)
+            {
+                _notificador.Add("Data de início da reserva não pode ser menor que a data atual.");
+            }
+            if (dto.DataFim < DateTime.Now)
+            {
+                _notificador.Add("Data de entrega da reserva não pode ser menor que a data atual.");
+            }
+            if (dto.DataFim < dto.DataInicio)
+            {
+                _notificador.Add("Data de entrega da reserva não pode ser menor que a data de início.");
+            }
+            if(_notificador.ObterNotificacoes().Any())
+            {
+                return false;
+            }
+
+            cliente.ReservarVeiculo(cliente.IdCliente, dto.DataInicio, dto.DataFim, dto.IdFilial, veiculo.Id);
+            return await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
+        }
+
+        public async Task<bool> CancelarReservaAsync(int idReserva,int id, CancellationToken ct = default)
+        {
+
+            var cliente = await _clienteRepository.ObterPrimeiroAsync(x => x.IdCliente == id, incluir: x => x.Include(u => u.Reservas).ThenInclude(x=>x.CategoriaVeiculo), true, ct);
+
+            var reserva = cliente.Reservas.FirstOrDefault(x => x.IdReserva == idReserva);
+
+            if (reserva == null)
+            {
+                _notificador.Add($"Reserva com ID {idReserva} não encontrado.");
+            }
+            if (reserva.CategoriaVeiculo == null)
+            {
+                _notificador.Add($"Veículo não encontrado.");
+            }           
+            if (_notificador.ObterNotificacoes().Any())
+            {
+                return false;
+            }
+            cliente.CancelarReservar(reserva);
+            return await _clienteRepository.AtualizarSalvarAsync(cliente);
+        }
+
+        #endregion Reservar e Cancelar Reserva
 
         #region Validações e Regras de Negócio
 
@@ -345,6 +426,18 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 return true;
             }
             return false;
+        }
+
+        private async Task<bool> PodeReservar(CriarReservaDto dto)
+        {
+            var veiculosDisponiveis = await _veiculoRepository.ContarAsync(x=>x.IdCategoria == dto.IdCategoriaVeiculo && x.FilialAtualId == dto.IdFilial && x.Disponivel == true);
+            if (veiculosDisponiveis == 0)_notificador.Add("Não há veículos disponíveis para a categoria e filial selecionadas.");
+
+            var locacoes = await _locacaoRepository.ContarAsync(x => x.Veiculo.IdCategoria == dto.IdCategoriaVeiculo && x.Veiculo.FilialAtualId == dto.IdFilial && x.Status !=StatusLocacao.Finalizada );
+            var reservas = await _reservaRepository.ContarAsync(x => x.IdCategoria == dto.IdCategoriaVeiculo && x.IdFilial == dto.IdFilial && x.Status == StatusReserva.Reservado);
+
+
+            return veiculosDisponiveis > (locacoes + reservas);
         }
 
 
@@ -413,6 +506,8 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             if (notificacoes.Any()) return false;
             return true;
         }
+
+        
 
         private async Task<bool> ValidarAtualizacaoClienteAsync(AtualizarClienteDto clienteDto, CancellationToken ct)
         {

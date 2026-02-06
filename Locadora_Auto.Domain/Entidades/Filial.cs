@@ -11,6 +11,8 @@
         public Endereco Endereco { get; private set; } = null!;
 
         public ICollection<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
+
+        public ICollection<Reserva> Reserva { get; set; } = new List<Reserva>();
         public ICollection<Locacao> LocacoesRetirada { get; set; } = new List<Locacao>();
         public ICollection<Locacao> LocacoesDevolucao { get; set; } = new List<Locacao>();
 

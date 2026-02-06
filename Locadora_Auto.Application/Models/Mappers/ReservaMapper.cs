@@ -12,10 +12,18 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdReserva = entidade.IdReserva,
                 DataInicio = entidade.DataInicio,
                 DataFim = entidade.DataFim,
-                Status = entidade.Status,
+                Ativo = entidade.Ativo,
+                IdCategoriaVeiculo =entidade.IdCategoria,
+                IdFilial = entidade.IdFilial
                 //Cliente = entidade.Cliente?.ToDto(),
                 //Categoria = entidade.Categoria?.ToDto()
             };
+        }
+
+        public static List<ReservaDto> ToDtoList(this IEnumerable<Reserva> entidades)
+        {
+            if (entidades == null) return new List<ReservaDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 

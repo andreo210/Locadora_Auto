@@ -1,5 +1,6 @@
 ﻿using Locadora_Auto.Domain.Auditoria;
 using Locadora_Auto.Domain.Entidades.Indentity;
+using System.Data;
 
 namespace Locadora_Auto.Domain.Entidades
 {
@@ -26,7 +27,10 @@ namespace Locadora_Auto.Domain.Entidades
         public User? Usuario { get; set; } = null!;
         public Endereco? Endereco { get; private set; } = null!;
         public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
-        public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();
+
+
+        private readonly List<Reserva> _reserva = new();
+        public IReadOnlyCollection<Reserva> Reservas => _reserva;
 
         private Clientes(){  }
 
@@ -49,8 +53,16 @@ namespace Locadora_Auto.Domain.Entidades
             };
         }
 
+        public void ReservarVeiculo(int idCliente,DateTime inicio, DateTime fim,int idFilial, int idCategoria)
+        {
+            _reserva.Add(Reserva.Criar(idCliente, inicio,idFilial, fim, idCategoria));
+        }
 
-       
+        public void CancelarReservar(Reserva reserva)
+        {
+            reserva.Cancelar();
+        }
+
 
         public void Atualizar(string numeroHabilitacao, DateTime validadeCnh, Endereco endereco)
         {

@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
 
 namespace Locadora_Auto.Infra.Data.Repositorio

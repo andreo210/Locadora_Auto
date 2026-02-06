@@ -242,6 +242,17 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(sucesso);
         }
         #endregion Seguro
-        
+
+        #region Vistoria
+        [HttpPost("{id:int}/vistoria")]
+        public async Task<IActionResult> RegistrarVistoria(int id, [FromBody] CriarVistoriaDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+            var sucesso = await _locacaoService.RegistrarVistoriaAsync(id, dto, ct);
+            return CustomResponse(sucesso);
+        }
+        #endregion Vistoria
+
     }
 }

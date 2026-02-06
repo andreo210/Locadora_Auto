@@ -10,11 +10,24 @@ namespace Locadora_Auto.Application.Models.Mappers
             return new VistoriaDto
             {
                 IdVistoria = entidade.IdVistoria,
-                Tipo = entidade.Tipo,
+                Tipo = entidade.Tipo.ToString(),
+                NivelCombustivel = entidade.Combustivel.ToString(),
                 Observacoes = entidade.Observacoes,
                 DataVistoria = entidade.DataVistoria,
-               // Danos = entidade.Danos?.Select(d => d.ToDto()).ToList()
+                IdFuncionario = entidade.IdFuncionario,
+                IdLocacao = entidade.IdLocacao,
+                KmVeiculo = entidade.KmVeiculo,
+                
             };
+        }
+
+        /// <summary>
+        /// Converte uma lista de Contato para uma lista de ContatoDto
+        /// </summary>
+        public static List<VistoriaDto> ToDtoList(this IEnumerable<Vistoria> entidades)
+        {
+            if (entidades == null) return new List<VistoriaDto>();
+            return entidades.Select(ToDto).ToList();
         }
     }
 }

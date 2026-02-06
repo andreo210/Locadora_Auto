@@ -26,17 +26,19 @@ namespace Locadora_Auto.Application.Models.Dto
         public FuncionarioDto FuncionarioDto { get; set; } = null!;
         public List<MultaDto> Multas { get; set; } = new List<MultaDto>();
         public List<PagamentoDto> Pagamentos { get; set; } = new List<PagamentoDto>();
+        public List<VistoriaDto> Vistorias { get; set; } = new List<VistoriaDto>();
     }
 
     public class CriarLocacaoDto
     {
-        public int IdCliente { get; set; }
-        public int IdVeiculo { get; set; }
+        public int? IdCliente { get; set; }
+        public int? IdVeiculo { get; set; }
         public int IdFuncionario { get; set; }
-        public int IdFilialRetirada { get; set; }
-        public DateTime DataInicio { get; set; }
-        public DateTime DataFimPrevista { get; set; }
-        public int KmInicial { get; set; }
+        public int? IdFilialRetirada { get; set; }
+        public int? idReserva { get; set; } = 0;
+        public DateTime? DataInicio { get; set; }
+        public DateTime? DataFimPrevista { get; set; }
+        public int? KmInicial { get; set; }
         public decimal ValorPrevisto { get; set; }
     }
 

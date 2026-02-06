@@ -11,6 +11,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
     public class LocacaoService : ILocacaoService
     {
         private readonly ILocacaoRepository _locacaoRepository;
+        private readonly IReservaRepository _reservaRepository;
         private readonly ILocacaoSeguroRepository _locacaoSeguroRepository;
         private readonly IClienteRepository _clienteRepository;
         private readonly IVeiculosRepository _veiculoRepository;
@@ -23,6 +24,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             ILocacaoRepository locacaoRepository,
             IClienteRepository clienteRepository,
             IVeiculosRepository veiculoRepository,
+            IReservaRepository reservaRepository,
             IFilialRepository filialRepository,
             ISeguroRepository seguroRepository,
             ILocacaoSeguroRepository locacaoSeguroRepository,
@@ -36,16 +38,47 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _funcionarioRepository = funcionarioRepository;
             _notificador = notificador;
             _seguroRepository = seguroRepository;
+            _reservaRepository = reservaRepository;
             _locacaoSeguroRepository = locacaoSeguroRepository;
         }
 
-        // ====================== CRIAR LOCACAO ======================
+        #region Locacao
         public async Task<LocacaoDto?> CriarAsync(CriarLocacaoDto dto, CancellationToken ct = default)
         {
-            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente, false, ct);
+            var reserva = await _reservaRepository.ObterPrimeiroAsync(r=>r.IdReserva == dto.idReserva.Value,null, true, ct);
             var veiculo = await _veiculoRepository.ObterPorIdAsync(dto.IdVeiculo, false, ct);
+            if (reserva != null)
+            {
+                if (reserva.Ativo == false)
+                {
+                    _notificador.Add("Essa reserva foi cancelada");
+                    return null;
+                }
+                if (reserva.IdCliente != dto.IdCliente)
+                    _notificador.Add("Reserva não pertence ao cliente informado");
+                if (reserva.IdCategoria != veiculo!.IdCategoria)
+                    _notificador.Add("Veículo não pertence à categoria da reserva");
+                if (reserva.DataInicio != dto.DataInicio || reserva.DataFim != dto.DataFimPrevista)
+                    _notificador.Add("Datas da locação não coincidem com as datas da reserva");
+                if (reserva.IdFilial != dto.IdFilialRetirada)
+                    _notificador.Add("Filial de retirada não coincide com a filial da reserva");
+                if (reserva.Status != StatusReserva.Reservado)
+                    _notificador.Add("Reserva não está em status reservado");
+                if (_notificador.TemNotificacao())
+                    return null;
+
+                dto.DataInicio = reserva.DataInicio;
+                dto.DataFimPrevista = reserva.DataFim;
+                dto.IdFilialRetirada = reserva.IdFilial;
+                dto.IdCliente = reserva.IdCliente;
+            }
+
+            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente, false, ct);
             var filial = await _filialRepository.ObterPorIdAsync(dto.IdFilialRetirada, false, ct);
             var funcionario = await _funcionarioRepository.ObterPorIdAsync(dto.IdFuncionario, false, ct);
+            
+            
+
 
             if (cliente == null) _notificador.Add("Cliente não encontrado");
             if (veiculo == null) _notificador.Add("Veículo não encontrado");
@@ -60,18 +93,17 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 cliente,
                 veiculo!,
                 funcionario!,
-                dto.IdFilialRetirada,
-                dto.DataInicio,
-                dto.DataFimPrevista,
-                dto.KmInicial,
+                reserva!,
+                dto.IdFilialRetirada.Value,
+                dto.DataInicio.Value,
+                dto.DataFimPrevista.Value,
+                dto.KmInicial.Value,
                 dto.ValorPrevisto
             );
 
             await _locacaoRepository.InserirSalvarAsync(locacao, ct);
             return locacao.ToDto();
         }
-
-        // ====================== ATUALIZAR LOCACAO ======================
         public async Task<LocacaoDto?> AtualizarAsync(int id, AtualizarLocacaoDto dto, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPorIdAsync(id, false, ct);
@@ -93,8 +125,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
         }
-
-        // ====================== FINALIZAR LOCACAO ======================
         public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(x=>x.IdLocacao == id,incluir: q => q.Include(c => c.Veiculo),rastreado:true);
@@ -116,8 +146,6 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
         }
-
-        // ====================== CANCELAR LOCACAO ======================
         public async Task<bool> CancelarAsync(int id, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(id, ct);
@@ -139,6 +167,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
         }
+        #endregion Locacao
 
         #region Pagamento
         public async Task<bool> AdicionarPagamentoAsync(int id,AdicionarPagamentoDto pagamento, CancellationToken ct = default)
@@ -427,6 +456,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 .Include(c => c.Caucoes)
                 .Include(m=>m.Multas)
                 .Include(m => m.Pagamentos)
+                .Include(m => m.Vistorias)
                 .Include(m => m.Seguros),
 
                 rastreado: true);
@@ -434,5 +464,42 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         }
 
         #endregion Leitura
+
+        #region Vistoria
+
+        public async Task<bool> RegistrarVistoriaAsync(int idLocacao, CriarVistoriaDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo,(NivelCombustivel)dto.NivelCombustivel,dto.KmVeiculo, dto.Observacoes);
+
+            await _locacaoRepository.AtualizarSalvarAsync(locacao);
+            return true;
+        }
+
+        //public async Task<bool> AddFotoVistoriaAsync(int idVistoria,List<Foto> fotos, CancellationToken ct = default)
+        //{
+        //    var locacao = await ObterLocacao(idLocacao, ct);
+
+        //    if (locacao == null)
+        //    {
+        //        _notificador.Add("Locação não encontrada");
+        //        return false;
+        //    }
+
+        //    locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo, (NivelCombustivel)dto.NivelCombustivel, dto.KmVeiculo, dto.Observacoes);
+
+        //    await _locacaoRepository.AtualizarSalvarAsync(locacao);
+        //    return true;
+        //}
+
+
+        #endregion Vistoria
     }
 }

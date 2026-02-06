@@ -1,6 +1,4 @@
-﻿using Locadora_Auto.Domain.Entidades.Indentity;
-
-namespace Locadora_Auto.Domain.Entidades
+﻿namespace Locadora_Auto.Domain.Entidades.Indentity
 {
     public class RefreshToken
     {

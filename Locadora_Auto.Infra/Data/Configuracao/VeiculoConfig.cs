@@ -47,6 +47,10 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.Ano)
                 .HasColumnName("ano");
 
+            builder.Property(c => c.Status)
+                  .HasColumnName("status")
+                  .HasConversion<int>()
+                  .IsRequired();
 
             //chave estrangeira
             builder.Property(e => e.IdCategoria)

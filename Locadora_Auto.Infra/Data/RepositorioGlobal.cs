@@ -186,6 +186,14 @@ namespace Locadora_Auto.Infra.Data
             await SalvarAsync(ct);
             return entidade;
         }
+        public virtual async Task<List<TEntity>> InserirSalvarListasAsync(List<TEntity> entidades, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(entidades);
+            await DbSet.AddRangeAsync(entidades, ct);
+            await SalvarAsync(ct);
+            return entidades;
+        }
+
         public virtual Task InserirAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);
