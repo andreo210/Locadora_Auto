@@ -38,7 +38,7 @@
                 Bairro = bairro,
                 Cidade = cidade,
                 Estado = estado,
-                Cep = cep,
+                Cep = cep.Replace("-","").Replace(".",""),
                 Complemento = complemento
             };
         }

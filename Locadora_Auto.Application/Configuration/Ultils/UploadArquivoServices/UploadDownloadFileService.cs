@@ -2,11 +2,15 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
+using System.Globalization;
+using System.Text;
+using static Locadora_Auto.Domain.Entidades.Foto;
 
-namespace Locadora_Auto.Application.Services.UploadArquivo
+namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
 {
     /// <summary>
     /// Serviço responsável por realizar upload e download de arquivos,
+    /// com suporte a criptografia AES-256 e GPG, além de arquivos simples.
     /// </summary>
     public class UploadDownloadFileService : IUploadDownloadFileService
     {
@@ -31,28 +35,25 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         /// <summary>
         /// Realiza o upload de um arquivo simples, sem criptografia.
         /// </summary>
-        public async Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf)
+        public async Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, TipoFoto tipo, int idEntidade)
         {
             try
             {
                 if (arquivo.Length == 0)
                     throw new ArgumentException("Arquivo inválido.");
 
-                if (string.IsNullOrWhiteSpace(cpf))
-                    throw new ArgumentException("CPF não informado.");
-
                 // Obtém nome e extensão e nome base
-                var nomeOriginal = Path.GetFileName(arquivo.FileName);
+                
                 var nomeBase = Path.GetFileNameWithoutExtension(arquivo.FileName);
                 var extensao = Path.GetExtension(arquivo.FileName)?.TrimStart('.') ?? "desconhecido";
-
+                var nomeOriginal = $"{Guid.NewGuid()}.{extensao}";
                 // Validação de extensões permitidas
-                var extensoesPermitidas = new[] { "jpg", "jpeg", "png", "gif", "bmp", "pdf", "webp" };
+                var extensoesPermitidas = new[] { "jpg", "jpeg", "png", "gif", "bmp",  "webp" };
                 if (!extensoesPermitidas.Contains(extensao))
                 {
                     var extensoesFormatadas = string.Join(", ", extensoesPermitidas.Select(e => $".{e}"));
                     throw new InvalidOperationException(
-                        $"Tipo de arquivo não permitido({extensao}). Extensões aceitas: {extensoesFormatadas}");
+                        $"Tipo de arquivo não permitido ({extensao}). Extensões aceitas: {extensoesFormatadas}");
                 }
 
                 // Define caminhos
@@ -60,7 +61,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
                 if (string.IsNullOrWhiteSpace(raiz))
                     throw new InvalidOperationException("Caminho raiz para upload não configurado.");
 
-                string diretorio = Path.Combine(raiz, cpf);
+                string diretorio = Path.Combine(raiz);
 
                 // Cria o diretório, se necessário
                 if (!Directory.Exists(diretorio))
@@ -79,14 +80,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
                 }
 
                 // Retorna a classe Arquivo preenchida
-                return new Foto
-                {
-                    Diretorio = diretorio,
-                    Raiz = raiz,
-                    Nome = nomeArquivo,
-                    Extensao = extensao,
-                    QuantidadeBytes = arquivo.Length
-                };
+                return Foto.Criar(idEntidade, nomeArquivo, raiz+nomeArquivo, diretorio, extensao, arquivo.Length, tipo);             
             }
             catch (ArgumentException ex)
             {
@@ -137,6 +131,8 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         // Método para gerar nome unico
         private static string GerarNomeUnico(string nomeBase, string extensao, string diretorio, string nomeArquivo)
         {
+            nomeBase = RemoverAcentos(nomeBase);
+            nomeArquivo = RemoverAcentos(nomeArquivo);
             var contador = 1;
 
             // Se não existir, usa o nome original
@@ -150,7 +146,28 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
                 contador++;
             } while (File.Exists(Path.Combine(diretorio, nomeArquivo)) && contador <= 1000);
 
+            //return Guid.NewGuid().ToString();
             return nomeArquivo;
+
+        }
+
+        public static string RemoverAcentos(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                throw new ArgumentException("Nome arquivo inválido");
+
+            var normalizedString = texto.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
     }
 }

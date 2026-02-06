@@ -54,7 +54,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         {
 
             var cpfLimpo = LimparCpf(cpf);
-            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var entidade = await _clienteRepository.ObterPrimeiroAsync(c => c.Usuario.Cpf == cpfLimpo, ct: ct, incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario).Include(c => c.Reservas));
             return entidade?.ToDto();
       
         }
@@ -62,7 +62,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<IReadOnlyList<ClienteDto>> ObterTodosAsync(CancellationToken ct = default)
         {
            
-            var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario));
+            var entidade = await _clienteRepository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct,incluir: q => q.Include(c => c.Endereco).Include(c => c.Usuario).Include(c => c.Reservas));
             if(entidade == null)
             {
                 return new List<ClienteDto>();
@@ -333,7 +333,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 return false;
             }
 
-            cliente.ReservarVeiculo(cliente.IdCliente, dto.DataInicio, dto.DataFim, dto.IdFilial, veiculo);
+            cliente.ReservarVeiculo(cliente.IdCliente, dto.DataInicio, dto.DataFim, dto.IdFilial, veiculo.Id);
             return await _clienteRepository.AtualizarSalvarAsync(cliente, ct);
         }
 

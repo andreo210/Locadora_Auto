@@ -63,7 +63,7 @@ namespace Locadora_Auto.Domain.Entidades
             Clientes cliente,
             Veiculo veiculo,
             Funcionario funcionario,
-           // Reserva reserva,
+            Reserva reserva,
             int filialRetirada,
             DateTime dataInicio,
             DateTime dataFimPrevista,
@@ -79,9 +79,7 @@ namespace Locadora_Auto.Domain.Entidades
             if (veiculo == null)
                 throw new ArgumentNullException(nameof(veiculo), "Veículo é obrigatório");
 
-            //if (reserva == null)
-            //    throw new ArgumentNullException(nameof(veiculo), "Reserva é obrigatório");
-
+        
             if (cliente == null)
                 throw new ArgumentNullException(nameof(cliente), "Cliente é obrigatório");
 
@@ -106,6 +104,10 @@ namespace Locadora_Auto.Domain.Entidades
                 ValorPrevisto = valorPrevisto,
                 Status = StatusLocacao.Criada
             };
+            if (reserva != null)
+            {
+                reserva.Finalizar();
+            }
 
             // Marca veículo como indisponível
             veiculo.Indisponibilizar();
@@ -314,11 +316,25 @@ namespace Locadora_Auto.Domain.Entidades
             _danos.Add(dano);
         }
 
-        public void RegistrarVistoria(Vistoria vistoria)
+        public void RegistrarVistoria(int idFuncionario, TipoVistoria tipo,NivelCombustivel combustivel,int km, string? observacoes)
         {
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+
+            var vistoria = Vistoria.Criar(IdLocacao, idFuncionario, tipo,combustivel, km,observacoes);
+
             _vistorias.Add(vistoria);
         }
-
+        //public void RegistrarFoto(List<Foto> foto, int idVistoria)
+        //{
+        //    var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);  
+        //    if (Status == StatusLocacao.Finalizada)
+        //        throw new DomainException("Não é possível vistoriar locação finalizada");
+        //    foreach (var f in foto)
+        //    {
+        //         vistoria.AdicionarFoto(f);
+        //    }
+        //}
 
 
         public void AtualizarDados(DateTime dataFimPrevista, int kmInicial, decimal valorPrevisto)

@@ -1,7 +1,7 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.Email;
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
-using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoDataBase;
+using Locadora_Auto.Application.Configuration.Ultils.ValidadorArquivoServices;
 using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Services;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
@@ -36,7 +36,7 @@ namespace Locadora_Auto.Application.Extensions
 
             //utils
             services.AddScoped<IUploadDownloadFileService, UploadDownloadFileService>();
-            services.AddScoped<IPdfStorageService, PdfStorageService>();
+            //services.AddScoped<IPdfStorageService, PdfStorageService>();
 
 
 
@@ -54,9 +54,11 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
+            services.AddScoped<IFotoService, FotoService>();
 
-            //notificador
+            //notificador e validadors
             services.AddScoped<INotificadorService, NotificadorService>();
+            services.AddTransient<IValidadorArquivoService, ValidadorArquivoService>();
 
             //serviço de chaves RSA
             services.AddSingleton<RsaKeyService>();

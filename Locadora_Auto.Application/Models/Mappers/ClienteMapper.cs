@@ -21,7 +21,9 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Cpf = entidade.Usuario?.Cpf ?? string.Empty,
                 Nome = entidade.Usuario?.NomeCompleto ?? string.Empty,
                 Email = entidade.Usuario?.Email ?? string.Empty,
-                Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
+                Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty,
+                Reservas = entidade.Reservas.ToDtoList().Where(x => x.Ativo == true)
+
             };
         }
 

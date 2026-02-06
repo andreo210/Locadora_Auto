@@ -8,6 +8,7 @@
         public string? NumeroHabilitacao { get; set; }
         public DateTime? ValidadeHabilitacao { get; set; }
         public EnderecoDto Endereco { get; set; } = null!;
+        
     }
 
     public class CriarClienteDto : ClienteBase
@@ -26,6 +27,7 @@
         public string Cpf { get; set; } = null!;
         public bool Ativo { get; set; }
         public int TotalLocacoes { get; set; }
+        public IEnumerable<ReservaDto>? Reservas{ get; set; }
     }
 
 }

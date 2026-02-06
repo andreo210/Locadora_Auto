@@ -53,9 +53,9 @@ namespace Locadora_Auto.Domain.Entidades
             };
         }
 
-        public void ReservarVeiculo(int idCliente,DateTime inicio, DateTime fim,int idFilial, CategoriaVeiculo veiculo)
+        public void ReservarVeiculo(int idCliente,DateTime inicio, DateTime fim,int idFilial, int idCategoria)
         {
-            _reserva.Add(Reserva.Criar(idCliente, inicio,idFilial, fim, veiculo));
+            _reserva.Add(Reserva.Criar(idCliente, inicio,idFilial, fim, idCategoria));
         }
 
         public void CancelarReservar(Reserva reserva)

@@ -30,7 +30,8 @@ namespace Locadora_Auto.Application.Mappers
                 Multas = locacao.Multas.ToDtoList(),
                 Pagamentos = locacao.Pagamentos.ToDtoList(),
                 ClienteDto = locacao.Cliente.ToDto(),
-                FuncionarioDto = locacao.Funcionario.ToDto()
+                FuncionarioDto = locacao.Funcionario.ToDto(),
+                Vistorias = locacao.Vistorias.ToDtoList()
             };
         }
 

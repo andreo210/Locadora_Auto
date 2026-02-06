@@ -37,6 +37,10 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         Task<bool> AdicionarSeguroAsync(int idLocacao, int idSeguro, CancellationToken ct = default);
         Task<bool> CancelarSeguroAsync(int idLocacao, int idLocacaoSeguro, CancellationToken ct = default);
         #endregion Seguro
+
+        #region Vistoria
+        Task<bool> RegistrarVistoriaAsync(int idLocacao, CriarVistoriaDto dto, CancellationToken ct = default);
+        #endregion Vistoria
     }
 
 }

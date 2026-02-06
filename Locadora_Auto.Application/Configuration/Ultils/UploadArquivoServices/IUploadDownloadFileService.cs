@@ -1,7 +1,8 @@
 ﻿using Locadora_Auto.Domain.Entidades;
 using Microsoft.AspNetCore.Http;
+using static Locadora_Auto.Domain.Entidades.Foto;
 
-namespace Locadora_Auto.Application.Services.UploadArquivo
+namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
 {
     /// <summary>
     /// Interface para serviços de upload e download de arquivos,
@@ -14,7 +15,7 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         /// </summary>
         /// <param name="arquivo">Arquivo enviado via formulário.</param>
         /// <returns>Nome do arquivo salvo.</returns>
-        Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, string cpf);
+        Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, TipoFoto tipo, int idEntidade);
 
         /// <summary>
         /// Baixa um arquivo simples
@@ -24,4 +25,5 @@ namespace Locadora_Auto.Application.Services.UploadArquivo
         /// <returns>Conteúdo binário do arquivo.</returns>
         byte[] BaixarArquivoSimples(string nomeArquivo, out string tipoConteudo);
     }
+
 }

@@ -11,20 +11,18 @@
         public StatusReserva Status { get; private set; }
         public bool Ativo { get; private set; }
 
-        public Reserva() { }
+        protected Reserva() { }
 
         public Clientes Cliente { get; private set; } = null!;
         public Filial Filial { get; private set; } = null!;
         public CategoriaVeiculo CategoriaVeiculo { get;  private set; } = null!;
-        internal static Reserva Criar(int idCliente, DateTime inicio,int idilial, DateTime fim, CategoriaVeiculo veiculo)
+
+        internal static Reserva Criar(int idCliente, DateTime inicio,int idilial, DateTime fim, int idCategoria)
         {
             if (idCliente == 0)
                 throw new InvalidOperationException("Id cliente não pode ser zero");
 
-            if (veiculo == null)
-                throw new InvalidOperationException("veiculo não pode ser nulo");
-
-            if (veiculo.Id == 0)
+            if (idCategoria == 0)
                 throw new InvalidOperationException("Id veiculo não pode ser nulo");
 
             if (inicio <= DateTime.Now)
@@ -44,46 +42,39 @@
                 DataFim = fim,
                 DataInicio = inicio,
                 IdCliente = idCliente,
-                IdCategoria = veiculo.Id,
+                IdCategoria = idCategoria,
                 IdFilial = idilial
             };           
         }
 
-
-        public void Atualizar(DateTime inicio, DateTime fim)
-        {
-
-            if (inicio <= DateTime.Now)
-                throw new InvalidOperationException("data do inicio não pode ser menor que data atual");
-
-            if (fim <= DateTime.Now)
-                throw new InvalidOperationException("data do final não pode ser menor que data atual");
-
-            if (fim <= inicio)
-                throw new InvalidOperationException("data do final não pode ser menor que data inicio");
-            
-            DataFim = fim;
-            DataInicio = inicio;
-        }
-
-
-
         public void Cancelar()
         {
+            if (Status != StatusReserva.Reservado)
+                throw new DomainException("Somente reservas ativas podem ser canceladas");
+
             Status = StatusReserva.Cancelado;
+            Ativo = false;
         }
 
-        public void Finalizar(Veiculo veiculo )
+        public void Expirar(DateTime agora)
         {
+            if (Status == StatusReserva.Reservado && agora.Date > DataInicio.Date)
+            {
+                Status = StatusReserva.Expirado;
+                Ativo = false;
+            }
+        }
+
+        public void Finalizar()
+        {
+            if (Status != StatusReserva.Reservado)
+                throw new DomainException("Reserva não pode ser finalizada");
+
             Status = StatusReserva.Finalizado;
-            veiculo.Disponibilizar();
+            Ativo = false;
         }
 
 
-        public void Ativar()
-        {
-            Ativo = true;
-        }
         public void Desativar()
         {
             Ativo = false;
@@ -94,7 +85,8 @@
     {
         Reservado,
         Cancelado,
-        Finalizado
+        Finalizado,
+        Expirado
     }
 
 }
