@@ -4,23 +4,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Locadora_Auto.Infra.Data.Configuracao
 {
-    public class FotoConfig : IEntityTypeConfiguration<Foto>
+    public class FotoVistoriaConfig : IEntityTypeConfiguration<FotoVistoria>
     {
-        public void Configure(EntityTypeBuilder<Foto> builder)
+        public void Configure(EntityTypeBuilder<FotoVistoria> builder)
         {
-            builder.ToTable("tbFotos");
+            builder.ToTable("tbFotoVistoria");
 
             builder.HasKey(e => e.IdFoto);
 
             builder.Property(e => e.IdFoto)
                 .HasColumnName("id_foto");
-
-            builder.Property(c => c.Tipo)
-                   .HasColumnName("tipo")
-                   .HasConversion<string>();
-
-            builder.Property(e => e.IdEntidade)
-                .HasColumnName("id_entidade");
 
             builder.Property(e => e.NomeArquivo)
                 .HasColumnName("nome_arquivo");
@@ -39,6 +32,12 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             builder.Property(e => e.Extensao)
                .HasColumnName("extensao");
+
+            //chave estrangeira
+            builder.HasOne<Vistoria>()
+                   .WithMany(l => l.Fotos)
+                   .HasForeignKey("id_vistoria")// fk fantasma, não existe na classe, mas é necessário para o relacionamento
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

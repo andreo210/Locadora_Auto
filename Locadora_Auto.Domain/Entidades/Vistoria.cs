@@ -1,6 +1,4 @@
-﻿using static Locadora_Auto.Domain.Entidades.Foto;
-
-namespace Locadora_Auto.Domain.Entidades
+﻿namespace Locadora_Auto.Domain.Entidades
 {
     public class Vistoria
     {
@@ -15,8 +13,8 @@ namespace Locadora_Auto.Domain.Entidades
         public Locacao Locacao { get; private set; } = null!;        
         public Funcionario Funcionario { get; private set; } = null!;
 
-        //private readonly List<Foto> _fotos = new();
-        //public IReadOnlyCollection<Foto> Fotos => _fotos;
+        private readonly List<FotoVistoria> _fotos = new();
+        public IReadOnlyCollection<FotoVistoria> Fotos => _fotos;
 
         private readonly List<Dano> _danos = new();
         public IReadOnlyCollection<Dano> Danos => _danos;
@@ -59,13 +57,13 @@ namespace Locadora_Auto.Domain.Entidades
             _danos.Add(dano);
         }
 
-        //public void AdicionarFoto(Foto foto)
-        //{
-        //    if (foto == null)
-        //        throw new DomainException("Foto inválida");
+        public void AdicionarFoto(FotoVistoria foto)
+        {
+            if (foto == null)
+                throw new DomainException("Foto inválida");
 
-        //    _fotos.Add(Foto.Criar(foto.IdEntidade.Value,foto.NomeArquivo,foto.Raiz,foto.Diretorio,foto.Extensao,foto.QuantidadeBytes.Value,foto.Tipo.Value));
-        //}
+            _fotos.Add(FotoVistoria.Criar(/*foto.IdVistoria.Value,*/ foto.NomeArquivo, foto.Raiz, foto.Diretorio, foto.Extensao, foto.QuantidadeBytes.Value));
+        }
 
         public void AtualizarObservacoes(string observacoes)
         {

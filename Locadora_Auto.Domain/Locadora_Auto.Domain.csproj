@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Entidades\FotoVistoria.cs" />
     <None Include="Entidades\Indentity\User.cs" />
   </ItemGroup>
 

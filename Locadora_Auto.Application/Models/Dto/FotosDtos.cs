@@ -21,7 +21,7 @@ namespace Locadora_Auto.Application.Models.Dto
     public class EnviarFotoDto
     {
         public int IdTipo{ get; set; }
-        public int IdEntidade { get; set; }
+        public int IdLocacao{ get; set; }
         public List<IFormFile> file { get; set; }
     }
 }

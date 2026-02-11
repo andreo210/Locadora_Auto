@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Application.Models.Dto
+﻿using Microsoft.AspNetCore.Http;
+
+namespace Locadora_Auto.Application.Models.Dto
 {
 
     public class VistoriaBaseDto
@@ -21,6 +23,12 @@
     {
         public int Tipo { get; set; }
         public int NivelCombustivel { get; set; }
+    }
+
+    public class EnviarFotoVistoriaDto
+    {
+        public int IdVistoria { get; set; }
+        public List<IFormFile>? Fotos { get; set; }
     }
 
 

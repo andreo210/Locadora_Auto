@@ -325,16 +325,16 @@ namespace Locadora_Auto.Domain.Entidades
 
             _vistorias.Add(vistoria);
         }
-        //public void RegistrarFoto(List<Foto> foto, int idVistoria)
-        //{
-        //    var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);  
-        //    if (Status == StatusLocacao.Finalizada)
-        //        throw new DomainException("Não é possível vistoriar locação finalizada");
-        //    foreach (var f in foto)
-        //    {
-        //         vistoria.AdicionarFoto(f);
-        //    }
-        //}
+        public void RegistrarFoto(List<FotoVistoria> foto, int idVistoria)
+        {
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+            foreach (var f in foto)
+            {
+                vistoria.AdicionarFoto(f);
+            }
+        }
 
 
         public void AtualizarDados(DateTime dataFimPrevista, int kmInicial, decimal valorPrevisto)

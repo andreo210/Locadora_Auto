@@ -2,5 +2,5 @@
 
 namespace Locadora_Auto.Domain.IRepositorio
 {
-    public interface IFotoRepository : IRepositorioGlobal<Foto> { }      
+    public interface IVistoriaRepository : IRepositorioGlobal<Vistoria>{}
 }

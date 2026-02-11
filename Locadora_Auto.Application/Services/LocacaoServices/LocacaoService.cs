@@ -1,9 +1,11 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Mappers;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace Locadora_Auto.Application.Services.LocacaoServices
@@ -11,6 +13,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
     public class LocacaoService : ILocacaoService
     {
         private readonly ILocacaoRepository _locacaoRepository;
+        private readonly IUploadDownloadFileService _uploadDownloadFileService;
         private readonly IReservaRepository _reservaRepository;
         private readonly ILocacaoSeguroRepository _locacaoSeguroRepository;
         private readonly IClienteRepository _clienteRepository;
@@ -29,6 +32,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             ISeguroRepository seguroRepository,
             ILocacaoSeguroRepository locacaoSeguroRepository,
             IFuncionarioRepository funcionarioRepository,
+            IUploadDownloadFileService uploadDownloadFileService,
             INotificadorService notificador)
         {
             _locacaoRepository = locacaoRepository;
@@ -40,6 +44,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _seguroRepository = seguroRepository;
             _reservaRepository = reservaRepository;
             _locacaoSeguroRepository = locacaoSeguroRepository;
+            _uploadDownloadFileService = uploadDownloadFileService;
         }
 
         #region Locacao
@@ -483,21 +488,47 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             return true;
         }
 
-        //public async Task<bool> AddFotoVistoriaAsync(int idVistoria,List<Foto> fotos, CancellationToken ct = default)
-        //{
-        //    var locacao = await ObterLocacao(idLocacao, ct);
+        public async Task<bool> RegistrarFotoVistoriaAsync(int id, EnviarFotoVistoriaDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.Where(x=>x.IdVistoria == dto.IdVistoria).FirstOrDefault();
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+            var fotos = await EnviarFoto(dto);
+            locacao.RegistrarFoto(fotos,dto.IdVistoria);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao);
+            return true;
+        }
 
-        //    if (locacao == null)
-        //    {
-        //        _notificador.Add("Locação não encontrada");
-        //        return false;
-        //    }
-
-        //    locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo, (NivelCombustivel)dto.NivelCombustivel, dto.KmVeiculo, dto.Observacoes);
-
-        //    await _locacaoRepository.AtualizarSalvarAsync(locacao);
-        //    return true;
-        //}
+        private async Task<List<FotoVistoria>> EnviarFoto(EnviarFotoVistoriaDto dto)
+        {
+            var documentosAnexos = new List<FotoVistoria>();
+            foreach (var doc in dto.Fotos!)
+            {
+                var arquivo = await _uploadDownloadFileService.EnviarArquivoSimplesAsync(doc);
+                if(arquivo != null)
+                {
+                    var fotoVistoria = FotoVistoria.Criar(      
+                         //dto.IdVistoria,
+                         arquivo.NomeArquivo,
+                         arquivo.Raiz,
+                         arquivo.Diretorio,
+                         arquivo.Extensao,
+                         arquivo.QuantidadeBytes.Value
+                    );
+                    documentosAnexos.Add(fotoVistoria);
+                }               
+            }
+            return documentosAnexos;
+        }
 
 
         #endregion Vistoria

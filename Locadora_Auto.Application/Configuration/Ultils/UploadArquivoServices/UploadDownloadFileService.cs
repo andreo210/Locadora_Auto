@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Text;
-using static Locadora_Auto.Domain.Entidades.Foto;
 
 namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
 {
@@ -35,7 +34,7 @@ namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
         /// <summary>
         /// Realiza o upload de um arquivo simples, sem criptografia.
         /// </summary>
-        public async Task<Foto> EnviarArquivoSimplesAsync(IFormFile arquivo, TipoFoto tipo, int idEntidade)
+        public async Task<FotoBase> EnviarArquivoSimplesAsync(IFormFile arquivo)
         {
             try
             {
@@ -80,7 +79,15 @@ namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
                 }
 
                 // Retorna a classe Arquivo preenchida
-                return Foto.Criar(idEntidade, nomeArquivo, raiz+nomeArquivo, diretorio, extensao, arquivo.Length, tipo);             
+                return new FotoBase 
+                { 
+                   Diretorio = diretorio,
+                   Extensao = extensao,
+                   NomeArquivo = nomeArquivo,
+                   QuantidadeBytes = arquivo.Length,
+                   Raiz = raiz
+                };
+
             }
             catch (ArgumentException ex)
             {

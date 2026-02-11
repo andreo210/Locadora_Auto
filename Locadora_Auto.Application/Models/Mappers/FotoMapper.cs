@@ -6,7 +6,7 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class FotosMapper
     {
-        public static FotoDto ToDto(this Foto foto)
+        public static FotoDto ToDto(this FotoBase foto)
         {
             if (foto == null) return null;
 
@@ -19,12 +19,10 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Raiz = foto.Raiz,
                 DataUpload = foto.DataUpload,
                 QuantidadeBytes = foto.QuantidadeBytes,
-                Entidade = foto.Tipo.ToString(),
-                IdEntidade = foto.IdEntidade
             };
         }
 
-        public static List<FotoDto> ToDtoList(this IEnumerable<Foto> fotos)
+        public static List<FotoDto> ToDtoList(this IEnumerable<FotoBase> fotos)
         {
             if (fotos == null) return new List<FotoDto>();
             return fotos.Select(ToDto).ToList();
