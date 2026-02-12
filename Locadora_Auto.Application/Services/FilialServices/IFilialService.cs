@@ -1,6 +1,7 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Domain.Entidades;
+using Microsoft.AspNetCore.Http;
 using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.FilialServices
@@ -34,6 +35,7 @@ namespace Locadora_Auto.Application.Services.FilialServices
         Task<bool> ExcluirFilialAsync(int id, CancellationToken ct = default);
         Task<bool> AtivarFilialAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarFilialAsync(int id, CancellationToken ct = default);
+        Task<bool> RegistarFotoFilialAsync(int id, List<IFormFile> fotos, CancellationToken ct = default);
         //#endregion
 
         //#region Operações Específicas

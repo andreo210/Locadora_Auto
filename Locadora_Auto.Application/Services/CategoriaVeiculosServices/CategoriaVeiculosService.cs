@@ -1,10 +1,13 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
+using Locadora_Auto.Infra.Data.Repositorio;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Locadora_Auto.Application.Services
@@ -14,15 +17,18 @@ namespace Locadora_Auto.Application.Services
         private readonly ICategoriaVeiculosRepository _repository;
         private readonly INotificadorService _notificador;
         private readonly ILogger<CategoriaVeiculoService> _logger;
+        private readonly IUploadDownloadFileService _uploadDownloadFileService;
 
         public CategoriaVeiculoService(
             ICategoriaVeiculosRepository repository,
             INotificadorService notificador,
+            IUploadDownloadFileService uploadDownloadFileService,
             ILogger<CategoriaVeiculoService> logger)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _uploadDownloadFileService = uploadDownloadFileService ?? throw new ArgumentNullException(nameof(uploadDownloadFileService));
         }
 
         #region Consultas
@@ -36,7 +42,7 @@ namespace Locadora_Auto.Application.Services
 
         public async Task<CategoriaVeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, ct: ct);
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id,rastreado:true, ct: ct);
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -44,6 +50,16 @@ namespace Locadora_Auto.Application.Services
             }
 
             return categoria.ToDto();
+        }
+        private async Task<CategoriaVeiculo?> ObterPorId(int id, CancellationToken ct = default)
+        {
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct);
+            if (categoria == null)
+            {
+                _notificador.Add("Categoria não encontrada.");
+                return null;
+            }
+            return categoria;
         }
 
         #endregion
@@ -127,6 +143,47 @@ namespace Locadora_Auto.Application.Services
 
             await _repository.ExcluirSalvarAsync(categoria, ct);
             return true;
+        }
+
+        public async Task<bool> RegistarFotoCategoriaAsync(int id, List<IFormFile> fotos, CancellationToken ct = default)
+        {
+            var categoria = await ObterPorId(id, ct);
+            if (categoria == null)
+            {
+                _notificador.Add($"Categoria com ID {id} não encontrada.");
+                return false;
+            }
+            ;
+            var lista = await EnviarFoto(fotos);
+            if (lista == null || !lista.Any())
+            {
+                _notificador.Add("Nenhuma foto foi enviada com sucesso.");
+                return false;
+            }
+            categoria.AdicionarFoto(lista);
+
+            return await _repository.AtualizarSalvarAsync(categoria, ct);
+        }
+
+        private async Task<List<FotoCategoriaVeiculo>> EnviarFoto(List<IFormFile> dto)
+        {
+            var documentosAnexos = new List<FotoCategoriaVeiculo>();
+            foreach (var doc in dto)
+            {
+                var arquivo = await _uploadDownloadFileService.EnviarArquivoSimplesAsync(doc);
+                if (arquivo != null)
+                {
+                    var fotoCategoria = FotoCategoriaVeiculo.Criar(
+                         arquivo.NomeArquivo,
+                         arquivo.Raiz,
+                         arquivo.Diretorio,
+                         arquivo.Extensao,
+                         arquivo.QuantidadeBytes.Value
+                    );
+                    documentosAnexos.Add(fotoCategoria);
+                }
+            }
+            return documentosAnexos;
         }
 
         #endregion

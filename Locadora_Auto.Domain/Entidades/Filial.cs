@@ -16,6 +16,9 @@
         public ICollection<Locacao> LocacoesRetirada { get; set; } = new List<Locacao>();
         public ICollection<Locacao> LocacoesDevolucao { get; set; } = new List<Locacao>();
 
+        private readonly List<FotoFilial> _fotos = new();
+        public IReadOnlyCollection<FotoFilial> Fotos => _fotos;
+
         public static Filial Criar(string nome, string cidade, Endereco endereco)
         {
             if (string.IsNullOrWhiteSpace(nome))
@@ -49,6 +52,15 @@
             Endereco.Atualizar(endereco.Logradouro, endereco.Numero, endereco.Bairro, endereco.Cidade, endereco.Estado, endereco.Cep, endereco.Complemento);
         }
 
+        public void AdicionarFoto(List<FotoFilial> fotos)
+        {
+            if (fotos == null)
+                throw new DomainException("Foto inválida");
+            foreach (var foto in fotos)
+            {
+                _fotos.Add(FotoFilial.Criar(foto.NomeArquivo, foto.Raiz, foto.Diretorio, foto.Extensao, foto.QuantidadeBytes.Value));
+            }                
+        }
         public void Ativar()
         {
             Ativo = true;

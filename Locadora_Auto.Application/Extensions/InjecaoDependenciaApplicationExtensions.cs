@@ -54,7 +54,6 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
-            services.AddScoped<IFotoService, FotoService>();
 
             //notificador e validadors
             services.AddScoped<INotificadorService, NotificadorService>();

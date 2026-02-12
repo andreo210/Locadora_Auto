@@ -66,7 +66,7 @@ namespace Locadora_Auto.Api.V1.Controllers
             return CustomResponse(sucesso, HttpStatusCode.NoContent);
         }
 
-        // ========================= EXCLUSÃO =========================
+
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Excluir(int id, CancellationToken ct)
@@ -75,7 +75,6 @@ namespace Locadora_Auto.Api.V1.Controllers
             return CustomResponse(sucesso, HttpStatusCode.NoContent);
         }
 
-        // ========================= STATUS =========================
 
         [HttpPatch("{id:int}/ativar")]
         public async Task<IActionResult> Ativar(int id, CancellationToken ct)
@@ -89,6 +88,16 @@ namespace Locadora_Auto.Api.V1.Controllers
         {
             var sucesso = await _filialService.DesativarFilialAsync(id, ct);
             return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/registrar-foto")]
+        public async Task<IActionResult> RegistraFoto([FromForm] List<IFormFile>fotos, int id,CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var filial = await _filialService.RegistarFotoFilialAsync(id,fotos, ct);
+            return CustomResponse(filial, HttpStatusCode.Created);
         }
     }
 

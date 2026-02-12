@@ -1,9 +1,13 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
 using Locadora_Auto.Application.Models;
+using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
+using Locadora_Auto.Infra.Data.Repositorio;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
@@ -15,8 +19,10 @@ public class FilialService : IFilialService
     private readonly IFilialRepository _filialRepository;
     private readonly ILogger<FilialService> _logger;
     private readonly INotificadorService _notificador;
+    private readonly IUploadDownloadFileService _uploadDownloadFileService;
 
     public FilialService(
+        IUploadDownloadFileService uploadDownloadFileService,
         IFilialRepository filialRepository,
         INotificadorService notificador,
         ILogger<FilialService> logger)
@@ -24,6 +30,7 @@ public class FilialService : IFilialService
         _filialRepository = filialRepository ?? throw new ArgumentNullException(nameof(filialRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
+        _uploadDownloadFileService = uploadDownloadFileService ?? throw new ArgumentNullException(nameof(uploadDownloadFileService));
     }
 
     //#region Operações de Consulta
@@ -48,7 +55,7 @@ public class FilialService : IFilialService
     private async Task<Filial?> ObterPorId(int id, CancellationToken ct = default)
     {
         var filtro = (Expression<Func<Filial, bool>>)(f => f.IdFilial == id);
-        var filial = await _filialRepository.ObterPrimeiroAsync(filtro: filtro, incluir: e => e.Include(c => c.Endereco), true, ct);
+        var filial = await _filialRepository.ObterPrimeiroAsync(filtro: filtro, incluir: e => e.Include(c => c.Endereco).Include(f=>f.Fotos), true, ct);
         if (filial == null)
             return null;
         return filial;
@@ -291,6 +298,47 @@ public class FilialService : IFilialService
         filial.Ativar();
         var atualizado = await _filialRepository.AtualizarSalvarAsync(filial, ct);
         return atualizado;       
+    }
+
+    public async Task<bool> RegistarFotoFilialAsync(int id,List<IFormFile> fotos, CancellationToken ct = default)
+    {
+        var filial = await ObterPorId(id, ct);
+        if (filial == null)
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        };
+        var lista = await EnviarFoto(fotos);
+        if (lista == null || !lista.Any())
+        {
+            _notificador.Add("Nenhuma foto foi enviada com sucesso.");
+            return false;
+        }
+        filial.AdicionarFoto(lista);
+
+        var atualizado = await _filialRepository.AtualizarSalvarAsync(filial, ct);
+        return atualizado;
+    }
+
+    private async Task<List<FotoFilial>> EnviarFoto(List<IFormFile> dto)
+    {
+        var documentosAnexos = new List<FotoFilial>();
+        foreach (var doc in dto)
+        {
+            var arquivo = await _uploadDownloadFileService.EnviarArquivoSimplesAsync(doc);
+            if (arquivo != null)
+            {
+                var fotoFilial = FotoFilial.Criar(
+                     arquivo.NomeArquivo,
+                     arquivo.Raiz,
+                     arquivo.Diretorio,
+                     arquivo.Extensao,
+                     arquivo.QuantidadeBytes.Value
+                );
+                documentosAnexos.Add(fotoFilial);
+            }
+        }
+        return documentosAnexos;
     }
 
     public async Task<bool> DesativarFilialAsync(int id, CancellationToken ct = default)

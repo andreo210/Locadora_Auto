@@ -14,6 +14,8 @@
 
         public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();
         public ICollection<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
+        private readonly List<FotoCategoriaVeiculo> _fotos = new();
+        public IReadOnlyCollection<FotoCategoriaVeiculo> Fotos => _fotos;
 
         public static CategoriaVeiculo Criar(string nome, decimal valorDiaria, int limiteKm, decimal valorKmExcedente)
         {
@@ -49,6 +51,16 @@
             ValorDiaria = valorDiaria;
             LimiteKm = limiteKm;
             ValorKmExcedente = valorKmExcedente;
+        }
+
+        public void AdicionarFoto(List<FotoCategoriaVeiculo> fotos)
+        {
+            if (fotos == null)
+                throw new DomainException("Foto inválida");
+            foreach (var foto in fotos)
+            {
+                _fotos.Add(FotoCategoriaVeiculo.Criar(foto.NomeArquivo, foto.Raiz, foto.Diretorio, foto.Extensao, foto.QuantidadeBytes.Value));
+            }
         }
 
     }
