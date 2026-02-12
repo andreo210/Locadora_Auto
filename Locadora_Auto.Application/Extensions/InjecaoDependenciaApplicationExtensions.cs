@@ -1,9 +1,9 @@
-﻿using Locadora_Auto.Application.Configuration.Ultils.Email;
+﻿using Locadora_Auto.Application.Configuration.Ultils.EmailServices;
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
-using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Configuration.Ultils.ValidadorArquivoServices;
 using Locadora_Auto.Application.Jobs;
-using Locadora_Auto.Application.Services;
+using Locadora_Auto.Application.Services.AdicionaisServices;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Application.Services.ClienteServices;
 using Locadora_Auto.Application.Services.FilialServices;
@@ -54,6 +54,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
+            services.AddScoped<IAdicionalService, AdicionalService>();
 
             //notificador e validadors
             services.AddScoped<INotificadorService, NotificadorService>();

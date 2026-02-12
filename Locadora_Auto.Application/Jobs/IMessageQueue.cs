@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Application.Configuration.Ultils.Email;
+﻿using Locadora_Auto.Application.Configuration.Ultils.EmailServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.Extensions.DependencyInjection;

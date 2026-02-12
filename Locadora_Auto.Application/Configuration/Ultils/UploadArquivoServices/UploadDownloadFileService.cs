@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Text;
 
-namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
+namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices
 {
     /// <summary>
     /// Serviço responsável por realizar upload e download de arquivos,

@@ -1,7 +1,7 @@
 ﻿using Locadora_Auto.Domain.Entidades;
 using Microsoft.AspNetCore.Http;
 
-namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivo
+namespace Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices
 {
     /// <summary>
     /// Interface para serviços de upload e download de arquivos,

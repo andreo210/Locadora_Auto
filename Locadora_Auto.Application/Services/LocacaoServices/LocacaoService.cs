@@ -1,6 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
-using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
-using Locadora_Auto.Application.Mappers;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;

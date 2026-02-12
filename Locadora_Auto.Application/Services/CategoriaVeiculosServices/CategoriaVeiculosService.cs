@@ -1,16 +1,15 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
-using Locadora_Auto.Application.Configuration.Ultils.UploadArquivo;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
-using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Locadora_Auto.Application.Services
+namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 {
     public class CategoriaVeiculoService : ICategoriaVeiculoService
     {
