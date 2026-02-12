@@ -274,6 +274,16 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(fotos, HttpStatusCode.Created);
         }
 
+        [HttpPost("{id:int}/vistoria/remover-dano")]
+        public async Task<IActionResult> RemoverDanoVistoria(int id, [FromBody] RemoverDanoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var fotos = await _locacaoService.RemoverDanoVistoriaAsync(id, dto, ct);
+            return CustomResponse(fotos, HttpStatusCode.Created);
+        }
+
         #endregion Vistoria
 
     }

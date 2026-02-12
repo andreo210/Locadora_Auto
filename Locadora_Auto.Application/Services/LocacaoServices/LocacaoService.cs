@@ -524,13 +524,34 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add("Vistoria não encontrada");
                 return false;
             }
-
             locacao.RegistrarDanoVistoria(dto.IdVistoria, dto.Descricao,(TipoDano)dto.codigoTipoDano, dto.ValorEstimado);
-
             return await _locacaoRepository.AtualizarSalvarAsync(locacao);
-
         }
 
+        public async Task<bool> RemoverDanoVistoriaAsync(int id,RemoverDanoDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.FirstOrDefault(x => x.IdVistoria == dto.IdVistoria);
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+            var dano = vistoria.Danos.FirstOrDefault(x => x.IdDano == dto.IdDano);
+            if (dano == null)
+            {
+                _notificador.Add("Dano não encontrado");
+                return false;
+            }
+
+            locacao.RemoverDanoVistoria(dto.IdVistoria, dto.IdDano);
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao);
+        }
 
         private async Task<List<FotoVistoria>> EnviarFoto(EnviarFotoVistoriaDto dto)
         {

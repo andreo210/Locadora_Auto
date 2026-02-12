@@ -55,8 +55,8 @@
             //if (Finalizada)
             //    throw new DomainException("Vistoria já finalizada");
 
-            //if (Tipo != TipoVistoria.Devolucao)
-            //    throw new DomainException("Danos só podem ser registrados na devolução");
+            if (Tipo != TipoVistoria.Devolucao)
+                throw new DomainException("Danos só podem ser registrados na devolução");
 
             var dano = Dano.Criar(IdVistoria, descricao, tipo, valor);
 

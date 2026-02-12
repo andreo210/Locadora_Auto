@@ -16,5 +16,10 @@
         public decimal ValorEstimado { get; set; }
         public int codigoTipoDano { get; set; }
     }
+    public class RemoverDanoDto
+    {
+        public int IdVistoria { get; set; }
+        public int IdDano { get; set; }
+    }
 
 }

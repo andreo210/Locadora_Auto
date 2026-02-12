@@ -13,6 +13,13 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
 
         Task<bool> AtivarAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarAsync(int id, CancellationToken ct = default);
+
+        #region Manutencao
+        Task<bool> IniciarManutencao(int id, CriarManutencaoDto dto, CancellationToken ct = default);
+        Task<bool> TerminaManutencao(int id, TerminarManutencaoDto dto, CancellationToken ct = default);
+        Task<bool> CancelarManutencao(int id, int idManutencao, CancellationToken ct = default);
+        Task<bool> AtualizarDescricaoManutencao(int id, AtualizarManutencaoDto dto, CancellationToken ct = default);
+        #endregion Manutencao
     }
 
 }

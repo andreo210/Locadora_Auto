@@ -13,17 +13,11 @@ namespace Locadora_Auto.Api.V1.Controllers
     {
         private readonly IVeiculoService _veiculoService;
 
-        public VeiculoController(
-            IVeiculoService veiculoService,
-            INotificadorService notificador)
-            : base(notificador)
+        public VeiculoController(IVeiculoService veiculoService,  INotificadorService notificador): base(notificador)
         {
             _veiculoService = veiculoService;
         }
 
-        // =========================
-        // CONSULTAS
-        // =========================
 
         [HttpGet]
         public async Task<ActionResult> ObterTodos(CancellationToken ct)
@@ -51,10 +45,6 @@ namespace Locadora_Auto.Api.V1.Controllers
             return CustomResponse(result);
         }
 
-        // =========================
-        // CRIAÇÃO
-        // =========================
-
         [HttpPost]
         public async Task<ActionResult> Criar(
             [FromBody] CriarVeiculoDto dto,
@@ -66,10 +56,6 @@ namespace Locadora_Auto.Api.V1.Controllers
             var result = await _veiculoService.CriarAsync(dto, ct);
             return CustomResponse(result, HttpStatusCode.Created);
         }
-
-        // =========================
-        // ATUALIZAÇÃO
-        // =========================
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Atualizar(
@@ -86,10 +72,6 @@ namespace Locadora_Auto.Api.V1.Controllers
 
             return CustomResponse(null, HttpStatusCode.NoContent);
         }
-
-        // =========================
-        // ATIVAÇÃO / DESATIVAÇÃO
-        // =========================
 
         [HttpPatch("{id:int}/ativar")]
         public async Task<ActionResult> Ativar(int id, CancellationToken ct)
@@ -109,6 +91,46 @@ namespace Locadora_Auto.Api.V1.Controllers
                 return CustomResponse();
 
             return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        [HttpPost("{id:int}/manutencao/iniciar-manutencao")]
+        public async Task<ActionResult> IniciarManutencao(int id, [FromBody] CriarManutencaoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var result = await _veiculoService.IniciarManutencao(id,dto, ct);
+            return CustomResponse(result, HttpStatusCode.Created);
+        }
+
+        [HttpPost("{id:int}/manutencao/cancelar-manutencao/{idManutencao:int}")]
+        public async Task<ActionResult> CancelarManutencao(int id, int idManutencao, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var result = await _veiculoService.CancelarManutencao(id, idManutencao, ct);
+            return CustomResponse(result, HttpStatusCode.Created);
+        }
+
+        [HttpPost("{id:int}/manutencao/terminar-manutencao")]
+        public async Task<ActionResult> TerminarManutencao(int id, [FromBody] TerminarManutencaoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var result = await _veiculoService.TerminaManutencao(id, dto, ct);
+            return CustomResponse(result, HttpStatusCode.Created);
+        }
+
+        [HttpPost("{id:int}/manutencao/atualizar-manutencao")]
+        public async Task<ActionResult> AtualizarManutencao(int id, [FromBody] AtualizarManutencaoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var result = await _veiculoService.AtualizarDescricaoManutencao(id, dto, ct);
+            return CustomResponse(result, HttpStatusCode.Created);
         }
     }
 }

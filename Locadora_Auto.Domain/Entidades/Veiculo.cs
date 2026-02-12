@@ -21,6 +21,10 @@
 
         public ICollection<Locacao> Locacoes { get; set; } = new List<Locacao>();
 
+        //manutenção
+        private readonly List<Manutencao> _manutencoes = new();
+        public IReadOnlyCollection<Manutencao> Manutencoes => _manutencoes;
+
         public static Veiculo Criar(string placa, string marca, string modelo, int ano, string chassi, int kmAtual,int idCategoria, int idFilialAtual)
         {
             if (string.IsNullOrWhiteSpace(placa))
@@ -104,13 +108,55 @@
             if (!int.IsPositive(idFilialAtual))
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
         }
+
+        #region Manutenção do veiculo
+        public void IniciarManutencao(TipoManutencao tipo, string descricao)
+        {
+            if (Status == StatusVeiculo.Locado)
+                throw new DomainException("Veículo locado não pode entrar em manutenção");
+
+            _manutencoes.Add(Manutencao.Criar(tipo, descricao));
+
+            Status = StatusVeiculo.EmManutencao;
+        }
+        public void TerminaManutencao(decimal custo, int idManutencao)
+        {
+            if (Status == StatusVeiculo.Locado)
+                throw new DomainException("Veículo locado não pode entrar em manutenção");
+
+            var manutencao = _manutencoes.FirstOrDefault(x=>x.IdManutencao == idManutencao);
+            manutencao.Encerrar(custo);
+            Status = StatusVeiculo.Disponivel;
+        }
+
+        public void CancelarManutencao(int idManutencao)
+        {
+            if (Status == StatusVeiculo.Locado)
+                throw new DomainException("Veículo locado não pode entrar em manutenção");
+
+            var manutencao = _manutencoes.FirstOrDefault(x => x.IdManutencao == idManutencao);
+            manutencao.Cancelar();
+            Status = StatusVeiculo.Disponivel;
+        }
+
+        public void AtualizarDescricaoManutencao(int idManutencao, string descricao)
+        {
+            if (Status == StatusVeiculo.Locado)
+                throw new DomainException("Veículo locado não pode entrar em manutenção");
+
+            var manutencao = _manutencoes.FirstOrDefault(x => x.IdManutencao == idManutencao);
+            manutencao.AtualizarDescricao(descricao);
+            Status = StatusVeiculo.Disponivel;
+        }
+        #endregion Manutenção do veiculo
     }
 
     public enum StatusVeiculo
     {
-        Disponivel,
-        Indisponivel,
-        Manutencao
+        Disponivel = 1,
+        Indisponivel = 2,
+        Locado = 3,
+        EmManutencao = 4
     }
 
 }

@@ -326,9 +326,30 @@ namespace Locadora_Auto.Domain.Entidades
 
             var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
             if (vistoria == null)
-                throw new DomainException("Vistoria não encontrada");
+                throw new DomainException("Vistoria não encontrada");  
 
             vistoria.RegistrarDano(descricao, tipo, valor);
+
+            if (vistoria.Danos.Any())
+            {
+                Veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Manutenção gerada automaticamente por dano em vistoria");
+            }
+        }
+
+        public void RemoverDanoVistoria(int idDano, int idVistoria)
+        {
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (vistoria == null)
+                throw new DomainException("Vistoria não encontrada");
+
+            var dano = vistoria.Danos.FirstOrDefault(d => d.IdDano == idDano);
+            if (dano == null)
+                throw new DomainException("Dano não encontrado");
+
+            vistoria.RemoverDano(idDano);
         }
 
 
