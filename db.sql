@@ -525,21 +525,104 @@ COLLATE = utf8mb4_unicode_ci;
 
 
 -- -----------------------------------------------------
--- Table `Locadora_autos`.`tbFotos`
+-- Table `Locadora_autos`.`tbFotoCategoriaVeiculo`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbFotos` (
+CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbFotoCategoriaVeiculo` (
   `id_foto` INT(11) NOT NULL AUTO_INCREMENT,
-  `tipo` VARCHAR(30) NOT NULL,
-  `id_entidade` INT(11) NOT NULL,
+  `id_categoria_veiculo` INT(11) NULL DEFAULT NULL,
+  `nome_arquivo` VARCHAR(255) NULL DEFAULT NULL,
+  `raiz` VARCHAR(255) NULL DEFAULT NULL,
+  `quantidadeBytes` BIGINT(45) NULL DEFAULT NULL,
+  `data_upload` DATETIME NULL DEFAULT NULL,
+  `diretorio` VARCHAR(45) NULL DEFAULT NULL,
+  `extensao` VARCHAR(45) NULL DEFAULT NULL,
+  PRIMARY KEY (`id_foto`),
+  INDEX `fk_categoria_idx` (`id_categoria_veiculo` ASC) VISIBLE,
+  CONSTRAINT `fk_categoria`
+    FOREIGN KEY (`id_categoria_veiculo`)
+    REFERENCES `Locadora_autos`.`tbCategoria_veiculo` (`id_categoria`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- -----------------------------------------------------
+-- Table `Locadora_autos`.`tbFotoFilial`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbFotoFilial` (
+  `id_foto` INT(11) NOT NULL AUTO_INCREMENT,
+  `id_filial` INT(11) NOT NULL,
+  `nome_arquivo` VARCHAR(255) NULL DEFAULT NULL,
+  `raiz` VARCHAR(255) NULL DEFAULT NULL,
+  `data_upload` DATETIME NULL DEFAULT NULL,
+  `diretorio` VARCHAR(45) NULL DEFAULT NULL,
+  `extensao` VARCHAR(45) NULL DEFAULT NULL,
+  `tbFotoFilialcol` VARCHAR(45) NULL DEFAULT NULL,
+  `quantidadeBytes` BIGINT(50) NULL DEFAULT NULL,
+  PRIMARY KEY (`id_foto`),
+  INDEX `fkFilial_idx` (`id_filial` ASC) VISIBLE,
+  CONSTRAINT `fk_filiak`
+    FOREIGN KEY (`id_filial`)
+    REFERENCES `Locadora_autos`.`tbFilial` (`id_filial`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- -----------------------------------------------------
+-- Table `Locadora_autos`.`tbVistoria`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbVistoria` (
+  `id_vistoria` INT(11) NOT NULL AUTO_INCREMENT,
+  `id_locacao` INT(11) NOT NULL,
+  `tipo` INT(2) NULL DEFAULT NULL,
+  `observacoes` VARCHAR(255) NULL DEFAULT NULL,
+  `data_vistoria` DATETIME NULL DEFAULT NULL,
+  `id_funcionario` INT(11) NOT NULL,
+  `nivel_combustivel` INT(2) NULL DEFAULT NULL,
+  `km_veiculo` INT(13) NULL DEFAULT NULL,
+  PRIMARY KEY (`id_vistoria`),
+  INDEX `id_locacao` (`id_locacao` ASC) VISIBLE,
+  INDEX `id_funcionario` (`id_funcionario` ASC) VISIBLE,
+  CONSTRAINT `tbVistoria_ibfk_1`
+    FOREIGN KEY (`id_locacao`)
+    REFERENCES `Locadora_autos`.`tbLocacao` (`id_locacao`),
+  CONSTRAINT `tbVistoria_ibfk_2`
+    FOREIGN KEY (`id_funcionario`)
+    REFERENCES `Locadora_autos`.`tbFuncionario` (`id_funcionario`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 5
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- -----------------------------------------------------
+-- Table `Locadora_autos`.`tbFotoVistoria`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbFotoVistoria` (
+  `id_foto` INT(11) NOT NULL AUTO_INCREMENT,
+  `id_vistoria` INT(11) NOT NULL,
   `nome_arquivo` VARCHAR(255) NULL DEFAULT NULL,
   `raiz` VARCHAR(500) NULL DEFAULT NULL,
   `data_upload` DATETIME NULL DEFAULT CURRENT_TIMESTAMP(),
   `diretorio` VARCHAR(45) NULL DEFAULT NULL,
   `extensao` VARCHAR(45) NULL DEFAULT NULL,
   `quantidadeBytes` BIGINT(50) NULL DEFAULT NULL,
-  PRIMARY KEY (`id_foto`))
+  PRIMARY KEY (`id_foto`),
+  INDEX `fkVistoria_idx` (`id_vistoria` ASC) VISIBLE,
+  CONSTRAINT `fkVistoria`
+    FOREIGN KEY (`id_vistoria`)
+    REFERENCES `Locadora_autos`.`tbVistoria` (`id_vistoria`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB
-AUTO_INCREMENT = 11
+AUTO_INCREMENT = 12
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
@@ -682,33 +765,6 @@ CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbUserHistorico` (
   PRIMARY KEY (`id_historico`))
 ENGINE = InnoDB
 AUTO_INCREMENT = 27
-DEFAULT CHARACTER SET = utf8mb4
-COLLATE = utf8mb4_unicode_ci;
-
-
--- -----------------------------------------------------
--- Table `Locadora_autos`.`tbVistoria`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `Locadora_autos`.`tbVistoria` (
-  `id_vistoria` INT(11) NOT NULL AUTO_INCREMENT,
-  `id_locacao` INT(11) NOT NULL,
-  `tipo` INT(2) NULL DEFAULT NULL,
-  `observacoes` VARCHAR(255) NULL DEFAULT NULL,
-  `data_vistoria` DATETIME NULL DEFAULT NULL,
-  `id_funcionario` INT(11) NOT NULL,
-  `nivel_combustivel` INT(2) NULL DEFAULT NULL,
-  `km_veiculo` INT(13) NULL DEFAULT NULL,
-  PRIMARY KEY (`id_vistoria`),
-  INDEX `id_locacao` (`id_locacao` ASC) VISIBLE,
-  INDEX `id_funcionario` (`id_funcionario` ASC) VISIBLE,
-  CONSTRAINT `tbVistoria_ibfk_1`
-    FOREIGN KEY (`id_locacao`)
-    REFERENCES `Locadora_autos`.`tbLocacao` (`id_locacao`),
-  CONSTRAINT `tbVistoria_ibfk_2`
-    FOREIGN KEY (`id_funcionario`)
-    REFERENCES `Locadora_autos`.`tbFuncionario` (`id_funcionario`))
-ENGINE = InnoDB
-AUTO_INCREMENT = 5
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 

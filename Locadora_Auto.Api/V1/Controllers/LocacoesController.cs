@@ -264,6 +264,16 @@ namespace Locadora_Auto.Api.Controllers
             return CustomResponse(fotos, HttpStatusCode.Created);
         }
 
+        [HttpPost("{id:int}/vistoria/registrar-dano")]
+        public async Task<IActionResult> RegistrarDanoVistoria(int id, [FromBody] CriarDanoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var fotos = await _locacaoService.RegistrarDanoVistoriaAsync(id, dto, ct);
+            return CustomResponse(fotos, HttpStatusCode.Created);
+        }
+
         #endregion Vistoria
 
     }

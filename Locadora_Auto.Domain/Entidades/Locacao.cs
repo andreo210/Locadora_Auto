@@ -41,9 +41,6 @@ namespace Locadora_Auto.Domain.Entidades
         private readonly List<Multa> _multas = new();
         public IReadOnlyCollection<Multa> Multas => _multas;
 
-        private readonly List<Dano> _danos = new();
-        public IReadOnlyCollection<Dano> Danos => _danos;
-
         private readonly List<Vistoria> _vistorias = new();
         public IReadOnlyCollection<Vistoria> Vistorias => _vistorias;
 
@@ -310,11 +307,7 @@ namespace Locadora_Auto.Domain.Entidades
 
         #endregion Seguro
 
-
-        public void RegistrarDano(Dano dano)
-        {
-            _danos.Add(dano);
-        }
+        #region Vistoria
 
         public void RegistrarVistoria(int idFuncionario, TipoVistoria tipo,NivelCombustivel combustivel,int km, string? observacoes)
         {
@@ -325,6 +318,20 @@ namespace Locadora_Auto.Domain.Entidades
 
             _vistorias.Add(vistoria);
         }
+
+        public void RegistrarDanoVistoria(int idVistoria, string descricao,TipoDano tipo, decimal valor)
+        {
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (vistoria == null)
+                throw new DomainException("Vistoria não encontrada");
+
+            vistoria.RegistrarDano(descricao, tipo, valor);
+        }
+
+
         public void RegistrarFoto(List<FotoVistoria> foto, int idVistoria)
         {
             var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
@@ -349,7 +356,7 @@ namespace Locadora_Auto.Domain.Entidades
             KmInicial = kmInicial;
             ValorPrevisto = valorPrevisto;
         }
-
+        #endregion Vistoria
 
         //TODO: isso é um job
         public void MarcarComoAtrasada(DateTime agora)

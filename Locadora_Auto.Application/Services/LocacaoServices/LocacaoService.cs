@@ -5,7 +5,6 @@ using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace Locadora_Auto.Application.Services.LocacaoServices
@@ -18,6 +17,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         private readonly ILocacaoSeguroRepository _locacaoSeguroRepository;
         private readonly IClienteRepository _clienteRepository;
         private readonly IVeiculosRepository _veiculoRepository;
+        private readonly IVistoriaRepository _vistoriaRepository;
         private readonly ISeguroRepository _seguroRepository;
         private readonly IFilialRepository _filialRepository;
         private readonly IFuncionarioRepository _funcionarioRepository;
@@ -28,6 +28,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             IClienteRepository clienteRepository,
             IVeiculosRepository veiculoRepository,
             IReservaRepository reservaRepository,
+            IVistoriaRepository vistoriaRepository,
             IFilialRepository filialRepository,
             ISeguroRepository seguroRepository,
             ILocacaoSeguroRepository locacaoSeguroRepository,
@@ -45,6 +46,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _reservaRepository = reservaRepository;
             _locacaoSeguroRepository = locacaoSeguroRepository;
             _uploadDownloadFileService = uploadDownloadFileService;
+            _vistoriaRepository = vistoriaRepository;
         }
 
         #region Locacao
@@ -507,6 +509,28 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             await _locacaoRepository.AtualizarSalvarAsync(locacao);
             return true;
         }
+
+        public async Task<bool> RegistrarDanoVistoriaAsync(int id, CriarDanoDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.FirstOrDefault(x => x.IdVistoria == dto.IdVistoria);
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+
+            locacao.RegistrarDanoVistoria(dto.IdVistoria, dto.Descricao,(TipoDano)dto.codigoTipoDano, dto.ValorEstimado);
+
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao);
+
+        }
+
 
         private async Task<List<FotoVistoria>> EnviarFoto(EnviarFotoVistoriaDto dto)
         {
