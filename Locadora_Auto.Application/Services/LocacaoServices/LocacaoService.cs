@@ -20,6 +20,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         private readonly ISeguroRepository _seguroRepository;
         private readonly IFilialRepository _filialRepository;
         private readonly IFuncionarioRepository _funcionarioRepository;
+        private readonly IAdicionalRepository _adicionalRepository;
         private readonly INotificadorService _notificador;
 
         public LocacaoService(
@@ -30,6 +31,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             IVistoriaRepository vistoriaRepository,
             IFilialRepository filialRepository,
             ISeguroRepository seguroRepository,
+            IAdicionalRepository adicionalRepository,
             ILocacaoSeguroRepository locacaoSeguroRepository,
             IFuncionarioRepository funcionarioRepository,
             IUploadDownloadFileService uploadDownloadFileService,
@@ -46,6 +48,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _locacaoSeguroRepository = locacaoSeguroRepository;
             _uploadDownloadFileService = uploadDownloadFileService;
             _vistoriaRepository = vistoriaRepository;
+            _adicionalRepository = adicionalRepository;
         }
 
         #region Locacao
@@ -463,6 +466,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 .Include(m=>m.Multas)
                 .Include(m => m.Pagamentos)
                 .Include(m => m.Vistorias)
+                .Include(m => m.Adicionais)
                 .Include(m => m.Seguros),
 
                 rastreado: true);
@@ -576,5 +580,63 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
 
 
         #endregion Vistoria
+
+        #region Adicionais
+        public async Task<bool> InserirAdicionalAsync(int idLocacao, LocacaoAdicionalDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            var adicional = await _adicionalRepository.ObterPorIdAsync(dto.IdAdicional);
+            if (adicional == null)
+            {
+                _notificador.Add("Adicional não encontrada");
+                return false;
+            }
+
+            locacao.AdicionarAdicional(adicional.IdAdicional,adicional.ValorDiaria, dto.Quantidade);
+
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao,ct);
+        }
+
+        public async Task<bool> RemoverAdicionalAsync(int idLocacao, int idAdicional, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            var adicional = await _adicionalRepository.ObterPorIdAsync(idAdicional);
+            if (adicional == null)
+            {
+                _notificador.Add("Adicional não encontrada");
+                return false;
+            }
+
+            locacao.RemoverAdicional(adicional.IdAdicional);
+
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+        }
+
+        public async Task<decimal?> ObterTotalAdicionalAsync(int idLocacao, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return null;
+            }
+
+            var valor = locacao.CalcularTotalAdicionais();
+
+            return valor;
+        }
+        #endregion Adicionais
     }
 }

@@ -10,8 +10,8 @@ namespace Locadora_Auto.Infra.Data.Configuracao
         {
             builder.ToTable("tbAdicional");
 
+            //chave primaria
             builder.HasKey(e => e.IdAdicional);
-
             builder.Property(e => e.IdAdicional)
                 .HasColumnName("id_adicional");
 

@@ -6,20 +6,6 @@
         public string Password { get; set; } = null!;
     }
 
-    public class LoginResponseDto
-    {
-        public string AccessToken { get; set; } = string.Empty;
-        public DateTime AccessTokenExpiraEm { get; set; }
-
-        public string RefreshToken { get; set; } = string.Empty;
-        public DateTime RefreshTokenExpiraEm { get; set; }
-    }
-
-    public class RefreshTokenRequestDto
-    {
-        public string RefreshToken { get; set; } = string.Empty;
-    }
-
 
     public class RefreshTokenDto
     {

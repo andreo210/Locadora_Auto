@@ -286,5 +286,25 @@ namespace Locadora_Auto.Api.Controllers
 
         #endregion Vistoria
 
+        #region Adicional
+        [HttpPost("{id:int}/adicional")]
+        public async Task<IActionResult> InserirAdicional(int id, [FromBody] LocacaoAdicionalDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+            var sucesso = await _locacaoService.InserirAdicionalAsync(id, dto, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/adicional/{idAdicional}/remover")]
+        public async Task<IActionResult> RemoverAdicional(int id,  int idAdicional, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+            var sucesso = await _locacaoService.RemoverAdicionalAsync(id, idAdicional, ct);
+            return CustomResponse(sucesso);
+        }
+        #endregion Adicional
+
     }
 }

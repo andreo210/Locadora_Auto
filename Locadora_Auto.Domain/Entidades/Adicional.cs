@@ -9,6 +9,9 @@
 
         protected Adicional() { }
 
+
+        //navegação
+        public List<LocacaoAdicional> LocacaoAdicionals { get; set; } = new();
         public static Adicional Criar(string nome, decimal valorDiaria)
         {
             if (valorDiaria < 0)

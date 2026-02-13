@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Locadora_Auto.Front.Models\Locadora_Auto.Front.Models.csproj" />
+    <ProjectReference Include="..\Locadora_Auto.Front.Services\Locadora_Auto.Front.Services.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -379,6 +379,57 @@ namespace Locadora_Auto.Domain.Entidades
         }
         #endregion Vistoria
 
+        #region Adicional
+        public void AdicionarAdicional(int idAdicional,decimal valorDiaria,int quantidade)
+        {
+            if (Status != StatusLocacao.Criada)
+                throw new DomainException("Locação não permite alteração");
+
+            if (_adicionais.Any(a => a.IdAdicional == idAdicional))
+                throw new DomainException("Adicional já incluído");
+
+            var dias = CalcularDias();
+            var valorTotal = CalcularTotalAdicionais();
+
+            var adicional = LocacaoAdicional.Criar(
+                idAdicional,
+                valorDiaria,
+                quantidade,
+                dias);
+
+            _adicionais.Add(adicional);
+        }
+
+        public void RemoverAdicional(int idAdicional)
+        {
+            var adicional = _adicionais
+                .FirstOrDefault(a => a.IdAdicional == idAdicional);
+
+            if (adicional == null)
+                throw new DomainException("Adicional não encontrado");
+
+            _adicionais.Remove(adicional);
+        }
+
+        public decimal CalcularTotalAdicionais()
+        {
+            return _adicionais.Sum(a => a.CalcularTotal());
+        }
+
+        public int CalcularDias()
+        {
+            var fim = DataFimReal ?? DataFimPrevista;
+
+            if (fim <= DataInicio)
+                throw new DomainException("Data inválida");
+
+            var totalHoras = (fim - DataInicio).TotalHours;
+
+            return (int)Math.Ceiling(totalHoras / 24);
+        }
+
+        #endregion Adicional
+
         //TODO: isso é um job
         public void MarcarComoAtrasada(DateTime agora)
         {
