@@ -1,0 +1,195 @@
+﻿@using Locadora_Auto.Front.Models.Notificacao
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject INotificationService NotificationService
+@implements IDisposable
+
+<div class="notification-container">
+    @if (currentNotification != null)
+    {
+        <div class="toast-notification @GetNotificationClass()"
+             style="animation: slideIn 0.3s ease;">
+
+            <div class="toast-header">
+                <strong class="me-auto">@currentNotification.Title</strong>
+                <button type="button" class="btn-close" @onclick="CloseNotification"></button>
+            </div>
+
+            <div class="toast-body">
+                @if (currentNotification.Type == NotificationType.Validation &&  currentNotification.ValidationErrors != null)
+                {
+                    <div class="validation-errors">
+                        <ul class="mb-0">
+                            @foreach (var error in currentNotification.ValidationErrors)
+                            {
+                                @foreach (var message in error.Value)
+                                {
+                                    <li>
+                                        <strong>@error.Key:</strong> @message
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                }
+                else
+                {
+                    <p class="mb-0">@currentNotification.Message</p>
+                }
+            </div>
+
+            @if (currentNotification.Type == NotificationType.Validation)
+            {
+                <div class="toast-footer">
+                    <button class="btn btn-sm btn-primary" @onclick="CloseNotification">
+                        Entendi
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+    }
+
+    .toast-notification {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        margin-bottom: 10px;
+        overflow: hidden;
+        border-left: 4px solid;
+    }
+
+    .toast-success {
+        border-left-color: #28a745;
+    }
+
+    .toast-error {
+        border-left-color: #dc3545;
+    }
+
+    .toast-warning {
+        border-left-color: #ffc107;
+    }
+
+    .toast-info {
+        border-left-color: #17a2b8;
+    }
+
+    .toast-validation {
+        border-left-color: #ffc107;
+        max-width: 500px;
+    }
+
+    .toast-header {
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .toast-body {
+        padding: 16px;
+    }
+
+    .toast-footer {
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        text-align: right;
+    }
+
+    .validation-errors ul {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+
+    .validation-errors li {
+        padding: 4px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .validation-errors li:last-child {
+        border-bottom: none;
+    }
+
+    .validation-errors strong {
+        color: #dc3545;
+    }
+
+    @@keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+@code {
+    private NotificationEventArgs? currentNotification;
+    private Timer? timer;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotification += ShowNotification;
+    }
+
+    private void ShowNotification(NotificationEventArgs notification)
+    {
+        currentNotification = notification;
+        StateHasChanged();
+
+        if (notification.Type != NotificationType.Validation)
+        {
+            timer?.Dispose();
+            timer = new Timer(_ =>
+            {
+                InvokeAsync(() =>
+                {
+                    currentNotification = null;
+                    StateHasChanged();
+                });
+            }, null, notification.Duration, Timeout.Infinite);
+        }
+    }
+
+    private void CloseNotification()
+    {
+        currentNotification = null;
+        timer?.Dispose();
+        StateHasChanged();
+    }
+
+    private string GetNotificationClass()
+    {
+        return currentNotification?.Type switch
+        {
+            NotificationType.Success => "toast-success",
+            NotificationType.Error => "toast-error",
+            NotificationType.Warning => "toast-warning",
+            NotificationType.Info => "toast-info",
+            NotificationType.Validation => "toast-validation",
+            _ => ""
+        };
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotification -= ShowNotification;
+        timer?.Dispose();
+    }
+}

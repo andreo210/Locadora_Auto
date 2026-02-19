@@ -3,6 +3,7 @@ using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.LocacaoServices;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel;
+using System.Net;
 
 namespace Locadora_Auto.Api.Controllers
 {
@@ -252,7 +253,58 @@ namespace Locadora_Auto.Api.Controllers
             var sucesso = await _locacaoService.RegistrarVistoriaAsync(id, dto, ct);
             return CustomResponse(sucesso);
         }
+
+        [HttpPost("{id:int}/vistoria/enviar-fotos")]
+        public async Task<IActionResult> RegistrarFotoVistoria(int id, [FromForm] EnviarFotoVistoriaDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var fotos = await _locacaoService.RegistrarFotoVistoriaAsync(id, dto, ct);
+            return CustomResponse(fotos, HttpStatusCode.Created);
+        }
+
+        [HttpPost("{id:int}/vistoria/registrar-dano")]
+        public async Task<IActionResult> RegistrarDanoVistoria(int id, [FromBody] CriarDanoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var fotos = await _locacaoService.RegistrarDanoVistoriaAsync(id, dto, ct);
+            return CustomResponse(fotos, HttpStatusCode.Created);
+        }
+
+        [HttpPost("{id:int}/vistoria/remover-dano")]
+        public async Task<IActionResult> RemoverDanoVistoria(int id, [FromBody] RemoverDanoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var fotos = await _locacaoService.RemoverDanoVistoriaAsync(id, dto, ct);
+            return CustomResponse(fotos, HttpStatusCode.Created);
+        }
+
         #endregion Vistoria
+
+        #region Adicional
+        [HttpPost("{id:int}/adicional")]
+        public async Task<IActionResult> InserirAdicional(int id, [FromBody] LocacaoAdicionalDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+            var sucesso = await _locacaoService.InserirAdicionalAsync(id, dto, ct);
+            return CustomResponse(sucesso);
+        }
+
+        [HttpPost("{id:int}/adicional/{idAdicional}/remover")]
+        public async Task<IActionResult> RemoverAdicional(int id,  int idAdicional, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+            var sucesso = await _locacaoService.RemoverAdicionalAsync(id, idAdicional, ct);
+            return CustomResponse(sucesso);
+        }
+        #endregion Adicional
 
     }
 }

@@ -9,4 +9,17 @@
         public bool CobertoSeguro { get; set; }
     }
 
+    public class CriarDanoDto
+    {
+        public int IdVistoria { get; set; }
+        public string Descricao { get; set; } = null!;
+        public decimal ValorEstimado { get; set; }
+        public int codigoTipoDano { get; set; }
+    }
+    public class RemoverDanoDto
+    {
+        public int IdVistoria { get; set; }
+        public int IdDano { get; set; }
+    }
+
 }

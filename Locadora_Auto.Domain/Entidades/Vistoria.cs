@@ -1,6 +1,4 @@
-﻿using static Locadora_Auto.Domain.Entidades.Foto;
-
-namespace Locadora_Auto.Domain.Entidades
+﻿namespace Locadora_Auto.Domain.Entidades
 {
     public class Vistoria
     {
@@ -12,11 +10,12 @@ namespace Locadora_Auto.Domain.Entidades
         public DateTime DataVistoria { get; private set; }
         public int IdFuncionario { get; private set; }
         public int KmVeiculo { get; private set; }
+        //public bool Finalizada { get; set; }
         public Locacao Locacao { get; private set; } = null!;        
         public Funcionario Funcionario { get; private set; } = null!;
 
-        //private readonly List<Foto> _fotos = new();
-        //public IReadOnlyCollection<Foto> Fotos => _fotos;
+        private readonly List<FotoVistoria> _fotos = new();
+        public IReadOnlyCollection<FotoVistoria> Fotos => _fotos;
 
         private readonly List<Dano> _danos = new();
         public IReadOnlyCollection<Dano> Danos => _danos;
@@ -51,25 +50,114 @@ namespace Locadora_Auto.Domain.Entidades
             return vistoria;
         }
 
-        public void AdicionarDano(Dano dano)
+        public void RegistrarDano(string descricao,TipoDano tipo, decimal valor)
         {
-            if (dano == null)
-                throw new DomainException("Dano inválido");
+            //if (Finalizada)
+            //    throw new DomainException("Vistoria já finalizada");
+
+            if (Tipo != TipoVistoria.Devolucao)
+                throw new DomainException("Danos só podem ser registrados na devolução");
+
+            var dano = Dano.Criar(IdVistoria, descricao, tipo, valor);
 
             _danos.Add(dano);
         }
 
-        //public void AdicionarFoto(Foto foto)
-        //{
-        //    if (foto == null)
-        //        throw new DomainException("Foto inválida");
+        public void RemoverDano(int idDano)
+        {
+            var dano = ObterDano(idDano);
+            if (dano == null)
+                throw new DomainException("Dano não encontrado");
 
-        //    _fotos.Add(Foto.Criar(foto.IdEntidade.Value,foto.NomeArquivo,foto.Raiz,foto.Diretorio,foto.Extensao,foto.QuantidadeBytes.Value,foto.Tipo.Value));
-        //}
+            _danos.Remove(dano);
+        }
+        public void AprovarDano(int idDano)
+        {
+            var dano = ObterDano(idDano);
+            if (dano == null)
+                throw new DomainException("Dano não encontrado");
+
+            dano.Aprovar();
+        }
+        public bool PossuiDanos()
+        {
+            return _danos.Any();
+        }
+        public void ColocarDanoEmAnalise(int idDano)
+        {
+            var dano = ObterDano(idDano);
+            dano.ColocarEmAnalise();
+        }
+        public void IsentarDano(int idDano)
+        {
+            var dano = ObterDano(idDano);
+            dano.Isentar();
+        }
+        public void MarcarDanoComoPago(int idDano)
+        {
+            var dano = ObterDano(idDano);
+            dano.MarcarComoPago();
+        }
+        private Dano ObterDano(int idDano)
+        {
+            var dano = _danos.FirstOrDefault(d => d.IdDano == idDano);
+
+            if (dano == null)
+                throw new DomainException("Dano não encontrado");
+
+            return dano;
+        }
+
+        public void AdicionarFoto(FotoVistoria foto)
+        {
+            if (foto == null)
+                throw new DomainException("Foto inválida");
+
+            _fotos.Add(FotoVistoria.Criar(/*foto.IdVistoria.Value,*/ foto.NomeArquivo, foto.Raiz, foto.Diretorio, foto.Extensao, foto.QuantidadeBytes.Value));
+        }
+
+        public void RemoverFoto(int idFoto)
+        {
+            var foto = _fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (foto == null)
+                throw new DomainException("Foto não encontrada");
+
+            _fotos.Remove(foto);
+        }
+
+        public void AtualizarKm(int km)
+        {
+            if (km <= 0)
+                throw new DomainException("KM inválido");
+
+            KmVeiculo = km;
+        }
+
+        public void AtualizarCombustivel(NivelCombustivel nivel)
+        {
+            Combustivel = nivel;
+        }
 
         public void AtualizarObservacoes(string observacoes)
         {
             Observacoes = observacoes;
+        }
+
+        //public void Finalizar()
+        //{
+        //    if (Finalizada)
+        //        throw new DomainException("Vistoria já finalizada");
+
+        //    Finalizada = true;
+        //}
+
+        private void ValidarChecklist()
+        {
+            if (KmVeiculo <= 0)
+                throw new DomainException("KM não informado");
+
+            if (!_fotos.Any())
+                throw new DomainException("É necessário ao menos uma foto");
         }
     }
     public enum TipoVistoria

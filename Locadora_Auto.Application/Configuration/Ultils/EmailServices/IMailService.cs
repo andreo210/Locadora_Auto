@@ -1,6 +1,6 @@
 ﻿using Locadora_Auto.Application.Jobs;
 
-namespace Locadora_Auto.Application.Configuration.Ultils.Email
+namespace Locadora_Auto.Application.Configuration.Ultils.EmailServices
 {
     public interface IMailService
     {

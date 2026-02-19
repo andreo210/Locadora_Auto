@@ -8,10 +8,10 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Adicional> builder)
         {
-            builder.ToTable("adicional");
+            builder.ToTable("tbAdicional");
 
+            //chave primaria
             builder.HasKey(e => e.IdAdicional);
-
             builder.Property(e => e.IdAdicional)
                 .HasColumnName("id_adicional");
 
@@ -24,6 +24,9 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("valor_diaria")
                 .HasPrecision(10, 2)
                 .IsRequired();
+
+            builder.Property(e => e.Ativo)
+               .HasColumnName("ativo");
         }
     }
 

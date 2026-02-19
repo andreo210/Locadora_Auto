@@ -41,9 +41,6 @@ namespace Locadora_Auto.Domain.Entidades
         private readonly List<Multa> _multas = new();
         public IReadOnlyCollection<Multa> Multas => _multas;
 
-        private readonly List<Dano> _danos = new();
-        public IReadOnlyCollection<Dano> Danos => _danos;
-
         private readonly List<Vistoria> _vistorias = new();
         public IReadOnlyCollection<Vistoria> Vistorias => _vistorias;
 
@@ -310,11 +307,7 @@ namespace Locadora_Auto.Domain.Entidades
 
         #endregion Seguro
 
-
-        public void RegistrarDano(Dano dano)
-        {
-            _danos.Add(dano);
-        }
+        #region Vistoria
 
         public void RegistrarVistoria(int idFuncionario, TipoVistoria tipo,NivelCombustivel combustivel,int km, string? observacoes)
         {
@@ -325,16 +318,51 @@ namespace Locadora_Auto.Domain.Entidades
 
             _vistorias.Add(vistoria);
         }
-        //public void RegistrarFoto(List<Foto> foto, int idVistoria)
-        //{
-        //    var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);  
-        //    if (Status == StatusLocacao.Finalizada)
-        //        throw new DomainException("Não é possível vistoriar locação finalizada");
-        //    foreach (var f in foto)
-        //    {
-        //         vistoria.AdicionarFoto(f);
-        //    }
-        //}
+
+        public void RegistrarDanoVistoria(int idVistoria, string descricao,TipoDano tipo, decimal valor)
+        {
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (vistoria == null)
+                throw new DomainException("Vistoria não encontrada");  
+
+            vistoria.RegistrarDano(descricao, tipo, valor);
+
+            if (vistoria.Danos.Any())
+            {
+                Veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Manutenção gerada automaticamente por dano em vistoria");
+            }
+        }
+
+        public void RemoverDanoVistoria(int idDano, int idVistoria)
+        {
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (vistoria == null)
+                throw new DomainException("Vistoria não encontrada");
+
+            var dano = vistoria.Danos.FirstOrDefault(d => d.IdDano == idDano);
+            if (dano == null)
+                throw new DomainException("Dano não encontrado");
+
+            vistoria.RemoverDano(idDano);
+        }
+
+
+        public void RegistrarFoto(List<FotoVistoria> foto, int idVistoria)
+        {
+            var vistoria = _vistorias.FirstOrDefault(v => v.IdVistoria == idVistoria);
+            if (Status == StatusLocacao.Finalizada)
+                throw new DomainException("Não é possível vistoriar locação finalizada");
+            foreach (var f in foto)
+            {
+                vistoria.AdicionarFoto(f);
+            }
+        }
 
 
         public void AtualizarDados(DateTime dataFimPrevista, int kmInicial, decimal valorPrevisto)
@@ -349,7 +377,58 @@ namespace Locadora_Auto.Domain.Entidades
             KmInicial = kmInicial;
             ValorPrevisto = valorPrevisto;
         }
+        #endregion Vistoria
 
+        #region Adicional
+        public void AdicionarAdicional(int idAdicional,decimal valorDiaria,int quantidade)
+        {
+            if (Status != StatusLocacao.Criada)
+                throw new DomainException("Locação não permite alteração");
+
+            if (_adicionais.Any(a => a.IdAdicional == idAdicional))
+                throw new DomainException("Adicional já incluído");
+
+            var dias = CalcularDias();
+            var valorTotal = CalcularTotalAdicionais();
+
+            var adicional = LocacaoAdicional.Criar(
+                idAdicional,
+                valorDiaria,
+                quantidade,
+                dias);
+
+            _adicionais.Add(adicional);
+        }
+
+        public void RemoverAdicional(int idAdicional)
+        {
+            var adicional = _adicionais
+                .FirstOrDefault(a => a.IdAdicional == idAdicional);
+
+            if (adicional == null)
+                throw new DomainException("Adicional não encontrado");
+
+            _adicionais.Remove(adicional);
+        }
+
+        public decimal CalcularTotalAdicionais()
+        {
+            return _adicionais.Sum(a => a.CalcularTotal());
+        }
+
+        public int CalcularDias()
+        {
+            var fim = DataFimReal ?? DataFimPrevista;
+
+            if (fim <= DataInicio)
+                throw new DomainException("Data inválida");
+
+            var totalHoras = (fim - DataInicio).TotalHours;
+
+            return (int)Math.Ceiling(totalHoras / 24);
+        }
+
+        #endregion Adicional
 
         //TODO: isso é um job
         public void MarcarComoAtrasada(DateTime agora)

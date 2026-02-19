@@ -81,5 +81,16 @@ namespace Locadora_Auto.Api.V1.Controllers
 
             return CustomResponse(null, HttpStatusCode.NoContent);
         }
+
+
+        [HttpPost("{id:int}/registrar-foto")]
+        public async Task<IActionResult> RegistraFoto([FromForm] List<IFormFile> fotos, int id, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return ValidationResponse(ModelState);
+
+            var filial = await _service.RegistarFotoCategoriaAsync(id, fotos, ct);
+            return CustomResponse(filial, HttpStatusCode.Created);
+        }
     }
 }

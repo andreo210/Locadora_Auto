@@ -1,8 +1,7 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 
-namespace Locadora_Auto.Application.Mappers
+namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class LocacaoMapper
     {

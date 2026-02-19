@@ -1,5 +1,4 @@
-﻿using Locadora_Auto.Application.Configuration;
-using Locadora_Auto.Application.Jobs;
+﻿using Locadora_Auto.Application.Jobs;
 using Locadora_Auto.Application.Models.Dto;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +10,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Locadora_Auto.Application.Configuration.Ultils.Email;
+namespace Locadora_Auto.Application.Configuration.Ultils.EmailServices;
 
 public class MailService(
     IOptions<EmailConfig> emailSettings,

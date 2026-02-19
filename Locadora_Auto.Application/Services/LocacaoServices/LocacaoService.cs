@@ -1,5 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
-using Locadora_Auto.Application.Mappers;
+using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
@@ -11,13 +11,16 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
     public class LocacaoService : ILocacaoService
     {
         private readonly ILocacaoRepository _locacaoRepository;
+        private readonly IUploadDownloadFileService _uploadDownloadFileService;
         private readonly IReservaRepository _reservaRepository;
         private readonly ILocacaoSeguroRepository _locacaoSeguroRepository;
         private readonly IClienteRepository _clienteRepository;
         private readonly IVeiculosRepository _veiculoRepository;
+        private readonly IVistoriaRepository _vistoriaRepository;
         private readonly ISeguroRepository _seguroRepository;
         private readonly IFilialRepository _filialRepository;
         private readonly IFuncionarioRepository _funcionarioRepository;
+        private readonly IAdicionalRepository _adicionalRepository;
         private readonly INotificadorService _notificador;
 
         public LocacaoService(
@@ -25,10 +28,13 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             IClienteRepository clienteRepository,
             IVeiculosRepository veiculoRepository,
             IReservaRepository reservaRepository,
+            IVistoriaRepository vistoriaRepository,
             IFilialRepository filialRepository,
             ISeguroRepository seguroRepository,
+            IAdicionalRepository adicionalRepository,
             ILocacaoSeguroRepository locacaoSeguroRepository,
             IFuncionarioRepository funcionarioRepository,
+            IUploadDownloadFileService uploadDownloadFileService,
             INotificadorService notificador)
         {
             _locacaoRepository = locacaoRepository;
@@ -40,6 +46,9 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _seguroRepository = seguroRepository;
             _reservaRepository = reservaRepository;
             _locacaoSeguroRepository = locacaoSeguroRepository;
+            _uploadDownloadFileService = uploadDownloadFileService;
+            _vistoriaRepository = vistoriaRepository;
+            _adicionalRepository = adicionalRepository;
         }
 
         #region Locacao
@@ -457,6 +466,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 .Include(m=>m.Multas)
                 .Include(m => m.Pagamentos)
                 .Include(m => m.Vistorias)
+                .Include(m => m.Adicionais)
                 .Include(m => m.Seguros),
 
                 rastreado: true);
@@ -483,23 +493,150 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             return true;
         }
 
-        //public async Task<bool> AddFotoVistoriaAsync(int idVistoria,List<Foto> fotos, CancellationToken ct = default)
-        //{
-        //    var locacao = await ObterLocacao(idLocacao, ct);
+        public async Task<bool> RegistrarFotoVistoriaAsync(int id, EnviarFotoVistoriaDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.Where(x=>x.IdVistoria == dto.IdVistoria).FirstOrDefault();
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+            var fotos = await EnviarFoto(dto);
+            locacao.RegistrarFoto(fotos,dto.IdVistoria);
+            await _locacaoRepository.AtualizarSalvarAsync(locacao);
+            return true;
+        }
 
-        //    if (locacao == null)
-        //    {
-        //        _notificador.Add("Locação não encontrada");
-        //        return false;
-        //    }
+        public async Task<bool> RegistrarDanoVistoriaAsync(int id, CriarDanoDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.FirstOrDefault(x => x.IdVistoria == dto.IdVistoria);
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+            locacao.RegistrarDanoVistoria(dto.IdVistoria, dto.Descricao,(TipoDano)dto.codigoTipoDano, dto.ValorEstimado);
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao);
+        }
 
-        //    locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo, (NivelCombustivel)dto.NivelCombustivel, dto.KmVeiculo, dto.Observacoes);
+        public async Task<bool> RemoverDanoVistoriaAsync(int id,RemoverDanoDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(id, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+            var vistoria = locacao.Vistorias.FirstOrDefault(x => x.IdVistoria == dto.IdVistoria);
+            if (vistoria == null)
+            {
+                _notificador.Add("Vistoria não encontrada");
+                return false;
+            }
+            var dano = vistoria.Danos.FirstOrDefault(x => x.IdDano == dto.IdDano);
+            if (dano == null)
+            {
+                _notificador.Add("Dano não encontrado");
+                return false;
+            }
 
-        //    await _locacaoRepository.AtualizarSalvarAsync(locacao);
-        //    return true;
-        //}
+            locacao.RemoverDanoVistoria(dto.IdVistoria, dto.IdDano);
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao);
+        }
+
+        private async Task<List<FotoVistoria>> EnviarFoto(EnviarFotoVistoriaDto dto)
+        {
+            var documentosAnexos = new List<FotoVistoria>();
+            foreach (var doc in dto.Fotos!)
+            {
+                var arquivo = await _uploadDownloadFileService.EnviarArquivoSimplesAsync(doc);
+                if(arquivo != null)
+                {
+                    var fotoVistoria = FotoVistoria.Criar(      
+                         //dto.IdVistoria,
+                         arquivo.NomeArquivo,
+                         arquivo.Raiz,
+                         arquivo.Diretorio,
+                         arquivo.Extensao,
+                         arquivo.QuantidadeBytes.Value
+                    );
+                    documentosAnexos.Add(fotoVistoria);
+                }               
+            }
+            return documentosAnexos;
+        }
 
 
         #endregion Vistoria
+
+        #region Adicionais
+        public async Task<bool> InserirAdicionalAsync(int idLocacao, LocacaoAdicionalDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            var adicional = await _adicionalRepository.ObterPorIdAsync(dto.IdAdicional);
+            if (adicional == null)
+            {
+                _notificador.Add("Adicional não encontrada");
+                return false;
+            }
+
+            locacao.AdicionarAdicional(adicional.IdAdicional,adicional.ValorDiaria, dto.Quantidade);
+
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao,ct);
+        }
+
+        public async Task<bool> RemoverAdicionalAsync(int idLocacao, int idAdicional, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            var adicional = await _adicionalRepository.ObterPorIdAsync(idAdicional);
+            if (adicional == null)
+            {
+                _notificador.Add("Adicional não encontrada");
+                return false;
+            }
+
+            locacao.RemoverAdicional(adicional.IdAdicional);
+
+            return await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+        }
+
+        public async Task<decimal?> ObterTotalAdicionalAsync(int idLocacao, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacao(idLocacao, ct);
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return null;
+            }
+
+            var valor = locacao.CalcularTotalAdicionais();
+
+            return valor;
+        }
+        #endregion Adicionais
     }
 }

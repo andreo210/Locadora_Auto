@@ -1,0 +1,39 @@
+﻿@using Blazored.LocalStorage
+@using Locadora_Auto.Front.Models.OAuth
+@using Locadora_Auto.Front.Services.Servicos.Login
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ILoginService LoginService
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3>Login</h3>
+
+<input @bind="Email" placeholder="Email" />
+<input @bind="Senha" type="password" placeholder="Senha" />
+
+<button @onclick="EfetuarLogin">Entrar</button>
+
+@code {
+    string Email;
+    string Senha;
+
+    async Task EfetuarLogin()
+    {
+        var response = await LoginService.Login(new LoginRequest
+        {
+            Email = Email,
+            Senha = Senha
+        });
+
+        if (response != null)
+        {
+            await LocalStorage.SetItemAsync("token", response.AccessToken);
+
+            ((CustomAuthStateProvider)AuthStateProvider)
+                .NotifyUserAuthentication(response.AccessToken);
+
+            Navigation.NavigateTo("/");
+        }
+    }
+}

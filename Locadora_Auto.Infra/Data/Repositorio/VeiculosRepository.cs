@@ -5,7 +5,6 @@ namespace Locadora_Auto.Infra.Data.Repositorio
 {
     public class VeiculosRepository : RepositorioGlobal<Veiculo>, IVeiculosRepository
     {
-        public VeiculosRepository(LocadoraDbContext dbContext) : base(dbContext) { }
-        
+        public VeiculosRepository(LocadoraDbContext dbContext) : base(dbContext) { }        
     }
 }
