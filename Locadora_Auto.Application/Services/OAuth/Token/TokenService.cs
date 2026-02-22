@@ -78,6 +78,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
             var key = _rsaKeyService.GetSigningCredentials();
             var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
             {
+                Audience = "locadora-front",
                 Issuer = currentIssuer,
                 Subject = identityClaims,
                 Expires = DateTime.UtcNow.AddHours(1),

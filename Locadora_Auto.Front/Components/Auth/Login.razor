@@ -1,39 +1,34 @@
-﻿@using Blazored.LocalStorage
+﻿@page "/login"
+@rendermode InteractiveServer
 @using Locadora_Auto.Front.Models.OAuth
 @using Locadora_Auto.Front.Services.Servicos.Login
-@using Microsoft.AspNetCore.Components.Authorization
 @inject ILoginService LoginService
 @inject NavigationManager Navigation
-@inject ILocalStorageService LocalStorage
-@inject AuthenticationStateProvider AuthStateProvider
 
 <h3>Login</h3>
 
-<input @bind="Email" placeholder="Email" />
-<input @bind="Senha" type="password" placeholder="Senha" />
+<form method="post" action="/auth/login">
+    <div class="mb-3">
+        <label>Email</label>
+        <input class="form-control" name="username" />
+    </div>
 
-<button @onclick="EfetuarLogin">Entrar</button>
+    <div class="mb-3">
+        <label>Senha</label>
+        <input type="password" class="form-control" name="password" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Entrar
+    </button>
+</form>
+
+@if (!string.IsNullOrEmpty(erro))
+{
+    <div class="alert alert-danger mt-2">@erro</div>
+}
 
 @code {
-    string Email;
-    string Senha;
-
-    async Task EfetuarLogin()
-    {
-        var response = await LoginService.Login(new LoginRequest
-        {
-            Email = Email,
-            Senha = Senha
-        });
-
-        if (response != null)
-        {
-            await LocalStorage.SetItemAsync("token", response.AccessToken);
-
-            ((CustomAuthStateProvider)AuthStateProvider)
-                .NotifyUserAuthentication(response.AccessToken);
-
-            Navigation.NavigateTo("/");
-        }
-    }
+    private LoginRequest model = new();
+    private string? erro; 
 }

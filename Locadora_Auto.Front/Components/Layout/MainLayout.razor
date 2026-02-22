@@ -1,23 +1,52 @@
-﻿@inherits LayoutComponentBase
+﻿@using Locadora_Auto.Front.Services
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
-<div class="page">
-    <div class="sidebar">
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar @(sidebarOpen ? "open" : "")">
         <NavMenu />
-    </div>
+    </aside>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+    <!-- OVERLAY MOBILE -->
+    <div class="sidebar-overlay @(sidebarOpen ? "show" : "")" @onclick="ToggleSidebar"></div>
 
-        <article class="content px-4">
+    <!-- MAIN AREA -->
+    <div class="main-area">
+        <header class="topbar px-4">
+            <!-- BOTÃO MOBILE -->
+            <button class="menu-toggle" @onclick="ToggleSidebar">
+                <span class="bi bi-list"></span>
+            </button>
+
+            <!-- TÍTULO DINÂMICO -->
+            <div class="page-title">@GetCurrentPageTitle()</div>
+
+            <div class="topbar-actions">
+                <span class="text-muted small">Locadora System</span>
+            </div>
+        </header>
+
+        <main class="content px-4 py-4">
             @Body
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
+@code {
+    private bool sidebarOpen = false;
+
+    private void ToggleSidebar()
+    {
+        sidebarOpen = !sidebarOpen;
+    }
+
+    private string GetCurrentPageTitle()
+    {
+        var currentUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        return MenuService.GetMenuTitleByUrl(currentUrl) ?? "Locadora System";
+    }
+
+    [Inject] private MenuService MenuService { get; set; } = default!;
+}

@@ -1,28 +1,57 @@
-﻿using System.Net.Http.Headers;
-using Blazored.LocalStorage;
+﻿using Locadora_Auto.Front.Services.Extensions;
+using Microsoft.AspNetCore.Http;
+using System.Net.Http.Headers;
 
 public class JwtAuthorizationHandler : DelegatingHandler
 {
-    private readonly ILocalStorageService _localStorage;
-
-    public JwtAuthorizationHandler(ILocalStorageService localStorage)
+    public class HttpClientAuthorizationUser : DelegatingHandler
     {
-        _localStorage = localStorage;
-    }
+        private readonly IHttpContextAccessor _accessor;
 
-    protected override async Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request,
-        CancellationToken cancellationToken)
-    {
-        var token = await _localStorage.GetItemAsync<string>("token");
-
-        if (!string.IsNullOrWhiteSpace(token))
+        /// <summary>
+        /// Inicializa o manipulador com acesso ao contexto HTTP atual.
+        /// </summary>
+        /// <param name="accessor">Acessor para o contexto HTTP.</param>
+        public HttpClientAuthorizationUser(IHttpContextAccessor accessor)
         {
-            request.Headers.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+            _accessor = accessor ?? throw new ArgumentNullException(nameof(accessor));
         }
 
-        return await base.SendAsync(request, cancellationToken);
+        /// <summary>
+        /// Intercepta a requisição HTTP e insere o token de acesso do usuário no cabeçalho Authorization,
+        /// caso esteja disponível no contexto atual.
+        /// </summary>
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var httpContext = _accessor.HttpContext;
+
+            if (httpContext == null)
+                return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            // Adiciona o cabeçalho Authorization se já estiver presente na requisição original
+            if (httpContext.Request.Headers.TryGetValue("Authorization", out var authorizationHeader))
+            {
+                var authorizationValue = authorizationHeader.ToString();
+
+                if (!string.IsNullOrWhiteSpace(authorizationValue) && !request.Headers.Contains("Authorization"))
+                {
+                    request.Headers.Add("Authorization", authorizationValue);
+                }
+            }
+
+            // Adiciona o token do usuário, se ainda não houver Authorization definido
+            if (request.Headers.Authorization == null)
+            {
+                var token = httpContext.User?.ObterTokenUsuario();
+
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+            }
+
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
     }
 }
 

@@ -6,7 +6,9 @@ using Locadora_Auto.Front.Services.Servicos.Notificacao;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 public interface IApiHttpService
@@ -86,7 +88,7 @@ public class ApiHttpService : IApiHttpService
     // PATCH com retorno
     public async Task<TResponse?> PatchAsync<TRequest, TResponse>(string url, TRequest data)
     {
-        var response = await _http.PatchAsJsonAsync(url, data, _jsonOptions);
+        var response = await _http.PatchAsJsonAsync(url, ObterConteudo(data), _jsonOptions);
         await TratarErrosResponse(response);
         return await DeserializarObjetoResponse<TResponse>(response);
     }
@@ -119,6 +121,13 @@ public class ApiHttpService : IApiHttpService
             return default;
 
         return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+    }
+
+    protected StringContent? ObterConteudo(object dado)
+    {
+        var json = JsonSerializer.Serialize(dado);
+        var data = new StringContent(json, Encoding.UTF8, "application/json");
+        return data;
     }
 
     // Tratamento de erros especializado para ValidationProblemDetails
