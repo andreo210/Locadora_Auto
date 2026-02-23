@@ -22,5 +22,13 @@
 
     <script src="_framework/blazor.web.js"></script>
 </body>
-
+<script>
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+        document.body.classList.add("dark-theme");
+    } else {
+        document.body.classList.add("light-theme");
+    }
+</script>
+<script src="js/Layout.js"></script>
 </html>

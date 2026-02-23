@@ -1,151 +1,480 @@
-/* RESET */
+/* ============================================
+   VARIÁVEIS GLOBAIS - TEMA CLARO (PADRÃO)
+   ============================================ */
+:root {
+    --bg-sidebar: #f8f9fa; /* Cor de fundo da sidebar - AZUL */
+    --bg-main: #f4f6f9; /* Cor de fundo da área principal (cinza claro) */
+    --bg-topbar: #ffffff; /* Cor de fundo da barra superior (branco) */
+    --text-sidebar: #374151; /* Cor do texto na sidebar (cinza escuro) */
+    --text-main: #1f2937; /* Cor do texto principal (quase preto) */
+    --text-hover: #ffffff; /* Cor do texto ao passar o mouse (branco) */
+    --bg-hover: #e9ecef; /* Cor de fundo ao passar o mouse (cinza) */
+    --accent-color: #2563eb; /* Cor de destaque (azul - mesma da sidebar) */
+    --border-color: #e5e7eb; /* Cor das bordas (cinza claro) */
+    --sidebar-width: 260px; /* Largura fixa da sidebar */
+}
+
+
+/* ============================================
+   TEMA ESCURO (ativado pela classe dark-theme)
+   ============================================ */
+ /* Tema escuro */
+body.dark-theme {
+    --bg-sidebar: #1e293b;
+    --bg-main: #121212;
+    --bg-topbar: #1e1e1e;
+    --text-sidebar: #cbd5e1;
+    --text-main: #f4f4f4;
+    --accent-color: #3b82f6;
+    --border-color: #333;
+}
+
+/* ============================================
+   RESET E ESTILOS BASE
+   ============================================ */
 html, body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f4f6f9;
+    margin: 0; /* Remove margens padrão do navegador */
+    padding: 0; /* Remove paddings padrão */
+    font-family: 'Segoe UI', sans-serif; /* Fonte padrão do sistema */
+    background-color: var(--bg-main); /* Cor de fundo vindo da variável */
+    height: 100%; /* Ocupa 100% da altura da tela */
 }
 
-/* LAYOUT */
 .app-layout {
-    display: flex;
-    min-height: 100vh;
+    display: flex; /* Layout flexível (sidebar + main lado a lado) */
+    min-height: 100vh; /* Altura mínima = 100% da viewport */
+    width: 100%; /* Largura total */
 }
 
-/* SIDEBAR */
+/* ============================================
+   SIDEBAR - DESKTOP
+   ============================================ */
 .sidebar {
-    width: 260px;
-    background-color: #1e293b;
-    color: #cbd5e1;
-    transition: transform 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    z-index: 2000;
+    width: var(--sidebar-width) !important;  /* Largura: 260px (da variável) */
+    background-color: var(--bg-sidebar) !important; /* Fundo com !important para forçar */
+    background: var(--bg-sidebar) !important; /* Propriedade background também forçada */
+    color: var(--text-sidebar)!important; /* Cor do texto */
+    display: flex; /* Layout flexível */
+    flex-direction: column; /* Itens em coluna (um abaixo do outro) */
+    height: 100vh; /* Altura total da tela */
+    position: sticky; /* Fica fixa no topo ao rolar */
+    top: 0; /* Grudada no topo */
+    left: 0; /* Grudada na esquerda */
+    z-index: 1000; /* Fica acima do conteúdo (sobreposição) */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); /* Sombra sutil à direita */
+    overflow-y: auto; /* Scroll vertical se necessário */
+    flex-shrink: 0; /* Não encolhe em layouts flexíveis */
 }
 
-.sidebar-header .navbar-brand {
-    font-weight: 600;
-    color: white;
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* Remove qualquer background de elementos internos que possam causar conflito */
+.sidebar > * {
+    background-color: transparent; /* Todos os filhos diretos ficam transparentes */
 }
 
+/* Garante que o header não tenha background próprio */
+.sidebar-header {
+    background-color: transparent !important;
+    }
+
+/* Garante que a navegação não tenha background próprio */
 .nav-scrollable {
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 10px;
+    background-color: transparent !important;
+    }
+
+/* ============================================
+   MAIN AREA - DESKTOP
+   ============================================ */
+.main-area {
+    flex: 1; /* Ocupa o espaço restante */
+    display: flex; /* Layout flexível */
+    flex-direction: column; /* Conteúdo em coluna */
+    background-color: var(--bg-main); /* Fundo da área principal */
+    min-width: 0; /* Permite encolher se necessário */
+}
+
+/* ============================================
+   CABEÇALHO DA SIDEBAR (AVATAR + USUÁRIO)
+   ============================================ */
+.sidebar-header {
+    padding: 24px 16px; /* Espaçamento interno */
+    border-bottom: 1px solid var(--border-color); /* Linha divisória inferior */
+}
+
+.user-info {
+    display: flex; /* Avatar e texto lado a lado */
+    align-items: center; /* Alinhados verticalmente ao centro */
+    gap: 12px; /* Espaço entre elementos */
+}
+
+.avatar {
+    width: 48px; /* Largura do avatar */
+    height: 48px; /* Altura do avatar */
+    border-radius: 50%; /* Formato circular */
+    object-fit: cover; /* Ajusta a imagem sem distorcer */
+    border: 2px solid var(--accent-color); /* Borda colorida (destaque) */
+}
+
+.user-details {
+    flex: 1; /* Ocupa espaço restante */
+    min-width: 0; /* Permite encolher se necessário */
+}
+
+.user-name {
+    font-weight: 600; /* Negrito */
+    color: var(--text-main); /* Cor do texto principal */
+    display: block; /* Ocupa linha inteira */
+    font-size: 1rem; /* Tamanho padrão */
+    white-space: nowrap; /* Não quebra linha */
+    overflow: hidden; /* Esconde excesso */
+    text-overflow: ellipsis; /* Adiciona ... se texto muito longo */
+}
+
+.user-role {
+    font-size: 0.8rem; /* Tamanho menor */
+    opacity: 0.7; /* Levemente transparente */
+    display: block; /* Ocupa linha inteira */
+    white-space: nowrap; /* Não quebra linha */
+    overflow: hidden; /* Esconde excesso */
+    text-overflow: ellipsis; /* ... se muito longo */
+}
+
+/* ============================================
+   NAVEGAÇÃO (ESTRUTURA DOS MENUS)
+   ============================================ */
+.nav-scrollable {
+    flex: 1; /* Ocupa espaço restante */
+    overflow-y: auto; /* Scroll vertical se necessário */
+    padding: 16px 12px; /* Espaçamento interno */
+}
+
+.nav {
+    display: flex; /* Layout flexível */
+    flex-direction: column; /* Itens em coluna */
+    gap: 2px; /* Espaço entre itens */
+}
+
+.nav-group {
+    display: flex; /* Layout flexível */
+    flex-direction: column; /* Itens em coluna */
+}
+
+.nav-group-header {
+    display: flex; /* Ícone, texto e seta lado a lado */
+    align-items: center; /* Alinhados verticalmente */
+    padding: 12px 16px; /* Espaçamento interno */
+    border-radius: 8px; /* Cantos arredondados */
+    cursor: pointer; /* Mãozinha ao passar mouse */
+    transition: all 0.2s ease; /* Animação suave */
+    gap: 12px; /* Espaço entre elementos */
+    color: var(--text-sidebar); /* Cor do texto */
+    font-weight: 500; /* Peso da fonte médio */
+}
+
+.nav-group-header:hover {
+    background-color: var(--bg-hover); /* Fundo diferente ao passar mouse */
+}
+
+.nav-group-header.active {
+    background-color: var(--accent-color); /* Fundo colorido quando ativo */
+    color: white; /* Texto branco quando ativo */
+}
+
+.nav-group-header.active .nav-icon {
+    color: white; /* Ícone branco quando ativo */
+}
+
+.nav-icon {
+    font-size: 1.2rem; /* Tamanho do ícone */
+    min-width: 24px; /* Largura mínima fixa */
+    display: flex; /* Centraliza conteúdo */
+    align-items: center;
+    justify-content: center;
+    color: var(--text-sidebar); /* Cor do ícone */
+}
+
+.nav-text {
+    flex: 1; /* Ocupa espaço restante */
+    white-space: nowrap; /* Não quebra linha */
+    overflow: hidden; /* Esconde excesso */
+    text-overflow: ellipsis; /* ... se muito longo */
+    font-size: 0.95rem; /* Tamanho da fonte */
+}
+
+.nav-arrow {
+    font-size: 0.8rem; /* Seta pequena */
+    transition: transform 0.3s ease; /* Animação de rotação */
+    margin-left: auto; /* Empurra para a direita */
+    color: var(--text-sidebar);
+}
+
+    .nav-arrow.open {
+        transform: rotate(180deg); /* Seta rotacionada (submenu aberto) */
+    }
+
+/* ============================================
+   SUBMENU
+   ============================================ */
+.nav-group-items {
+    display: flex; /* Layout flexível */
+    flex-direction: column; /* Itens em coluna */
+    margin-left: 36px; /* Indentação (espaço à esquerda) */
+    gap: 2px; /* Espaço entre itens */
+    margin-top: 2px; /* Espaço superior */
 }
 
 .nav-link {
-    color: #cbd5e1;
-    padding: 10px 15px;
-    border-radius: 6px;
-    transition: background 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex; /* Ícone e texto lado a lado */
+    align-items: center; /* Alinhados verticalmente */
+    padding: 10px 16px; /* Espaçamento interno */
+    border-radius: 8px; /* Cantos arredondados */
+    gap: 12px; /* Espaço entre ícone e texto */
+    color: var(--text-sidebar); /* Cor do texto */
+    text-decoration: none; /* Remove sublinhado */
+    transition: all 0.2s ease; /* Animação suave */
+    font-size: 0.9rem; /* Tamanho da fonte */
 }
 
     .nav-link:hover {
-        background-color: #334155;
-        color: white;
+        background-color: var(--bg-hover); /* Fundo ao passar mouse */
     }
 
     .nav-link.active {
-        background-color: #2563eb;
-        color: white;
+        background-color: var(--accent-color); /* Fundo colorido quando ativo */
+        color: white; /* Texto branco */
     }
 
-/* Submenu */
-.nav-group-header {
-    padding: 10px 15px;
-    cursor: pointer;
-    border-radius: 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+        .nav-link.active .nav-icon {
+            color: white; /* Ícone branco quando ativo */
+        }
 
-    .nav-group-header:hover {
-        background-color: #334155;
+    /* Logout - estilo especial */
+    .nav-link.text-danger {
+        color: #dc3545; /* Cor vermelha */
+        margin-top: 16px; /* Espaço superior */
+        border-top: 1px solid var(--border-color); /* Linha divisória acima */
+        padding-top: 16px; /* Espaçamento interno superior */
     }
 
-.nav-group-items {
-    display: flex;
-    flex-direction: column;
-    margin-left: 15px;
-}
+        .nav-link.text-danger:hover {
+            background-color: #dc3545; /* Fundo vermelho no hover */
+            color: white; /* Texto branco */
+        }
 
-/* MAIN AREA */
-.main-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: #f4f6f9;
-}
+            .nav-link.text-danger:hover .nav-icon {
+                color: white; /* Ícone branco no hover */
+            }
 
-/* TOPBAR */
+/* ============================================
+   TOPBAR (BARRA SUPERIOR)
+   ============================================ */
 .topbar {
-    height: 60px;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.page-title {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: #1e293b;
+    height: 64px; /* Altura fixa */
+    display: flex; /* Layout flexível */
+    align-items: center; /* Centraliza verticalmente */
+    justify-content: space-between; /* Espaço entre elementos */
+    padding: 0 24px; /* Espaçamento lateral */
+    background-color: var(--bg-topbar); /* Fundo da topbar */
+    border-bottom: 1px solid var(--border-color); /* Linha divisória inferior */
+    position: sticky; /* Gruda no topo ao rolar */
+    top: 0; /* No topo */
+    z-index: 900; /* Abaixo da sidebar (1000) */
 }
 
 .menu-toggle {
-    background: none;
-    border: none;
-    font-size: 1.6rem;
-    cursor: pointer;
-    display: none;
+    display: none; /* Escondido no desktop */
+    background: none; /* Sem fundo */
+    border: none; /* Sem borda */
+    font-size: 1.5rem; /* Tamanho do ícone */
+    cursor: pointer; /* Mãozinha */
+    color: var(--text-main); /* Cor do texto */
+    padding: 8px; /* Espaçamento interno */
+    border-radius: 4px; /* Cantos levemente arredondados */
 }
 
-/* CONTENT */
-.content {
-    flex: 1;
-    padding: 20px;
-}
-
-/* OVERLAY */
-.sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    z-index: 1500;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-    .sidebar-overlay.show {
-        opacity: 1;
+    .menu-toggle:hover {
+        background-color: var(--bg-hover); /* Fundo ao passar mouse */
     }
 
-/* RESPONSIVO */
+.page-title {
+    font-weight: 600; /* Negrito */
+    font-size: 1.2rem; /* Tamanho da fonte */
+    color: var(--text-main); /* Cor do texto */
+}
+
+.topbar-actions button {
+    background: none; /* Sem fundo */
+    border: none; /* Sem borda */
+    font-size: 1.2rem; /* Tamanho do ícone */
+    cursor: pointer; /* Mãozinha */
+    color: var(--text-main); /* Cor do texto */
+    padding: 8px; /* Espaçamento interno */
+    border-radius: 50%; /* Formato circular */
+    transition: background 0.2s ease; /* Animação suave */
+    width: 40px; /* Largura fixa */
+    height: 40px; /* Altura fixa */
+    display: flex; /* Centraliza conteúdo */
+    align-items: center;
+    justify-content: center;
+}
+
+    .topbar-actions button:hover {
+        background-color: var(--bg-hover); /* Fundo ao passar mouse */
+    }
+
+/* ============================================
+   CONTEÚDO PRINCIPAL
+   ============================================ */
+.content {
+    padding: 24px; /* Espaçamento interno */
+    background-color: var(--bg-main); /* Fundo da área principal */
+    color: var(--text-main); /* Cor do texto */
+}
+
+/* ============================================
+   MOBILE (TELAS PEQUENAS - ATÉ 768px)
+   ============================================ */
 @media (max-width: 768px) {
+    /* SIDEBAR - controlada pelo botão */
     .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        transform: translateX(-100%);
+        transform: translateX(-100%); /* Escondida fora da tela à esquerda */
+        transition: transform 0.3s ease; /* Animação de deslizar */
+        width: 280px !important; /* Largura um pouco maior */
+        position: fixed !important; /* Fixa na tela */
+        top: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
+        z-index: 2000 !important; /* Acima de tudo */
+        box-shadow: none !important;
+        background-color: var(--bg-sidebar) !important;
     }
 
         .sidebar.open {
-            transform: translateX(0);
+            transform: translateX(0) !important; /* Quando aberta, volta à posição */
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2) !important; /* Sombra */
         }
 
-    .menu-toggle {
-        display: block;
+        /* FORÇA A VISIBILIDADE DE TODOS OS ELEMENTOS NO MOBILE */
+        .sidebar .nav-text,
+        .sidebar .user-details,
+        .sidebar .nav-icon,
+        .sidebar .nav-arrow,
+        .sidebar .nav-link,
+        .sidebar .nav-group-header,
+        .sidebar .nav-group-items {
+            display: flex !important; /* Força exibição */
+            opacity: 1 !important; /* Totalmente visível */
+            visibility: visible !important; /* Visível */
+            width: auto !important; /* Largura automática */
+            height: auto !important; /* Altura automática */
+        }
+
+        /* GARANTE QUE O TEXTO APARECE */
+        .sidebar .nav-text {
+            white-space: nowrap !important; /* Não quebra linha */
+            overflow: visible !important; /* Visível */
+            text-overflow: clip !important; /* Sem reticências */
+            margin-left: 8px !important; /* Espaço à esquerda */
+        }
+
+    /* OVERLAY - fundo escuro semitransparente */
+    .sidebar-overlay {
+        position: fixed !important; /* Cobre toda a tela */
+        inset: 0 !important; /* top, right, bottom, left = 0 */
+        background: rgba(0, 0, 0, 0.5) !important; /* Preto com 50% opacidade */
+        z-index: 1500 !important; /* Entre sidebar e conteúdo */
+        opacity: 0 !important; /* Invisível por padrão */
+        pointer-events: none !important; /* Não bloqueia cliques */
+        transition: opacity 0.3s ease !important; /* Animação suave */
     }
+
+        .sidebar-overlay.show {
+            opacity: 1 !important; /* Visível quando show */
+            pointer-events: all !important; /* Bloqueia cliques no conteúdo */
+        }
+
+    /* BOTÃO MENU VISÍVEL */
+    .menu-toggle {
+        display: flex !important; /* Mostra o botão hambúrguer */
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* MAIN AREA SEM MARGEM */
+    .main-area {
+        margin-left: 0 !important; /* Remove margem da sidebar */
+        width: 100% !important; /* Ocupa toda largura */
+    }
+
+    /* AJUSTES NOS ITENS DO MENU */
+    .nav-group-header {
+        padding: 12px 16px !important; /* Espaçamento consistente */
+    }
+
+    .nav-link {
+        padding: 10px 16px 10px 36px !important; /* Mais espaço à esquerda */
+    }
+
+    .nav-group-items {
+        margin-left: 36px !important; /* Indentação consistente */
+    }
+
+    /* LOGOUT */
+    .nav-link.text-danger {
+        margin-top: 16px !important; /* Espaço superior */
+        padding-left: 16px !important; /* Espaço à esquerda */
+    }
+
+    .nav-scrollable {
+        display: block !important; /* Garante visibilidade */
+    }
+    /* Remove qualquer background de elementos internos que possam causar conflito */
+    .sidebar > * {
+        background-color: var(--bg-sidebar) !important; /* Todos os filhos diretos ficam transparentes */
+    }
+
+    /* Garante que o header não tenha background próprio */
+    .sidebar-header {
+        background-color: var(--bg-sidebar) !important;
+    }
+
+    /* Garante que a navegação não tenha background próprio */
+    .nav-scrollable {
+        background-color: var(--bg-sidebar) !important;
+    }
+
+    /* AJUSTES NA TOPBAR */
+    .topbar {
+        padding: 0 16px !important; /* Reduz espaçamento lateral */
+        height: 60px !important; /* Altura um pouco menor */
+    }
+
+    .page-title {
+        font-size: 1rem !important; /* Fonte menor */
+        flex: 1 !important; /* Ocupa espaço */
+    }
+
+    .content {
+        padding: 16px !important; /* Reduz padding */
+    }
+}
+
+/* ============================================
+   SCROLLBAR PERSONALIZADA (OPCIONAL)
+   ============================================ */
+::-webkit-scrollbar {
+    width: 6px; /* Largura da scrollbar */
+    height: 6px; /* Altura (para horizontal) */
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* Fundo transparente */
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color); /* Cor do "polegar" */
+    border-radius: 3px; /* Cantos arredondados */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color); /* Cor ao passar mouse */
 }

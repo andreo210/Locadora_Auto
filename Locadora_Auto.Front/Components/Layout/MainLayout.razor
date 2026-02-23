@@ -1,52 +1,131 @@
 ﻿@using Locadora_Auto.Front.Services
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
+@inject MenuService MenuService
+@inject IJSRuntime JS
 
 <div class="app-layout">
+    <!-- Container principal do aplicativo -->
+    <!-- Aplica a classe "dark-theme" se darkTheme for true, senão não aplica classe extra -->
+    <!-- Isso permite alternar entre tema claro e escuro via CSS -->
 
-    <!-- SIDEBAR -->
     <aside class="sidebar @(sidebarOpen ? "open" : "")">
-        <NavMenu />
+        <!-- Elemento aside (conteúdo complementar) para a sidebar -->
+        <!-- A classe "open" é adicionada quando sidebarOpen = true (mobile) -->
+        <!-- No desktop, a sidebar fica sempre visível, no mobile ela desliza -->
+
+        <NavMenu UserName="@UserName" AvatarUrl="@AvatarUrl" />
+        <!-- Componente NavMenu (que vimos anteriormente) -->
+        <!-- Passa parâmetros: UserName e AvatarUrl para o componente filho -->
     </aside>
 
-    <!-- OVERLAY MOBILE -->
-    <div class="sidebar-overlay @(sidebarOpen ? "show" : "")" @onclick="ToggleSidebar"></div>
+    @if (sidebarOpen)
+    {
+        <!-- Este bloco só é renderizado no mobile quando a sidebar está aberta -->
+        <div class="sidebar-overlay show" @onclick="CloseSidebar"></div>
+        <!-- Overlay escuro que cobre o conteúdo quando a sidebar está aberta no mobile -->
+        <!-- @onclick="CloseSidebar" - clicar no overlay fecha a sidebar -->
+        <!-- Classe "show" controla a opacidade via CSS -->
+    }
 
-    <!-- MAIN AREA -->
     <div class="main-area">
-        <header class="topbar px-4">
-            <!-- BOTÃO MOBILE -->
+        <!-- Área principal do conteúdo (direita da sidebar) -->
+
+        <header class="topbar">
+            <!-- Topbar (barra superior) com título e ações -->
+
             <button class="menu-toggle" @onclick="ToggleSidebar">
+                <!-- Botão do menu hambúrguer (visível apenas no mobile) -->
+                <!-- @onclick="ToggleSidebar" - clique alterna abertura da sidebar -->
                 <span class="bi bi-list"></span>
+                <!-- Ícone de lista (hambúrguer) do Bootstrap Icons -->
             </button>
 
-            <!-- TÍTULO DINÂMICO -->
             <div class="page-title">@GetCurrentPageTitle()</div>
+            <!-- Título da página atual, obtido pelo método GetCurrentPageTitle() -->
 
             <div class="topbar-actions">
-                <span class="text-muted small">Locadora System</span>
+                <!-- Container para ações na topbar -->
+                <button @onclick="ToggleTheme">
+                    <!-- Botão para alternar tema claro/escuro -->
+                    <span class="bi @(darkTheme ? "bi-sun" : "bi-moon")"></span>
+                    <!-- Ícone condicional:
+                         Se darkTheme = true (tema escuro) mostra ícone de sol (bi-sun)
+                         Se darkTheme = false (tema claro) mostra ícone de lua (bi-moon) -->
+                </button>
             </div>
         </header>
 
-        <main class="content px-4 py-4">
+        <main class="content">
+            <!-- Área de conteúdo principal -->
             @Body
+            <!-- Local onde o conteúdo da página atual será renderizado -->
+            <!-- O @Body é substituído pelo conteúdo de cada página que usa este layout -->
         </main>
     </div>
 </div>
 
 @code {
     private bool sidebarOpen = false;
+    // Controla se a sidebar está aberta no mobile
+    // false = fechada (padrão), true = aberta
+
+    private bool darkTheme = false;
+    // Controla o tema atual
+    // true = tema escuro (padrão), false = tema claro
+
+    private string UserName = "André Oliveira";
+    // Nome do usuário logado (valor fixo para exemplo)
+    // Em um app real, viria de um serviço de autenticação
+
+    private string AvatarUrl = "/images/avatar.png";
+    // URL da imagem do avatar (valor fixo para exemplo)
+    // Em um app real, viria de um serviço de autenticação
 
     private void ToggleSidebar()
     {
+        // Método chamado ao clicar no botão menu (hambúrguer) no mobile
         sidebarOpen = !sidebarOpen;
+        // Inverte o estado: se tava aberto, fecha; se tava fechado, abre
+    }
+
+    private void CloseSidebar()
+    {
+        // Método chamado ao clicar no overlay (fundo escuro) no mobile
+        sidebarOpen = false;
+        // Força a sidebar a fechar (sempre coloca como false)
+    }
+
+    private async Task ToggleTheme()
+    {
+        // Método chamado ao clicar no botão de tema (sol/lua)
+        darkTheme = !darkTheme;
+        await JS.InvokeVoidAsync("themeManager.setTheme", darkTheme);
+        //await JS.InvokeVoidAsync("setTheme", darkTheme);
+        // Inverte o tema: se escuro vira claro, se claro vira escuro
+        // A mudança visual ocorre porque a classe "dark-theme" é aplicada/removida no div.app-layout
     }
 
     private string GetCurrentPageTitle()
     {
+        // Método que retorna o título da página atual baseado na URL
         var currentUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-        return MenuService.GetMenuTitleByUrl(currentUrl) ?? "Locadora System";
+        // Pega o caminho relativo da URL atual (ex: "clientes" ou "clientes/editar/1")
+        // Navigation.Uri retorna a URL completa
+        // ToBaseRelativePath() extrai apenas a parte relativa à base do app
+
+        return MenuService.GetMenuTitleByUrl(currentUrl) ?? "Dashboard";
+        // Chama o serviço MenuService para obter o título baseado na URL
+        // GetMenuTitleByUrl() procura um item de menu com a URL correspondente
+        // Se encontrar, retorna o título; se não encontrar (??), retorna "Dashboard" como padrão
     }
 
-    [Inject] private MenuService MenuService { get; set; } = default!;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            darkTheme = await JS.InvokeAsync<bool>("themeManager.loadTheme");
+            StateHasChanged();
+        }
+    }
 }
