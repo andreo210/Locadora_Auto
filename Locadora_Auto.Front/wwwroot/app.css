@@ -1,9 +1,9 @@
-/* ============================================
-   VARI¡VEIS GLOBAIS - TEMA CLARO (PADR√O)
+Ôªø/* ============================================
+   VARI√ÅVEIS GLOBAIS - TEMA CLARO (PADR√ÉO)
    ============================================ */
 :root {
     --bg-sidebar: #f8f9fa; /* Cor de fundo da sidebar - AZUL */
-    --bg-main: #f4f6f9; /* Cor de fundo da ·rea principal (cinza claro) */
+    --bg-main: #f4f6f9; /* Cor de fundo da √°rea principal (cinza claro) */
     --bg-topbar: #ffffff; /* Cor de fundo da barra superior (branco) */
     --text-sidebar: #374151; /* Cor do texto na sidebar (cinza escuro) */
     --text-main: #1f2937; /* Cor do texto principal (quase preto) */
@@ -33,16 +33,16 @@ body.dark-theme {
    RESET E ESTILOS BASE
    ============================================ */
 html, body {
-    margin: 0; /* Remove margens padr„o do navegador */
-    padding: 0; /* Remove paddings padr„o */
-    font-family: 'Segoe UI', sans-serif; /* Fonte padr„o do sistema */
-    background-color: var(--bg-main); /* Cor de fundo vindo da vari·vel */
+    margin: 0; /* Remove margens padr√£o do navegador */
+    padding: 0; /* Remove paddings padr√£o */
+    font-family: 'Segoe UI', sans-serif; /* Fonte padr√£o do sistema */
+    background-color: var(--bg-main); /* Cor de fundo vindo da vari√°vel */
     height: 100%; /* Ocupa 100% da altura da tela */
 }
 
 .app-layout {
-    display: flex; /* Layout flexÌvel (sidebar + main lado a lado) */
-    min-height: 100vh; /* Altura mÌnima = 100% da viewport */
+    display: flex; /* Layout flex√≠vel (sidebar + main lado a lado) */
+    min-height: 100vh; /* Altura m√≠nima = 100% da viewport */
     width: 100%; /* Largura total */
 }
 
@@ -50,20 +50,20 @@ html, body {
    SIDEBAR - DESKTOP
    ============================================ */
 .sidebar {
-    width: var(--sidebar-width) !important; /* Largura: 260px (da vari·vel) */
-    background-color: var(--bg-sidebar) !important; /* Fundo com !important para forÁar */
-    background: var(--bg-sidebar) !important; /* Propriedade background tambÈm forÁada */
+    width: var(--sidebar-width) !important; /* Largura: 260px (da vari√°vel) */
+    background-color: var(--bg-sidebar) !important; /* Fundo com !important para for√ßar */
+    background: var(--bg-sidebar) !important; /* Propriedade background tamb√©m for√ßada */
     color: var(--text-sidebar) !important; /* Cor do texto */
-    display: flex; /* Layout flexÌvel */
+    display: flex; /* Layout flex√≠vel */
     flex-direction: column; /* Itens em coluna (um abaixo do outro) */
     height: 100vh; /* Altura total da tela */
     position: sticky; /* Fica fixa no topo ao rolar */
     top: 0; /* Grudada no topo */
     left: 0; /* Grudada na esquerda */
-    z-index: 1000; /* Fica acima do conte˙do (sobreposiÁ„o) */
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); /* Sombra sutil ‡ direita */
-    overflow-y: auto; /* Scroll vertical se necess·rio */
-    flex-shrink: 0; /* N„o encolhe em layouts flexÌveis */
+    z-index: 1000; /* Fica acima do conte√∫do (sobreposi√ß√£o) */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); /* Sombra sutil √† direita */
+    overflow-y: auto; /* Scroll vertical se necess√°rio */
+    flex-shrink: 0; /* N√£o encolhe em layouts flex√≠veis */
     transition: width 0.3s ease !important;
 }
 
@@ -79,19 +79,20 @@ html, body {
     display: none !important;
 }
 
-/* Centralizar Ìcones quando colapsado */
+/* Centralizar √≠cones quando colapsado */
 .sidebar.collapsed .nav-link {
     justify-content: center !important;
 }
 
 /* ============================================
-   BOT√O DE COLAPSO NA SIDEBAR
+   BOT√ÉO DE COLAPSO NA SIDEBAR
 ============================================ */
 
 .sidebar-collapse {
     display: flex;
-    justify-content: flex-end;
-    padding: 10px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
 }
 
     .sidebar-collapse button {
@@ -118,12 +119,12 @@ html, body {
     background-color: transparent; /* Todos os filhos diretos ficam transparentes */
 }
 
-/* Garante que o header n„o tenha background prÛprio */
+/* Garante que o header n√£o tenha background pr√≥prio */
 .sidebar-header {
     background-color: transparent !important;
     }
 
-/* Garante que a navegaÁ„o n„o tenha background prÛprio */
+/* Garante que a navega√ß√£o n√£o tenha background pr√≥prio */
 .nav-scrollable {
     background-color: transparent !important;
     }
@@ -132,11 +133,11 @@ html, body {
    MAIN AREA - DESKTOP
    ============================================ */
 .main-area {
-    flex: 1; /* Ocupa o espaÁo restante */
-    display: flex; /* Layout flexÌvel */
-    flex-direction: column; /* Conte˙do em coluna */
-    background-color: var(--bg-main); /* Fundo da ·rea principal */
-    min-width: 0; /* Permite encolher se necess·rio */
+    flex: 1; /* Ocupa o espa√ßo restante */
+    display: flex; /* Layout flex√≠vel */
+    flex-direction: column; /* Conte√∫do em coluna */
+    background-color: var(--bg-main); /* Fundo da √°rea principal */
+    min-width: 0; /* Permite encolher se necess√°rio */
 }
 
 /* ============================
@@ -188,17 +189,17 @@ html, body {
 }
 
 /* ============================================
-   CABE«ALHO DA SIDEBAR (AVATAR + USU¡RIO)
+   CABE√áALHO DA SIDEBAR (AVATAR + USU√ÅRIO)
    ============================================ */
 .sidebar-header {
-    padding: 24px 16px; /* EspaÁamento interno */
-    border-bottom: 1px solid var(--border-color); /* Linha divisÛria inferior */
+    padding: 24px 16px; /* Espa√ßamento interno */
+    border-bottom: 1px solid var(--border-color); /* Linha divis√≥ria inferior */
 }
 
 .user-info {
     display: flex; /* Avatar e texto lado a lado */
     align-items: center; /* Alinhados verticalmente ao centro */
-    gap: 12px; /* EspaÁo entre elementos */
+    gap: 12px; /* Espa√ßo entre elementos */
 }
 
 .avatar {
@@ -210,16 +211,16 @@ html, body {
 }
 
 .user-details {
-    flex: 1; /* Ocupa espaÁo restante */
-    min-width: 0; /* Permite encolher se necess·rio */
+    flex: 1; /* Ocupa espa√ßo restante */
+    min-width: 0; /* Permite encolher se necess√°rio */
 }
 
 .user-name {
     font-weight: 600; /* Negrito */
     color: var(--text-main); /* Cor do texto principal */
     display: block; /* Ocupa linha inteira */
-    font-size: 1rem; /* Tamanho padr„o */
-    white-space: nowrap; /* N„o quebra linha */
+    font-size: 1rem; /* Tamanho padr√£o */
+    white-space: nowrap; /* N√£o quebra linha */
     overflow: hidden; /* Esconde excesso */
     text-overflow: ellipsis; /* Adiciona ... se texto muito longo */
 }
@@ -228,41 +229,41 @@ html, body {
     font-size: 0.8rem; /* Tamanho menor */
     opacity: 0.7; /* Levemente transparente */
     display: block; /* Ocupa linha inteira */
-    white-space: nowrap; /* N„o quebra linha */
+    white-space: nowrap; /* N√£o quebra linha */
     overflow: hidden; /* Esconde excesso */
     text-overflow: ellipsis; /* ... se muito longo */
 }
 
 /* ============================================
-   NAVEGA«√O (ESTRUTURA DOS MENUS)
+   NAVEGA√á√ÉO (ESTRUTURA DOS MENUS)
    ============================================ */
 .nav-scrollable {
-    flex: 1; /* Ocupa espaÁo restante */
-    overflow-y: auto; /* Scroll vertical se necess·rio */
-    padding: 16px 12px; /* EspaÁamento interno */
+    flex: 1; /* Ocupa espa√ßo restante */
+    overflow-y: auto; /* Scroll vertical se necess√°rio */
+    padding: 16px 12px; /* Espa√ßamento interno */
 }
 
 .nav {
-    display: flex; /* Layout flexÌvel */
+    display: flex; /* Layout flex√≠vel */
     flex-direction: column; /* Itens em coluna */
-    gap: 2px; /* EspaÁo entre itens */
+    gap: 2px; /* Espa√ßo entre itens */
 }
 
 .nav-group {
-    display: flex; /* Layout flexÌvel */
+    display: flex; /* Layout flex√≠vel */
     flex-direction: column; /* Itens em coluna */
 }
 
 .nav-group-header {
-    display: flex; /* Õcone, texto e seta lado a lado */
+    display: flex; /* √çcone, texto e seta lado a lado */
     align-items: center; /* Alinhados verticalmente */
-    padding: 12px 16px; /* EspaÁamento interno */
+    padding: 12px 16px; /* Espa√ßamento interno */
     border-radius: 8px; /* Cantos arredondados */
-    cursor: pointer; /* M„ozinha ao passar mouse */
-    transition: all 0.2s ease; /* AnimaÁ„o suave */
-    gap: 12px; /* EspaÁo entre elementos */
+    cursor: pointer; /* M√£ozinha ao passar mouse */
+    transition: all 0.2s ease; /* Anima√ß√£o suave */
+    gap: 12px; /* Espa√ßo entre elementos */
     color: var(--text-sidebar); /* Cor do texto */
-    font-weight: 500; /* Peso da fonte mÈdio */
+    font-weight: 500; /* Peso da fonte m√©dio */
 }
 
 .nav-group-header:hover {
@@ -275,21 +276,21 @@ html, body {
 }
 
 .nav-group-header.active .nav-icon {
-    color: white; /* Õcone branco quando ativo */
+    color: white; /* √çcone branco quando ativo */
 }
 
 .nav-icon {
-    font-size: 1.2rem; /* Tamanho do Ìcone */
-    min-width: 24px; /* Largura mÌnima fixa */
-    display: flex; /* Centraliza conte˙do */
+    font-size: 1.2rem; /* Tamanho do √≠cone */
+    min-width: 24px; /* Largura m√≠nima fixa */
+    display: flex; /* Centraliza conte√∫do */
     align-items: center;
     justify-content: center;
-    color: var(--text-sidebar); /* Cor do Ìcone */
+    color: var(--text-sidebar); /* Cor do √≠cone */
 }
 
 .nav-text {
-    flex: 1; /* Ocupa espaÁo restante */
-    white-space: nowrap; /* N„o quebra linha */
+    flex: 1; /* Ocupa espa√ßo restante */
+    white-space: nowrap; /* N√£o quebra linha */
     overflow: hidden; /* Esconde excesso */
     text-overflow: ellipsis; /* ... se muito longo */
     font-size: 0.95rem; /* Tamanho da fonte */
@@ -297,7 +298,7 @@ html, body {
 
 .nav-arrow {
     font-size: 0.8rem; /* Seta pequena */
-    transition: transform 0.3s ease; /* AnimaÁ„o de rotaÁ„o */
+    transition: transform 0.3s ease; /* Anima√ß√£o de rota√ß√£o */
     margin-left: auto; /* Empurra para a direita */
     color: var(--text-sidebar);
 }
@@ -310,22 +311,22 @@ html, body {
    SUBMENU
    ============================================ */
 .nav-group-items {
-    display: flex; /* Layout flexÌvel */
+    display: flex; /* Layout flex√≠vel */
     flex-direction: column; /* Itens em coluna */
-    margin-left: 36px; /* IndentaÁ„o (espaÁo ‡ esquerda) */
-    gap: 2px; /* EspaÁo entre itens */
-    margin-top: 2px; /* EspaÁo superior */
+    margin-left: 36px; /* Indenta√ß√£o (espa√ßo √† esquerda) */
+    gap: 2px; /* Espa√ßo entre itens */
+    margin-top: 2px; /* Espa√ßo superior */
 }
 
 .nav-link {
-    display: flex; /* Õcone e texto lado a lado */
+    display: flex; /* √çcone e texto lado a lado */
     align-items: center; /* Alinhados verticalmente */
-    padding: 10px 16px; /* EspaÁamento interno */
+    padding: 10px 16px; /* Espa√ßamento interno */
     border-radius: 8px; /* Cantos arredondados */
-    gap: 12px; /* EspaÁo entre Ìcone e texto */
+    gap: 12px; /* Espa√ßo entre √≠cone e texto */
     color: var(--text-sidebar); /* Cor do texto */
     text-decoration: none; /* Remove sublinhado */
-    transition: all 0.2s ease; /* AnimaÁ„o suave */
+    transition: all 0.2s ease; /* Anima√ß√£o suave */
     font-size: 0.9rem; /* Tamanho da fonte */
 }
 
@@ -339,15 +340,15 @@ html, body {
     }
 
         .nav-link.active .nav-icon {
-            color: white; /* Õcone branco quando ativo */
+            color: white; /* √çcone branco quando ativo */
         }
 
     /* Logout - estilo especial */
     .nav-link.text-danger {
         color: #dc3545; /* Cor vermelha */
-        margin-top: 16px; /* EspaÁo superior */
-        border-top: 1px solid var(--border-color); /* Linha divisÛria acima */
-        padding-top: 16px; /* EspaÁamento interno superior */
+        margin-top: 16px; /* Espa√ßo superior */
+        border-top: 1px solid var(--border-color); /* Linha divis√≥ria acima */
+        padding-top: 16px; /* Espa√ßamento interno superior */
     }
 
         .nav-link.text-danger:hover {
@@ -356,7 +357,7 @@ html, body {
         }
 
             .nav-link.text-danger:hover .nav-icon {
-                color: white; /* Õcone branco no hover */
+                color: white; /* √çcone branco no hover */
             }
 
 /* ============================================
@@ -364,12 +365,12 @@ html, body {
    ============================================ */
 .topbar {
     height: 64px; /* Altura fixa */
-    display: flex; /* Layout flexÌvel */
+    display: flex; /* Layout flex√≠vel */
     align-items: center; /* Centraliza verticalmente */
-    justify-content: space-between; /* EspaÁo entre elementos */
-    padding: 0 24px; /* EspaÁamento lateral */
+    justify-content: space-between; /* Espa√ßo entre elementos */
+    padding: 0 24px; /* Espa√ßamento lateral */
     background-color: var(--bg-topbar); /* Fundo da topbar */
-    border-bottom: 1px solid var(--border-color); /* Linha divisÛria inferior */
+    border-bottom: 1px solid var(--border-color); /* Linha divis√≥ria inferior */
     position: sticky; /* Gruda no topo ao rolar */
     top: 0; /* No topo */
     z-index: 900; /* Abaixo da sidebar (1000) */
@@ -379,10 +380,10 @@ html, body {
     display: none; /* Escondido no desktop */
     background: none; /* Sem fundo */
     border: none; /* Sem borda */
-    font-size: 1.5rem; /* Tamanho do Ìcone */
-    cursor: pointer; /* M„ozinha */
+    font-size: 1.5rem; /* Tamanho do √≠cone */
+    cursor: pointer; /* M√£ozinha */
     color: var(--text-main); /* Cor do texto */
-    padding: 8px; /* EspaÁamento interno */
+    padding: 8px; /* Espa√ßamento interno */
     border-radius: 4px; /* Cantos levemente arredondados */
 }
 
@@ -402,15 +403,15 @@ html, body {
 .topbar-actions button {
     background: none; /* Sem fundo */
     border: none; /* Sem borda */
-    font-size: 1.2rem; /* Tamanho do Ìcone */
-    cursor: pointer; /* M„ozinha */
+    font-size: 1.2rem; /* Tamanho do √≠cone */
+    cursor: pointer; /* M√£ozinha */
     color: var(--text-main); /* Cor do texto */
-    padding: 8px; /* EspaÁamento interno */
+    padding: 8px; /* Espa√ßamento interno */
     border-radius: 50%; /* Formato circular */
-    transition: background 0.2s ease; /* AnimaÁ„o suave */
+    transition: background 0.2s ease; /* Anima√ß√£o suave */
     width: 40px; /* Largura fixa */
     height: 40px; /* Altura fixa */
-    display: flex; /* Centraliza conte˙do */
+    display: flex; /* Centraliza conte√∫do */
     align-items: center;
     justify-content: center;
 }
@@ -420,22 +421,22 @@ html, body {
 }
 
 /* ============================================
-   CONTE⁄DO PRINCIPAL
+   CONTE√öDO PRINCIPAL
    ============================================ */
 .content {
-    padding: 24px; /* EspaÁamento interno */
-    background-color: var(--bg-main); /* Fundo da ·rea principal */
+    padding: 24px; /* Espa√ßamento interno */
+    background-color: var(--bg-main); /* Fundo da √°rea principal */
     color: var(--text-main); /* Cor do texto */
 }
 
 /* ============================================
-   MOBILE (TELAS PEQUENAS - AT… 768px)
+   MOBILE (TELAS PEQUENAS - AT√â 768px)
    ============================================ */
 @media (max-width: 768px) {
-    /* SIDEBAR - controlada pelo bot„o */
+    /* SIDEBAR - controlada pelo bot√£o */
     .sidebar {
-        transform: translateX(-100%); /* Escondida fora da tela ‡ esquerda */
-        transition: transform 0.3s ease; /* AnimaÁ„o de deslizar */
+        transform: translateX(-100%); /* Escondida fora da tela √† esquerda */
+        transition: transform 0.3s ease; /* Anima√ß√£o de deslizar */
         width: 280px !important; /* Largura um pouco maior */
         position: fixed !important; /* Fixa na tela */
         top: 0 !important;
@@ -454,11 +455,11 @@ html, body {
     }
 
     .sidebar.open {
-        transform: translateX(0) !important; /* Quando aberta, volta ‡ posiÁ„o */
+        transform: translateX(0) !important; /* Quando aberta, volta √† posi√ß√£o */
         box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2) !important; /* Sombra */
     }
 
-        /* FOR«A A VISIBILIDADE DE TODOS OS ELEMENTOS NO MOBILE */
+        /* FOR√áA A VISIBILIDADE DE TODOS OS ELEMENTOS NO MOBILE */
         .sidebar .nav-text,
         .sidebar .user-details,
         .sidebar .nav-icon,
@@ -466,40 +467,41 @@ html, body {
         .sidebar .nav-link,
         .sidebar .nav-group-header,
         .sidebar .nav-group-items {
-            display: flex !important; /* ForÁa exibiÁ„o */
-            opacity: 1 !important; /* Totalmente visÌvel */
-            visibility: visible !important; /* VisÌvel */
-            width: auto !important; /* Largura autom·tica */
-            height: auto !important; /* Altura autom·tica */
+            display: flex !important; /* For√ßa exibi√ß√£o */
+            opacity: 1 !important; /* Totalmente vis√≠vel */
+            visibility: visible !important; /* Vis√≠vel */
+            width: auto !important; /* Largura autom√°tica */
+            height: auto !important; /* Altura autom√°tica */
         }
 
         /* GARANTE QUE O TEXTO APARECE */
         .sidebar .nav-text {
-            white-space: nowrap !important; /* N„o quebra linha */
-            overflow: visible !important; /* VisÌvel */
-            text-overflow: clip !important; /* Sem reticÍncias */
-            margin-left: 8px !important; /* EspaÁo ‡ esquerda */
+            white-space: nowrap !important; /* N√£o quebra linha */
+            overflow: visible !important; /* Vis√≠vel */
+            text-overflow: clip !important; /* Sem retic√™ncias */
+            margin-left: 8px !important; /* Espa√ßo √† esquerda */
         }
+    
 
     /* OVERLAY - fundo escuro semitransparente */
     .sidebar-overlay {
         position: fixed !important; /* Cobre toda a tela */
         inset: 0 !important; /* top, right, bottom, left = 0 */
         background: rgba(0, 0, 0, 0.5) !important; /* Preto com 50% opacidade */
-        z-index: 1500 !important; /* Entre sidebar e conte˙do */
-        opacity: 0 !important; /* InvisÌvel por padr„o */
-        pointer-events: none !important; /* N„o bloqueia cliques */
-        transition: opacity 0.3s ease !important; /* AnimaÁ„o suave */
+        z-index: 1500 !important; /* Entre sidebar e conte√∫do */
+        opacity: 0 !important; /* Invis√≠vel por padr√£o */
+        pointer-events: none !important; /* N√£o bloqueia cliques */
+        transition: opacity 0.3s ease !important; /* Anima√ß√£o suave */
     }
 
         .sidebar-overlay.show {
-            opacity: 1 !important; /* VisÌvel quando show */
-            pointer-events: all !important; /* Bloqueia cliques no conte˙do */
+            opacity: 1 !important; /* Vis√≠vel quando show */
+            pointer-events: all !important; /* Bloqueia cliques no conte√∫do */
         }
 
-    /* BOT√O MENU VISÕVEL */
+    /* BOT√ÉO MENU VIS√çVEL */
     .menu-toggle {
-        display: flex !important; /* Mostra o bot„o hamb˙rguer */
+        display: flex !important; /* Mostra o bot√£o hamb√∫rguer */
         align-items: center !important;
         justify-content: center !important;
     }
@@ -512,21 +514,21 @@ html, body {
 
     /* AJUSTES NOS ITENS DO MENU */
     .nav-group-header {
-        padding: 12px 16px !important; /* EspaÁamento consistente */
+        padding: 12px 16px !important; /* Espa√ßamento consistente */
     }
 
     .nav-link {
-        padding: 10px 16px 10px 36px !important; /* Mais espaÁo ‡ esquerda */
+        padding: 10px 16px 10px 36px !important; /* Mais espa√ßo √† esquerda */
     }
 
     .nav-group-items {
-        margin-left: 36px !important; /* IndentaÁ„o consistente */
+        margin-left: 36px !important; /* Indenta√ß√£o consistente */
     }
 
     /* LOGOUT */
     .nav-link.text-danger {
-        margin-top: 16px !important; /* EspaÁo superior */
-        padding-left: 16px !important; /* EspaÁo ‡ esquerda */
+        margin-top: 16px !important; /* Espa√ßo superior */
+        padding-left: 16px !important; /* Espa√ßo √† esquerda */
     }
 
     .nav-scrollable {
@@ -537,19 +539,19 @@ html, body {
         background-color: var(--bg-sidebar) !important; /* Todos os filhos diretos ficam transparentes */
     }
 
-    /* Garante que o header n„o tenha background prÛprio */
+    /* Garante que o header n√£o tenha background pr√≥prio */
     .sidebar-header {
         background-color: var(--bg-sidebar) !important;
     }
 
-    /* Garante que a navegaÁ„o n„o tenha background prÛprio */
+    /* Garante que a navega√ß√£o n√£o tenha background pr√≥prio */
     .nav-scrollable {
         background-color: var(--bg-sidebar) !important;
     }
 
     /* AJUSTES NA TOPBAR */
     .topbar {
-        padding: 0 16px !important; /* Reduz espaÁamento lateral */
+        padding: 0 16px !important; /* Reduz espa√ßamento lateral */
         height: 60px !important; /* Altura um pouco menor */
     }
     .user-meta {
@@ -557,7 +559,7 @@ html, body {
     }
     .page-title {
         font-size: 1rem !important; /* Fonte menor */
-        flex: 1 !important; /* Ocupa espaÁo */
+        flex: 1 !important; /* Ocupa espa√ßo */
     }
 
     .content {

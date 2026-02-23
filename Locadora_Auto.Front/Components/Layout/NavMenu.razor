@@ -1,84 +1,38 @@
 ﻿@using Locadora_Auto.Front.Models
 @using Locadora_Auto.Front.Services
-@inject NavigationManager Navigation
-@inject MenuService MenuService
-
-@* <div class="sidebar-header">
-    <!-- Cabeçalho da sidebar com informações do usuário -->
-    <div class="user-info">
-        <!-- Container flex para alinhar avatar e texto -->
-        <img class="avatar" src="@AvatarUrl" alt="Avatar" />
-        <!-- Imagem do avatar, URL vem do parâmetro AvatarUrl -->
-        <div class="user-details">
-            <!-- Container para os textos do usuário -->
-            <span class="user-name">@UserName</span>
-            <!-- Nome do usuário, vem do parâmetro UserName -->
-            <span class="user-role">Administrador</span>
-            <!-- Cargo fixo "Administrador" -->
-        </div>
-    </div>
-</div> *@
+@inject NavigationManager Navegacao
+@inject MenuService ServicoMenu
 
 <div class="nav-scrollable">
-    <!-- Container com scroll para a navegação -->
     <nav class="nav">
-        <!-- Elemento de navegação -->
-        @foreach (var menuItem in _menuItems)
+        @foreach (var itemMenu in _itensMenu)
         {
-            // Loop por todos os itens do menu carregados do MenuService
-
-            @if (menuItem.SubItens == null || !menuItem.SubItens.Any())
+            @if (itemMenu.SubItens == null || !itemMenu.SubItens.Any())
             {
-                // Se o item NÃO tem subitens (é um link direto)
-                <NavLink class="@GetNavLinkClass(menuItem)" href="@menuItem.Url" Match="NavLinkMatch.Prefix">
-                    <!-- NavLink é um componente do Blazor que cria links de navegação com detecção de rota ativa -->
-                    <!-- GetNavLinkClass() define a classe CSS (ativa ou não) -->
-                    <!-- Match="Prefix" significa que considera ativo se a URL começar com o href -->
-
-                    <span class="nav-icon @($"bi {menuItem.Icone}")"></span>
-                    <!-- Ícone do Bootstrap Icons, ex: "bi bi-house-door" -->
-                    <span class="nav-text">@menuItem.Titulo</span>
-                    <!-- Texto do item do menu -->
+                <NavLink class="@ObterClasseLink(itemMenu)" href="@itemMenu.Url" Match="NavLinkMatch.Prefix">
+                    <span class="nav-icon @($"bi {itemMenu.Icone}")"></span>
+                    <span class="nav-text">@itemMenu.Titulo</span>
                 </NavLink>
             }
             else
             {
-                // Se o item TEM subitens (é um grupo expansível)
                 <div class="nav-group">
-                    <!-- Container para o grupo de menu -->
-
-                    <div class="@GetNavGroupHeaderClass(menuItem)" @onclick="() => HandleGroupClick(menuItem)">
-                        <!-- Cabeçalho do grupo clicável -->
-                        <!-- GetNavGroupHeaderClass() define a classe CSS -->
-                        <!-- @onclick chama ToggleSubMenu quando clicado para abrir/fechar submenu -->
-
-                        <span class="nav-icon @($"bi {menuItem.Icone}")"></span>
-                        <!-- Ícone do grupo -->
-                        <span class="nav-text">@menuItem.Titulo</span>
-                        <!-- Título do grupo -->
-
-                        <span class="nav-arrow @(IsSubMenuOpen(menuItem) ? "open" : "")">
-                            <!-- Seta indicadora de submenu aberto/fechado -->
-                            <!-- Classe "open" rotaciona a seta para baixo -->
+                    <div class="@ObterClasseGrupo(itemMenu)" @onclick="() => CliqueGrupo(itemMenu)">
+                        <span class="nav-icon @($"bi {itemMenu.Icone}")"></span>
+                        <span class="nav-text">@itemMenu.Titulo</span>
+                        <span class="nav-arrow @(SubMenuAberto(itemMenu) ? "open" : "")">
                             <span class="bi bi-chevron-down"></span>
-                            <!-- Ícone de seta do Bootstrap -->
                         </span>
                     </div>
 
-                    @if (IsSubMenuOpen(menuItem))
+                    @if (SubMenuAberto(itemMenu))
                     {
-                        // Se o submenu estiver aberto (verificado por IsSubMenuOpen)
                         <div class="nav-group-items">
-                            <!-- Container para os subitens -->
-                            @foreach (var subItem in menuItem.SubItens)
+                            @foreach (var subItem in itemMenu.SubItens)
                             {
-                                // Loop pelos subitens
-                                <NavLink class="@GetSubNavLinkClass(subItem)" href="@subItem.Url" Match="NavLinkMatch.Prefix">
-                                    <!-- Link para cada subitem -->
+                                <NavLink class="@ObterClasseSubLink(subItem)" href="@subItem.Url" Match="NavLinkMatch.Prefix">
                                     <span class="nav-icon @($"bi {subItem.Icone}")"></span>
-                                    <!-- Ícone do subitem -->
                                     <span class="nav-text">@subItem.Titulo</span>
-                                    <!-- Texto do subitem -->
                                 </NavLink>
                             }
                         </div>
@@ -88,133 +42,71 @@
         }
 
         <NavLink class="nav-link text-danger" href="/auth/logout">
-            <!-- Item de logout com cor vermelha (text-danger) -->
             <span class="nav-icon bi bi-box-arrow-right"></span>
-            <!-- Ícone de saída -->
             <span class="nav-text">Sair</span>
-            <!-- Texto "Sair" -->
         </NavLink>
     </nav>
 </div>
 
 @code {
-    // Parâmetros que podem ser passados de fora (pelo MainLayout)
-    //[Parameter] public string UserName { get; set; } = "André Oliveira";
-    // Nome do usuário com valor padrão
+    [Parameter] public bool SidebarColapsada { get; set; }
+    [Parameter] public EventCallback OnAlternarColapso { get; set; }
 
-    //[Parameter] public string AvatarUrl { get; set; } = "/images/avatar.png";
-    // URL da imagem do avatar com valor padrão
+    private List<MenuItem> _itensMenu = new();
+    private HashSet<string> _subMenusAbertos = new();
 
-    [Parameter] public bool SidebarCollapsed { get; set; }
-    [Parameter] public EventCallback OnToggleCollapse { get; set; }
-
-    private List<MenuItem> _menuItems = new();
-    // Lista privada que armazena todos os itens do menu carregados do serviço
-
-    private HashSet<string> _openSubMenus = new();
-    // HashSet que guarda os títulos dos menus que estão abertos
-    // HashSet é eficiente para verificar se um item existe (Contains)
-    private async Task HandleGroupClick(MenuItem menuItem)
+    private async Task CliqueGrupo(MenuItem itemMenu)
     {
-        // Se estiver colapsada → expande primeiro
-        if (SidebarCollapsed)
+        if (SidebarColapsada)
         {
-            await OnToggleCollapse.InvokeAsync();
-
-            // IMPORTANTE:
-            // após expandir, já abre o submenu também
-            ToggleSubMenu(menuItem);
-
+            await OnAlternarColapso.InvokeAsync();
+            AlternarSubMenu(itemMenu);
             return;
         }
 
-        // Se já estiver expandida → comportamento normal
-        ToggleSubMenu(menuItem);
-    }
-    protected override void OnParametersSet()
-    {
-        if (SidebarCollapsed)
-        {
-            CloseAllSubMenus();
-        }
+        AlternarSubMenu(itemMenu);
     }
 
-    private void CloseAllSubMenus()
+    protected override void OnParametersSet()
     {
-        _openSubMenus.Clear();
+        if (SidebarColapsada)
+            FecharTodosSubMenus();
     }
+
+    private void FecharTodosSubMenus() => _subMenusAbertos.Clear();
 
     protected override void OnInitialized()
     {
-        // Método do ciclo de vida do Blazor - executado quando o componente é inicializado
-        _menuItems = MenuService.GetMenuItems();
-        // Carrega os itens do menu do MenuService
+        _itensMenu = ServicoMenu.GetMenuItems();
 
-        var currentUrl = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
-        // Pega a URL atual (ex: "clientes/editar/1") e remove barras no início/fim
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
 
-        foreach (var item in _menuItems)
+        foreach (var item in _itensMenu)
         {
-            // Para cada item do menu
-            if (item.SubItens?.Any(s => currentUrl.StartsWith(s.Url.Trim('/'), StringComparison.OrdinalIgnoreCase)) == true)
-            {
-                // Verifica se algum subitem tem URL que corresponde à URL atual
-                // O '?' é o operador null-conditional (só executa se SubItens não for null)
-                // StringComparison.OrdinalIgnoreCase faz comparação ignorando maiúsculas/minúsculas
-
-                _openSubMenus.Add(item.Titulo);
-                // Se encontrou, abre o menu (adiciona ao HashSet)
-            }
+            if (item.SubItens?.Any(s => urlAtual.StartsWith(s.Url.Trim('/'), StringComparison.OrdinalIgnoreCase)) == true)
+                _subMenusAbertos.Add(item.Titulo);
         }
     }
 
-    private void ToggleSubMenu(MenuItem menuItem)
+    private void AlternarSubMenu(MenuItem itemMenu)
     {
-        // Método chamado ao clicar no cabeçalho do grupo
-        if (_openSubMenus.Contains(menuItem.Titulo))
-            _openSubMenus.Remove(menuItem.Titulo);
-        // Se está aberto, remove (fecha)
+        if (_subMenusAbertos.Contains(itemMenu.Titulo))
+            _subMenusAbertos.Remove(itemMenu.Titulo);
         else
-            _openSubMenus.Add(menuItem.Titulo);
-        // Se está fechado, adiciona (abre)
+            _subMenusAbertos.Add(itemMenu.Titulo);
     }
 
-    private bool IsSubMenuOpen(MenuItem menuItem) => _openSubMenus.Contains(menuItem.Titulo);
-    // Verifica se um menu específico está aberto (retorna true/false)
+    private bool SubMenuAberto(MenuItem itemMenu) => _subMenusAbertos.Contains(itemMenu.Titulo);
 
-    private bool IsActive(MenuItem menuItem)
+    private bool EstaAtivo(MenuItem itemMenu)
     {
-        // Verifica se um item de menu corresponde à URL atual (está ativo)
-        if (string.IsNullOrEmpty(menuItem.Url)) return false;
-        // Se não tem URL, não pode estar ativo
-
-        var currentUrl = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
-        // Pega URL atual
-
-        var itemUrl = menuItem.Url.Trim('/');
-        // Pega URL do item e remove barras
-
-        return currentUrl.Equals(itemUrl, StringComparison.OrdinalIgnoreCase);
-        // Compara ignorando maiúsculas/minúsculas
+        if (string.IsNullOrEmpty(itemMenu.Url)) return false;
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
+        var urlItem = itemMenu.Url.Trim('/');
+        return urlAtual.Equals(urlItem, StringComparison.OrdinalIgnoreCase);
     }
 
-    private string GetNavLinkClass(MenuItem menuItem)
-    {
-        // Retorna a classe CSS para links sem submenu
-        return IsActive(menuItem) ? "nav-link active" : "nav-link";
-        // Se ativo: "nav-link active", senão: "nav-link"
-    }
-
-    private string GetSubNavLinkClass(MenuItem menuItem)
-    {
-        // Retorna a classe CSS para subitens (mesma lógica do anterior)
-        return IsActive(menuItem) ? "nav-link active" : "nav-link";
-    }
-
-    private string GetNavGroupHeaderClass(MenuItem menuItem)
-    {
-        // Retorna a classe CSS para cabeçalhos de grupo
-        return IsSubMenuOpen(menuItem) ? "nav-group-header active" : "nav-group-header";
-        // Se o submenu está aberto: adiciona classe "active" para destacar
-    }
+    private string ObterClasseLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
+    private string ObterClasseSubLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
+    private string ObterClasseGrupo(MenuItem itemMenu) => SubMenuAberto(itemMenu) ? "nav-group-header active" : "nav-group-header";
 }

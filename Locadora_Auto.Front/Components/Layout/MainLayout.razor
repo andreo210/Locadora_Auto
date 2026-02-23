@@ -1,74 +1,52 @@
 ﻿@using Locadora_Auto.Front.Services
 @inherits LayoutComponentBase
-@inject NavigationManager Navigation
-@inject MenuService MenuService
+@inject NavigationManager Navegacao
+@inject MenuService ServicoMenu
 @inject IJSRuntime JS
 
 <div class="app-layout">
-    <!-- Container principal do aplicativo -->
-    <!-- Aplica a classe "dark-theme" se darkTheme for true, senão não aplica classe extra -->
-    <!-- Isso permite alternar entre tema claro e escuro via CSS -->
-
     <aside class="sidebar
-    @(sidebarOpen ? "open" : "")
-    @(sidebarCollapsed ? "collapsed" : "")"
-     >
-        <!-- Elemento aside (conteúdo complementar) para a sidebar -->
-        <!-- A classe "open" é adicionada quando sidebarOpen = true (mobile) -->
-        <!-- No desktop, a sidebar fica sempre visível, no mobile ela desliza -->
+    @(SidebarAberta ? "open" : "")
+    @(SidebarColapsada ? "collapsed" : "")">
 
-        <!-- BOTÃO COLAPSO (DESKTOP) -->
+        <!-- BOTÃO DE COLAPSO (DESKTOP) -->
         <div class="sidebar-collapse">
-            <button @onclick="ToggleCollapse">
-                <i class="bi @(sidebarCollapsed ? "bi-chevron-right" : "bi-chevron-left")"></i>
+            <img src="/images/logo.png" alt="Logo" class="sidebar-logo" />
+            <button @onclick="AlternarColapso">
+                <i class="bi @(SidebarColapsada ? "bi-chevron-right" : "bi-chevron-left")"></i>
             </button>
         </div>
 
-
-        <NavMenu   SidebarCollapsed="@sidebarCollapsed"
-                  OnToggleCollapse="ToggleCollapseFromMenu" />
-        <!-- Componente NavMenu (que vimos anteriormente) -->
-        <!-- Passa parâmetros: UserName e AvatarUrl para o componente filho -->
+        <NavMenu SidebarColapsada="@SidebarColapsada"  OnAlternarColapso="AlternarColapsoDoMenu" />
     </aside>
 
-    @if (sidebarOpen)
+    @if (SidebarAberta)
     {
-        <!-- Este bloco só é renderizado no mobile quando a sidebar está aberta -->
-        <div class="sidebar-overlay show" @onclick="CloseSidebar"></div>
-        <!-- Overlay escuro que cobre o conteúdo quando a sidebar está aberta no mobile -->
-        <!-- @onclick="CloseSidebar" - clicar no overlay fecha a sidebar -->
-        <!-- Classe "show" controla a opacidade via CSS -->
+        <div class="sidebar-overlay show" @onclick="FecharSidebar"></div>
     }
 
     <div class="main-area">
-        <!-- Área principal do conteúdo (direita da sidebar) -->
-
         <header class="topbar">
-            <!-- Topbar (barra superior) com título e ações -->
-
-            <button class="menu-toggle" @onclick="ToggleSidebar">
-                <!-- Botão do menu hambúrguer (visível apenas no mobile) -->
-                <!-- @onclick="ToggleSidebar" - clique alterna abertura da sidebar -->
+            <button class="menu-toggle" @onclick="AlternarSidebar">
                 <span class="bi bi-list"></span>
-                <!-- Ícone de lista (hambúrguer) do Bootstrap Icons -->
             </button>
 
-            <div class="page-title">@GetCurrentPageTitle()</div>
-            <!-- Título da página atual, obtido pelo método GetCurrentPageTitle() -->
+            <div class="page-title">@ObterTituloPaginaAtual()</div>
 
             <div class="topbar-actions">
-                <button class="theme-btn" @onclick="ToggleTheme">
-                    <span class="bi @(darkTheme ? "bi-sun" : "bi-moon")"></span>
+                <button class="theme-btn" @onclick="AlternarTema">
+                    <span class="bi @(TemaEscuro ? "bi-sun" : "bi-moon")"></span>
                 </button>
 
-                <div class="user-topbar" @onclick="ToggleUserMenu">
-                    <img class="avatar-top" src="@AvatarUrl" />
+                <div class="user-topbar" @onclick="AlternarMenuUsuario">
+                    <img class="avatar-top" src="@UrlAvatar" />
                     <div class="user-meta">
-                        <span class="user-name-top">@UserName</span>
+                        <span class="user-name-top">@NomeUsuario</span>
                         <span class="user-role-top">Administrador</span>
                     </div>
                 </div>
-                @if (ShowUserMenu)
+
+                @if (ExibirMenuUsuario)
                 {
                     <div class="user-dropdown">
                         <a href="/perfil">Perfil</a>
@@ -77,121 +55,76 @@
                         <a @onclick="Logout">Sair</a>
                     </div>
                 }
-
             </div>
         </header>
 
         <main class="content">
-            <!-- Área de conteúdo principal -->
             @Body
-            <!-- Local onde o conteúdo da página atual será renderizado -->
-            <!-- O @Body é substituído pelo conteúdo de cada página que usa este layout -->
         </main>
     </div>
 </div>
 
 @code {
-    private bool sidebarCollapsed = false;
-    private bool sidebarOpen = false;
-    // Controla se a sidebar está aberta no mobile
-    // false = fechada (padrão), true = aberta
+    private bool SidebarColapsada = false;
+    private bool SidebarAberta = false;
+    private bool TemaEscuro = false;
 
-    private bool darkTheme = false;
-    // Controla o tema atual
-    // true = tema escuro (padrão), false = tema claro
+    private string NomeUsuario = "André Oliveira";
+    private string UrlAvatar = "/images/avatar.png";
+    private bool ExibirMenuUsuario = false;
 
-    private string UserName = "André Oliveira";
-    // Nome do usuário logado (valor fixo para exemplo)
-    // Em um app real, viria de um serviço de autenticação
+    private void AlternarMenuUsuario() => ExibirMenuUsuario = !ExibirMenuUsuario;
 
-    private string AvatarUrl = "/images/avatar.png";
-    // URL da imagem do avatar (valor fixo para exemplo)
-    // Em um app real, viria de um serviço de autenticação
-    private bool ShowUserMenu = false;
-
-    private void ToggleUserMenu()
-    {
-        ShowUserMenu = !ShowUserMenu;
-    }
     private async Task Logout()
     {
-        ShowUserMenu = false;
-
-        // ajuste conforme sua autenticação
-        Navigation.NavigateTo("/auth/logout", true);
+        ExibirMenuUsuario = false;
+        Navegacao.NavigateTo("/auth/logout", true);
     }
 
-    private void CloseUserMenu()
+    private void FecharMenuUsuario() => ExibirMenuUsuario = false;
+
+    private void AlternarColapsoDoMenu()
     {
-        ShowUserMenu = false;
+        SidebarColapsada = !SidebarColapsada;
     }
 
-    private void ToggleCollapseFromMenu()
+    private async Task AlternarSidebar()
     {
-        if (sidebarCollapsed)
-            sidebarCollapsed = false;
-        else
-            sidebarCollapsed = true;
+        SidebarAberta = !SidebarAberta;
+
+        if (SidebarAberta)
+            SidebarColapsada = false;
     }
 
-
-    private async Task ToggleSidebar()
+    private void AlternarColapso()
     {
-        sidebarOpen = !sidebarOpen;
-
-        // Se estiver abrindo no mobile, garante que não está colapsado
-        if (sidebarOpen)
-        {
-            sidebarCollapsed = false;
-        }
-    }
-    private void ToggleCollapse()
-    {
-        if (IsMobile())
+        if (EhMobile())
             return;
-        sidebarCollapsed = !sidebarCollapsed;
 
-    }
-    private bool IsMobile()
-    {
-        return false; // Se quiser sofisticar depois com JS
-    }
-    private void CloseSidebar()
-    {
-        // Método chamado ao clicar no overlay (fundo escuro) no mobile
-        sidebarOpen = false;
-        // Força a sidebar a fechar (sempre coloca como false)
+        SidebarColapsada = !SidebarColapsada;
     }
 
-    private async Task ToggleTheme()
+    private bool EhMobile() => false; // Futuro ajuste com JS
+
+    private void FecharSidebar() => SidebarAberta = false;
+
+    private async Task AlternarTema()
     {
-        // Método chamado ao clicar no botão de tema (sol/lua)
-        darkTheme = !darkTheme;
-        await JS.InvokeVoidAsync("themeManager.setTheme", darkTheme);
-        //await JS.InvokeVoidAsync("setTheme", darkTheme);
-        // Inverte o tema: se escuro vira claro, se claro vira escuro
-        // A mudança visual ocorre porque a classe "dark-theme" é aplicada/removida no div.app-layout
+        TemaEscuro = !TemaEscuro;
+        await JS.InvokeVoidAsync("themeManager.setTheme", TemaEscuro);
     }
 
-    private string GetCurrentPageTitle()
+    private string ObterTituloPaginaAtual()
     {
-        // Método que retorna o título da página atual baseado na URL
-        var currentUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-        // Pega o caminho relativo da URL atual (ex: "clientes" ou "clientes/editar/1")
-        // Navigation.Uri retorna a URL completa
-        // ToBaseRelativePath() extrai apenas a parte relativa à base do app
-
-        return MenuService.GetMenuTitleByUrl(currentUrl) ?? "Dashboard";
-        // Chama o serviço MenuService para obter o título baseado na URL
-        // GetMenuTitleByUrl() procura um item de menu com a URL correspondente
-        // Se encontrar, retorna o título; se não encontrar (??), retorna "Dashboard" como padrão
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri);
+        return ServicoMenu.GetMenuTitleByUrl(urlAtual) ?? "Dashboard";
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool primeiraRenderizacao)
     {
-        if (firstRender)
+        if (primeiraRenderizacao)
         {
-            darkTheme = await JS.InvokeAsync<bool>("themeManager.loadTheme");
+            TemaEscuro = await JS.InvokeAsync<bool>("themeManager.loadTheme");
             StateHasChanged();
         }
     }
