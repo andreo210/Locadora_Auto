@@ -11,7 +11,7 @@
     --bg-hover: #e9ecef; /* Cor de fundo ao passar o mouse (cinza) */
     --accent-color: #2563eb; /* Cor de destaque (azul - mesma da sidebar) */
     --border-color: #e5e7eb; /* Cor das bordas (cinza claro) */
-    --sidebar-width: 260px; /* Largura fixa da sidebar */
+    --sidebar-width: 280px; /* Largura fixa da sidebar */
 }
 
 
@@ -50,10 +50,10 @@ html, body {
    SIDEBAR - DESKTOP
    ============================================ */
 .sidebar {
-    width: var(--sidebar-width) !important;  /* Largura: 260px (da variável) */
+    width: var(--sidebar-width) !important; /* Largura: 260px (da variável) */
     background-color: var(--bg-sidebar) !important; /* Fundo com !important para forçar */
     background: var(--bg-sidebar) !important; /* Propriedade background também forçada */
-    color: var(--text-sidebar)!important; /* Cor do texto */
+    color: var(--text-sidebar) !important; /* Cor do texto */
     display: flex; /* Layout flexível */
     flex-direction: column; /* Itens em coluna (um abaixo do outro) */
     height: 100vh; /* Altura total da tela */
@@ -64,6 +64,53 @@ html, body {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); /* Sombra sutil à direita */
     overflow-y: auto; /* Scroll vertical se necessário */
     flex-shrink: 0; /* Não encolhe em layouts flexíveis */
+    transition: width 0.3s ease !important;
+}
+
+    .sidebar.collapsed {
+        width: 70px !important;
+    }
+
+/* Esconder textos quando colapsado */
+.sidebar.collapsed .nav-group-title,
+.sidebar.collapsed .nav-group-arrow,
+.sidebar.collapsed .nav-link span:last-child,
+.sidebar.collapsed .user-name {
+    display: none !important;
+}
+
+/* Centralizar ícones quando colapsado */
+.sidebar.collapsed .nav-link {
+    justify-content: center !important;
+}
+
+/* ============================================
+   BOTÃO DE COLAPSO NA SIDEBAR
+============================================ */
+
+.sidebar-collapse {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+}
+
+    .sidebar-collapse button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        color: var(--text-sidebar);
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+    }
+
+        .sidebar-collapse button:hover {
+            background: var(--bg-hover);
+        }
+.sidebar.collapsed .sidebar-collapse {
+    justify-content: center;
 }
 
 /* Remove qualquer background de elementos internos que possam causar conflito */
@@ -348,10 +395,17 @@ html, body {
         background-color: var(--bg-sidebar) !important;
     }
 
-        .sidebar.open {
-            transform: translateX(0) !important; /* Quando aberta, volta à posição */
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2) !important; /* Sombra */
+        .sidebar.collapsed {
+            width: 280px !important; /* ignora colapso no mobile */            
         }
+    .sidebar-collapse {
+        display: none !important;
+    }
+
+    .sidebar.open {
+        transform: translateX(0) !important; /* Quando aberta, volta à posição */
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2) !important; /* Sombra */
+    }
 
         /* FORÇA A VISIBILIDADE DE TODOS OS ELEMENTOS NO MOBILE */
         .sidebar .nav-text,

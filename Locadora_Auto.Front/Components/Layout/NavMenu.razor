@@ -47,7 +47,7 @@
                 <div class="nav-group">
                     <!-- Container para o grupo de menu -->
 
-                    <div class="@GetNavGroupHeaderClass(menuItem)" @onclick="() => ToggleSubMenu(menuItem)">
+                    <div class="@GetNavGroupHeaderClass(menuItem)" @onclick="() => HandleGroupClick(menuItem)">
                         <!-- Cabeçalho do grupo clicável -->
                         <!-- GetNavGroupHeaderClass() define a classe CSS -->
                         <!-- @onclick chama ToggleSubMenu quando clicado para abrir/fechar submenu -->
@@ -105,12 +105,33 @@
     [Parameter] public string AvatarUrl { get; set; } = "/images/avatar.png";
     // URL da imagem do avatar com valor padrão
 
+    [Parameter] public bool SidebarCollapsed { get; set; }
+    [Parameter] public EventCallback OnToggleCollapse { get; set; }
+
     private List<MenuItem> _menuItems = new();
     // Lista privada que armazena todos os itens do menu carregados do serviço
 
     private HashSet<string> _openSubMenus = new();
     // HashSet que guarda os títulos dos menus que estão abertos
     // HashSet é eficiente para verificar se um item existe (Contains)
+    private async Task HandleGroupClick(MenuItem menuItem)
+    {
+        // Se estiver colapsada → expande primeiro
+        if (SidebarCollapsed)
+        {
+            await OnToggleCollapse.InvokeAsync();
+
+            // IMPORTANTE:
+            // após expandir, já abre o submenu também
+            ToggleSubMenu(menuItem);
+
+            return;
+        }
+
+        // Se já estiver expandida → comportamento normal
+        ToggleSubMenu(menuItem);
+    }
+
 
     protected override void OnInitialized()
     {
