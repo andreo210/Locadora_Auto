@@ -15,4 +15,8 @@
     <ProjectReference Include="..\Locadora_Auto.Front.Services\Locadora_Auto.Front.Services.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\css\" />
+  </ItemGroup>
+
 </Project>

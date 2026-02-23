@@ -26,6 +26,7 @@
     }
 
     <div class="main-area">
+        <!-- CABEÇALHO -->
         <header class="topbar">
             <button class="menu-toggle" @onclick="AlternarSidebar">
                 <span class="bi bi-list"></span>
@@ -58,9 +59,18 @@
             </div>
         </header>
 
+        <!-- CORPO -->
         <main class="content">
             @Body
         </main>
+
+
+        <!-- RODAPÉ -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span>© 2026 Locadora Auto. Todos os direitos reservados.</span>
+            </div>
+        </footer>
     </div>
 </div>
 
