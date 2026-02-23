@@ -131,7 +131,18 @@
         // Se já estiver expandida → comportamento normal
         ToggleSubMenu(menuItem);
     }
+    protected override void OnParametersSet()
+    {
+        if (SidebarCollapsed)
+        {
+            CloseAllSubMenus();
+        }
+    }
 
+    private void CloseAllSubMenus()
+    {
+        _openSubMenus.Clear();
+    }
 
     protected override void OnInitialized()
     {

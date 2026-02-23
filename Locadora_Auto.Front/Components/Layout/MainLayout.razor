@@ -28,7 +28,7 @@
         <NavMenu UserName="@UserName"
                  AvatarUrl="@AvatarUrl"
                  SidebarCollapsed="@sidebarCollapsed"
-                 OnToggleCollapse="ToggleCollapseFromMenu" />
+                  OnToggleCollapse="ToggleCollapseFromMenu" />
         <!-- Componente NavMenu (que vimos anteriormente) -->
         <!-- Passa parâmetros: UserName e AvatarUrl para o componente filho -->
     </aside>
@@ -137,6 +137,7 @@
         if (IsMobile())
             return;
         sidebarCollapsed = !sidebarCollapsed;
+
     }
     private bool IsMobile()
     {
