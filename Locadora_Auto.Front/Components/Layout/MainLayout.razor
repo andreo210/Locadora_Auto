@@ -25,9 +25,7 @@
         </div>
 
 
-        <NavMenu UserName="@UserName"
-                 AvatarUrl="@AvatarUrl"
-                 SidebarCollapsed="@sidebarCollapsed"
+        <NavMenu   SidebarCollapsed="@sidebarCollapsed"
                   OnToggleCollapse="ToggleCollapseFromMenu" />
         <!-- Componente NavMenu (que vimos anteriormente) -->
         <!-- Passa parâmetros: UserName e AvatarUrl para o componente filho -->
@@ -59,15 +57,28 @@
             <!-- Título da página atual, obtido pelo método GetCurrentPageTitle() -->
 
             <div class="topbar-actions">
-                <!-- Container para ações na topbar -->
-                <button @onclick="ToggleTheme">
-                    <!-- Botão para alternar tema claro/escuro -->
+                <button class="theme-btn" @onclick="ToggleTheme">
                     <span class="bi @(darkTheme ? "bi-sun" : "bi-moon")"></span>
-                    <!-- Ícone condicional:
-                         Se darkTheme = true (tema escuro) mostra ícone de sol (bi-sun)
-                         Se darkTheme = false (tema claro) mostra ícone de lua (bi-moon) -->
                 </button>
-               </div>
+
+                <div class="user-topbar" @onclick="ToggleUserMenu">
+                    <img class="avatar-top" src="@AvatarUrl" />
+                    <div class="user-meta">
+                        <span class="user-name-top">@UserName</span>
+                        <span class="user-role-top">Administrador</span>
+                    </div>
+                </div>
+                @if (ShowUserMenu)
+                {
+                    <div class="user-dropdown">
+                        <a href="/perfil">Perfil</a>
+                        <a href="/configuracoes">Configurações</a>
+                        <hr />
+                        <a @onclick="Logout">Sair</a>
+                    </div>
+                }
+
+            </div>
         </header>
 
         <main class="content">
@@ -96,23 +107,25 @@
     private string AvatarUrl = "/images/avatar.png";
     // URL da imagem do avatar (valor fixo para exemplo)
     // Em um app real, viria de um serviço de autenticação
+    private bool ShowUserMenu = false;
 
-    // protected override void OnInitialized()
-    // {
-    //     Navigation.LocationChanged += OnLocationChanged;
-    // }
-    // public void Dispose()
-    // {
-    //     Navigation.LocationChanged -= OnLocationChanged;
-    // }
-    // private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    // {
-    //     if (!sidebarCollapsed)
-    //     {
-    //         sidebarCollapsed = true;
-    //         InvokeAsync(StateHasChanged);
-    //     }
-    // }
+    private void ToggleUserMenu()
+    {
+        ShowUserMenu = !ShowUserMenu;
+    }
+    private async Task Logout()
+    {
+        ShowUserMenu = false;
+
+        // ajuste conforme sua autenticação
+        Navigation.NavigateTo("/auth/logout", true);
+    }
+
+    private void CloseUserMenu()
+    {
+        ShowUserMenu = false;
+    }
+
     private void ToggleCollapseFromMenu()
     {
         if (sidebarCollapsed)

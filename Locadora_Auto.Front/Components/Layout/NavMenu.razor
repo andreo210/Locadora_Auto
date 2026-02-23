@@ -3,7 +3,7 @@
 @inject NavigationManager Navigation
 @inject MenuService MenuService
 
-<div class="sidebar-header">
+@* <div class="sidebar-header">
     <!-- Cabeçalho da sidebar com informações do usuário -->
     <div class="user-info">
         <!-- Container flex para alinhar avatar e texto -->
@@ -17,7 +17,7 @@
             <!-- Cargo fixo "Administrador" -->
         </div>
     </div>
-</div>
+</div> *@
 
 <div class="nav-scrollable">
     <!-- Container com scroll para a navegação -->
@@ -99,10 +99,10 @@
 
 @code {
     // Parâmetros que podem ser passados de fora (pelo MainLayout)
-    [Parameter] public string UserName { get; set; } = "André Oliveira";
+    //[Parameter] public string UserName { get; set; } = "André Oliveira";
     // Nome do usuário com valor padrão
 
-    [Parameter] public string AvatarUrl { get; set; } = "/images/avatar.png";
+    //[Parameter] public string AvatarUrl { get; set; } = "/images/avatar.png";
     // URL da imagem do avatar com valor padrão
 
     [Parameter] public bool SidebarCollapsed { get; set; }
