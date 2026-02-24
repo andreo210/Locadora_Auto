@@ -93,6 +93,8 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
 
             claims.Add(new Claim(JwtRegisteredClaimNames.Sub, user.Id));
             claims.Add(new Claim(JwtRegisteredClaimNames.Email, user.Email));
+            claims.Add(new Claim(JwtRegisteredClaimNames.Name, user.NomeCompleto));
+            claims.Add(new Claim(JwtRegisteredClaimNames.UniqueName, user.Cpf));
             claims.Add(new Claim(JwtRegisteredClaimNames.Jti, id));
             claims.Add(new Claim(JwtRegisteredClaimNames.Nbf, DateTime.Now.ToString()));
             claims.Add(new Claim(JwtRegisteredClaimNames.Iat, ToUnixEpochDate(DateTime.UtcNow).ToString(), ClaimValueTypes.Integer64));

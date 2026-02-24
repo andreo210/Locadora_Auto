@@ -1,0 +1,44 @@
+﻿@page "/login"
+@using Locadora_Auto.Front.Components.Layout
+@layout LoginLayout
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3 class="mb-3">Entrar no Sistema</h3>
+
+<form id="loginForm" method="post" action="/auth/login">
+    <div class="mb-3">
+        <label>CPF:</label>
+        <input type="text"
+               class="form-control"
+               id="cpf-input"
+               name="username"
+               maxlength="14"
+               required />
+    </div>
+
+    <div class="mb-3">
+        <label>Senha</label>
+        <input type="password"
+               class="form-control"
+               name="password"
+               required />
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="btn-submit">
+        Entrar
+    </button>
+</form>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("mascaras.aplicarMascaraCPF", "cpf-input");
+            await JS.InvokeVoidAsync("mascaras.removerMascara", "loginForm", "cpf-input");
+        }
+    }
+
+
+}

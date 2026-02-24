@@ -1,11 +1,18 @@
 ﻿@inherits LayoutComponentBase
 @inject IJSRuntime JS
-<link href="~/login.css" rel="stylesheet" />
+@using Locadora_Auto.Front.Components.Notificacao
+
+
+<script src="/js/Mascaras.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<link href="/css/login.css" rel="stylesheet" />
+
 <div class="login-layout @(temaEscuro ? "dark-theme" : "")">
+    <NotificationDisplay />
     <div class="login-container">
         <div class="login-card">
             <div class="login-logo">
-                <img src="/images/logo.png" alt="Logo" />
+                <img src="/img/logo.png" alt="Logo" />
             </div>
 
             <div class="login-body">
@@ -54,8 +61,8 @@
     }
 
     .login-logo img {
-        width: 120px;
-        margin-bottom: 24px;
+        width: 180px;
+        margin-bottom: 80px;
     }
 
     .login-body {

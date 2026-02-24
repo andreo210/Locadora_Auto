@@ -3,6 +3,7 @@ using Locadora_Auto.Front.Models.Error;
 using Locadora_Auto.Front.Services.Exceptions;
 using Locadora_Auto.Front.Services.Models;
 using Locadora_Auto.Front.Services.Servicos.Notificacao;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Http.Json;
@@ -30,9 +31,9 @@ public class ApiHttpService : IApiHttpService
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<ApiHttpService>? _logger;
-    private readonly INotificationService _notificationService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public ApiHttpService(HttpClient http, ILogger<ApiHttpService>? logger = null, INotificationService notificationService = null)
+    public ApiHttpService(HttpClient http, ILogger<ApiHttpService>? logger = null, IServiceProvider serviceProvider = null)
     {
         _http = http;
         _logger = logger;
@@ -42,8 +43,28 @@ public class ApiHttpService : IApiHttpService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
-        _notificationService = notificationService;
+        _serviceProvider = serviceProvider;
     }
+
+    // Propriedade para acessar o NotificationService com segurança
+    private INotificationService? NotificationService
+    {
+        get
+        {
+            try
+            {
+                // Cria um escopo para resolver o serviço scoped
+                using var scope = _serviceProvider.CreateScope();
+                return scope.ServiceProvider.GetRequiredService<INotificationService>();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Erro ao resolver NotificationService");
+                return null;
+            }
+        }
+    }
+
 
     // GET
     public async Task<T?> GetAsync<T>(string url)
@@ -145,9 +166,9 @@ public class ApiHttpService : IApiHttpService
 
             if (validationError?.Errors != null && validationError.Errors.Any())
             {
-                _notificationService.ShowValidationErrors(validationError.Errors);
+                NotificationService.ShowValidationErrors(validationError.Errors);
                 // Cria uma exceção de validação com os detalhes
-                throw new ValidationErrorException(validationError.GetErrorMessage(), response.StatusCode,validationError.Errors);
+                //throw new ValidationErrorException(validationError.GetErrorMessage(), response.StatusCode,validationError.Errors);
             }
 
 
@@ -155,7 +176,7 @@ public class ApiHttpService : IApiHttpService
             var simpleError = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
             if (simpleError?.Message != null)
             {
-                _notificationService.ShowError(simpleError.Message);
+                NotificationService.ShowError(simpleError.Message);
                 throw new CustomHttpRequestException(simpleError.Message, response.StatusCode, simpleError);
             }
         }
@@ -166,30 +187,25 @@ public class ApiHttpService : IApiHttpService
         }
 
         // Fallback para erros padrão HTTP
-        throw response.StatusCode switch
-        {
-            HttpStatusCode.Unauthorized =>
-                new CustomHttpRequestException("Token inválido ou expirado", response.StatusCode),
+        //throw response.StatusCode switch
+        //{
+        //    //HttpStatusCode.Unauthorized =>new CustomHttpRequestException("Token inválido ou expirado", response.StatusCode),
 
-            HttpStatusCode.Forbidden =>
-                new CustomHttpRequestException("Acesso negado", response.StatusCode),
+        //    HttpStatusCode.Forbidden => new CustomHttpRequestException("Acesso negado", response.StatusCode),
 
-            HttpStatusCode.BadRequest =>
-                new CustomHttpRequestException("Requisição inválida", response.StatusCode),
+        //    //HttpStatusCode.BadRequest => new CustomHttpRequestException("Requisição inválida", response.StatusCode),
 
-            HttpStatusCode.NotFound =>
-                new CustomHttpRequestException("Recurso não encontrado", response.StatusCode),
+        //    //HttpStatusCode.NotFound =>   new CustomHttpRequestException("Recurso não encontrado", response.StatusCode),
 
-            HttpStatusCode.Conflict =>
-                new CustomHttpRequestException("Conflito de dados", response.StatusCode),
+        //   // HttpStatusCode.Conflict =>    new CustomHttpRequestException("Conflito de dados", response.StatusCode),
 
-            HttpStatusCode.InternalServerError =>
-                new CustomHttpRequestException("Erro interno do servidor", response.StatusCode),
+        //    HttpStatusCode.InternalServerError =>
+        //        new CustomHttpRequestException("Erro interno do servidor", response.StatusCode),
 
-            _ => new CustomHttpRequestException(
-                $"Erro na requisição: {response.StatusCode}",
-                response.StatusCode)
-        };
+        //    _ => new CustomHttpRequestException(
+        //        $"Erro na requisição: {response.StatusCode}",
+        //        response.StatusCode)
+        //};
     }
 
     private string GetErrorMessageForStatusCode(HttpStatusCode statusCode)

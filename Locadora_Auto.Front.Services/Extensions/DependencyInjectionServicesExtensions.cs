@@ -13,6 +13,11 @@ namespace Locadora_Auto.Front.Extensions
     {
         public static IServiceCollection AddServices(this IServiceCollection services,IConfiguration configuration)
         {
+            // Primeiro, registre os serviços de notificação
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IConfirmDialogService, ConfirmDialogService>();
+
+
             services.Configure<ApiConfig>(configuration.GetSection("ApiConfig"));
             services.AddHttpContextAccessor();
 
@@ -31,7 +36,7 @@ namespace Locadora_Auto.Front.Extensions
 
             services.AddScoped<IUsuarioAsp, UsuarioAsp>();
             services.AddScoped<ILoginService, LoginService>();
-            //services.AddScoped<INotificationService, NotificationService>();
+ 
 
             return services;
         }

@@ -1,9 +1,11 @@
+using FluentValidation;
 using Locadora_Auto.Front.Components;
 using Locadora_Auto.Front.Extensions;
 using Locadora_Auto.Front.Midlleware;
 using Locadora_Auto.Front.Models.OAuth;
 using Locadora_Auto.Front.Services;
 using Locadora_Auto.Front.Services.Servicos.Login;
+using Locadora_Auto.Front.Services.Servicos.Notificacao;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
@@ -11,16 +13,26 @@ using Microsoft.AspNetCore.Mvc;
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
 
+//builder.Services.AddScoped<INotificationService, NotificationService>();
+//builder.Services.AddScoped<NotificationService>();
+//builder.Services.AddScoped<INotificationService>(sp =>
+//    sp.GetRequiredService<NotificationService>());
+
 builder.Services.AddServices(config);
 //builder.Services.AddAuthorizationCore();
 //builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAutenticacao(config);
 builder.Services.AddScoped<MenuService>();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddScoped(sp =>
 {
     var navigation = sp.GetRequiredService<NavigationManager>();
-
+    var handler = new HttpClientHandler
+    {
+        UseCookies = true,
+        CookieContainer = new System.Net.CookieContainer()
+    };
     return new HttpClient
     {
         BaseAddress = new Uri(navigation.BaseUri)
@@ -51,6 +63,7 @@ app.UseAntiforgery();
 
 app.MapPost("/auth/login", async (HttpContext context, ILoginService loginService,  [FromForm] LoginRequest request) =>
 {
+    request.username = request.username.Replace(".","").Replace("-", "");
     var result = await loginService.Login(request);
 
     if (result.Principal == null)

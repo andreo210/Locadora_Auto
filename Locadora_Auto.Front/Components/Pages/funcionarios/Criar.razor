@@ -1,0 +1,354 @@
+﻿@page "/funcionarios/novo"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject NavigationManager Navigation
+@inject INotificationService NotificationService
+@inject IServiceProvider ServiceProvider
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Novo Usuário</h2>
+            <p class="text-muted">Preencha os dados para cadastrar um novo funcionário</p>
+        </div>
+    </div>
+
+    <EditForm Model="@usuario" OnValidSubmit="@HandleSubmit" Context="formContext">
+        <FluentValidationValidator @ref="fluentValidator" />
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados Pessoais</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Matrícula -->
+                        <div class="mb-3">
+                            <label class="form-label">Matrícula <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="usuario.Matricula"
+                                       class="form-control"
+                                       placeholder="Digite a matrícula" />
+                            <ValidationMessage For="@(() => usuario.Matricula)" />
+                        </div>
+
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="usuario.Nome"
+                                       class="form-control"
+                                       placeholder="Digite o nome completo" />
+                            <ValidationMessage For="@(() => usuario.Nome)" />
+                        </div>
+
+                        <!-- CPF com máscara -->
+                        <InputCPF @bind-Value="usuario.Cpf"  Label="CPF:"  Placeholder="Digite o CPF"/>
+                        <ValidationMessage For="@(() => usuario.Cpf)" />
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Contato</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- E-mail -->
+                        <div class="mb-3">
+                            <label class="form-label">E-mail <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="usuario.Email"
+                                       class="form-control"
+                                       type="email"
+                                       placeholder="email@exemplo.com" />
+                            <ValidationMessage For="@(() => usuario.Email)" />
+                        </div>
+
+                        <!-- Telefone com máscara -->
+                        <InputTelefone @bind-Value="usuario.Telefone"
+                                       Label="Telefone para Contato"
+                                       Placeholder="(00) 00000-0000" />
+                        <ValidationMessage For="@(() => usuario.Telefone)" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados Profissionais</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Cargo -->
+                        <div class="mb-3">
+                            <label class="form-label">Cargo <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="usuario.Cargo" class="form-select">
+                                <option value="">Selecione um cargo</option>
+                                @foreach (var cargo in Enum.GetValues<CargoEnum>())
+                                {
+                                    <option value="@cargo">@cargo.GetDisplayName()</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => usuario.Cargo)" />
+                        </div>
+
+                        <!-- Status (Ativo/Inativo) -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <InputCheckbox @bind-Value="usuario.Status"
+                                               class="form-check-input"
+                                               id="status" />
+                                <label class="form-check-label" for="status">Usuário Ativo</label>
+                            </div>
+                        </div>
+
+                        <!-- Permissões -->
+                        <div class="mb-3">
+                            <label class="form-label d-block">Permissões <span class="text-danger">*</span></label>
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                @foreach (var permissao in permissoesDisponiveis)
+                                {
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               id="@permissao"
+                                               @onchange="@((e) => TogglePermissao(permissao, e.Value?.ToString()))"
+                                               checked="@usuario.Permissoes.Contains(permissao)" />
+                                        <label class="form-check-label" for="@permissao">
+                                            @permissao
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            <ValidationMessage For="@(() => usuario.Permissoes)" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Segurança</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Senha -->
+                        <div class="mb-3">
+                            <label class="form-label">Senha <span class="text-danger">*</span></label>
+                            <InputText type="password"
+                                       @bind-Value="usuario.Senha"
+                                       class="form-control"
+                                       placeholder="Mínimo 6 caracteres" />
+                            <ValidationMessage For="@(() => usuario.Senha)" />
+                            <small class="text-muted">
+                                A senha deve conter letras maiúsculas, minúsculas e números
+                            </small>
+                        </div>
+
+                        <!-- Confirme Senha -->
+                        <div class="mb-3">
+                            <label class="form-label">Confirme a Senha <span class="text-danger">*</span></label>
+                            <InputText type="password"
+                                       @bind-Value="usuario.ConfirmeSenha"
+                                       class="form-control"
+                                       placeholder="Digite a senha novamente" />
+                            <ValidationMessage For="@(() => usuario.ConfirmeSenha)" />
+                        </div>
+
+                        <!-- Indicador de força da senha -->
+                        @if (!string.IsNullOrEmpty(usuario.Senha))
+                        {
+                            <div class="mt-2">
+                                <label class="small">Força da senha:</label>
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar @GetForcaSenhaClass()"
+                                         style="width: @(GetForcaSenha() * 20)%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancelar" @onclick:preventDefault="false">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Salvar Usuário</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private FuncionarioRequest usuario = new();
+    private bool processando;
+    private FluentValidationValidator? fluentValidator;
+
+    private List<string> permissoesDisponiveis = new()
+    {
+        "Administrador",
+        "Gerente",
+        "Operador",
+        "Vendedor",
+        "Financeiro",
+        "Relatorios",
+        "Configuracoes"
+    };
+
+    protected override void OnInitialized()
+    {
+        // Inicializar com algumas permissões padrão se necessário
+        usuario.Permissoes = new List<string>();
+    }
+
+    private void TogglePermissao(string permissao, string? checkedValue)
+    {
+        var isChecked = checkedValue == "on";
+
+        if (isChecked && !usuario.Permissoes.Contains(permissao))
+            usuario.Permissoes.Add(permissao);
+        else if (!isChecked && usuario.Permissoes.Contains(permissao))
+            usuario.Permissoes.Remove(permissao);
+
+        // Forçar atualização da UI
+        StateHasChanged();
+    }
+
+    private int GetForcaSenha()
+    {
+        if (string.IsNullOrEmpty(usuario.Senha)) return 0;
+
+        int forca = 0;
+
+        if (usuario.Senha.Length >= 6) forca++;
+        if (usuario.Senha.Any(char.IsUpper)) forca++;
+        if (usuario.Senha.Any(char.IsLower)) forca++;
+        if (usuario.Senha.Any(char.IsDigit)) forca++;
+        if (usuario.Senha.Any(c => !char.IsLetterOrDigit(c))) forca++;
+
+        return forca;
+    }
+
+    private string GetForcaSenhaClass()
+    {
+        return GetForcaSenha() switch
+        {
+            0 or 1 => "bg-danger",
+            2 or 3 => "bg-warning",
+            4 => "bg-info",
+            5 => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Validar usando FluentValidation
+            var validator = new FuncionarioValidator();
+            var result = await validator.ValidateAsync(usuario);
+
+            if (!result.IsValid)
+            {
+                // Converter erros do FluentValidation para o formato do NotificationService
+                var errors = result.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.ErrorMessage).ToArray()
+                    );
+
+                NotificationService.ShowValidationErrors(errors);
+                processando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Simular chamada à API
+            await Task.Delay(1500);
+
+            // Notificar sucesso
+            NotificationService.ShowSuccess(
+                "Usuário cadastrado com sucesso!",
+                "Cadastro Realizado"
+            );
+
+            // Limpar formulário
+            usuario = new FuncionarioRequest();
+            usuario.Permissoes = new List<string>();
+
+            // Opcional: redirecionar após sucesso
+            await Task.Delay(2000); // Espera 2 segundos para mostrar a mensagem
+            Navigation.NavigateTo("/funcionarios/novo");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError(
+                $"Erro ao cadastrar usuário: {ex.Message}",
+                "Erro no Cadastro"
+            );
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cancelar()
+    {
+        if (HasUnsavedChanges())
+        {
+            // Aqui você pode implementar um diálogo de confirmação
+            // Como ainda não temos o ConfirmDialogService pronto, vamos usar confirm do JS
+            var confirmed = await Task.Run(() => false); // Placeholder
+
+            // Se tiver o ConfirmDialogService, use assim:
+            // var confirmed = await ConfirmService.ConfirmAsync(
+            //     "Existem dados não salvos. Deseja realmente sair?",
+            //     "Cancelar Cadastro"
+            // );
+
+            // Por enquanto, vamos cancelar direto
+            Navigation.NavigateTo("/funcionarios");
+        }
+        else
+        {
+            Navigation.NavigateTo("/funcionarios");
+        }
+    }
+
+    private bool HasUnsavedChanges()
+    {
+        return !string.IsNullOrEmpty(usuario.Matricula) ||
+               !string.IsNullOrEmpty(usuario.Nome) ||
+               !string.IsNullOrEmpty(usuario.Cpf) ||
+               !string.IsNullOrEmpty(usuario.Email) ||
+               !string.IsNullOrEmpty(usuario.Telefone) ||
+               !string.IsNullOrEmpty(usuario.Cargo) ||
+               !string.IsNullOrEmpty(usuario.Senha) ||
+               usuario.Permissoes.Any();
+    }
+}

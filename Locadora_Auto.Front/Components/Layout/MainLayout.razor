@@ -1,17 +1,22 @@
 ﻿@using Locadora_Auto.Front.Services
+@using Locadora_Auto.Front.Services.Usuarios
 @inherits LayoutComponentBase
 @inject NavigationManager Navegacao
+@inject IUsuarioAsp usuario
 @inject MenuService ServicoMenu
 @inject IJSRuntime JS
-
+@using Locadora_Auto.Front.Components.Notificacao
 <div class="app-layout">
+    <!-- NOTIFICAÇÕES - DEVE FICAR FORA DO FLUXO PRINCIPAL PARA FICAR SOBRE TUDO -->
+    <NotificationDisplay />
+
     <aside class="sidebar
     @(SidebarAberta ? "open" : "")
     @(SidebarColapsada ? "collapsed" : "")">
 
         <!-- BOTÃO DE COLAPSO (DESKTOP) -->
         <div class="sidebar-collapse">
-            <img src="/images/logo.png" alt="Logo" class="sidebar-logo" />
+            <img src="/img/logo.png" alt="Logo" class="sidebar-logo" /> 
             <button @onclick="AlternarColapso">
                 <i class="bi @(SidebarColapsada ? "bi-chevron-right" : "bi-chevron-left")"></i>
             </button>
@@ -64,7 +69,6 @@
             @Body
         </main>
 
-
         <!-- RODAPÉ -->
         <footer class="footer">
             <div class="footer-content">
@@ -79,8 +83,8 @@
     private bool SidebarAberta = false;
     private bool TemaEscuro = false;
 
-    private string NomeUsuario = "André Oliveira";
-    private string UrlAvatar = "/images/avatar.png";
+    private string NomeUsuario;
+    private string UrlAvatar = "/img/avatar.png";
     private bool ExibirMenuUsuario = false;
 
     private void AlternarMenuUsuario() => ExibirMenuUsuario = !ExibirMenuUsuario;
@@ -128,6 +132,13 @@
     {
         var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri);
         return ServicoMenu.GetMenuTitleByUrl(urlAtual) ?? "Dashboard";
+    }
+
+    //construtor
+    protected override async Task OnInitializedAsync()
+    {
+        NomeUsuario = usuario.ObterNome();
+        await base.OnInitializedAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool primeiraRenderizacao)

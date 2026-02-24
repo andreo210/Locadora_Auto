@@ -1,0 +1,60 @@
+﻿@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject IConfirmDialogService ConfirmService
+@implements IDisposable
+
+@if (_isVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@_title</h5>
+                    <button type="button" class="btn-close" @onclick="() => Cancel()"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@_message</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="Cancel">Não</button>
+                    <button class="btn btn-primary" @onclick="Confirm">Sim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isVisible;
+    private string _message = "";
+    private string _title = "";
+
+    protected override void OnInitialized()
+    {
+        ConfirmService.OnShow += ShowDialog;
+    }
+
+    private async Task ShowDialog(string message, string title)
+    {
+        _message = message;
+        _title = title;
+        _isVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Confirm()
+    {
+        _isVisible = false;
+        ConfirmService.SetResult(true);
+    }
+
+    private void Cancel()
+    {
+        _isVisible = false;
+        ConfirmService.SetResult(false);
+    }
+
+    public void Dispose()
+    {
+        ConfirmService.OnShow -= ShowDialog;
+    }
+}
