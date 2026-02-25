@@ -275,10 +275,18 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
             var createUserResult = await _userManager.CreateAsync(user, funcionarioDto.Senha);
             if (!createUserResult.Succeeded)
-                throw new InvalidOperationException(string.Join(", ", createUserResult.Errors.Select(e => e.Description)));
+            {
+                foreach (var error in createUserResult.Errors)
+                {
+                    _notificador.Add(error.Description);
+                }
+            }
 
+            foreach (var role in funcionarioDto.Permissoes)
+            {
+                await _userManager.AddToRoleAsync(user, role);
+            }
             // 2. Atribuir role de funcionário
-            await _userManager.AddToRoleAsync(user, "Admin");
             await _funcionarioRepository.SalvarAsync();
 
             // 3. Atribuir permissões específicas
@@ -688,9 +696,9 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             // Verificar se matrícula já existe
             if (await ExisteFuncionarioAsync(funcionarioDto.Matricula, ct))_notificador.Add($"Matrícula {funcionarioDto.Matricula} já cadastrada.");
 
-            // Verificar se CPF já existe
-            //if (await ExisteFuncionarioPorCpfAsync(funcionarioDto.Cpf, ct))
-            //    throw new InvalidOperationException($"CPF {funcionarioDto.Cpf} já cadastrado.");
+            //Verificar se CPF já existe
+            if (await ExisteFuncionarioPorCpfAsync(funcionarioDto.Cpf, ct)) _notificador.Add($"CPF: {funcionarioDto.Cpf} já cadastrado.");
+
 
             // Verificar se email já existe no Identity
             var emailExists = await _userManager.FindByEmailAsync(funcionarioDto.Email);

@@ -38,8 +38,8 @@ namespace Locadora_Auto.Front.Models.Validadores
                 .Length(11, 11).WithMessage("CPF deve ter 11 dígitos")
                 .Must(ValidarCPF).WithMessage("CPF inválido");
 
-            //RuleFor(x => x.Permissoes)
-            //    .NotEmpty().WithMessage("Selecione pelo menos uma permissão");
+            RuleFor(x => x.Permissoes)
+                .NotEmpty().WithMessage("Selecione pelo menos uma permissão");
 
             RuleFor(x => x.Senha)
                 .NotEmpty().WithMessage("Senha é obrigatória")

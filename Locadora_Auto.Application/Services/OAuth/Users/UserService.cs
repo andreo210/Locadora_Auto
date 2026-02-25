@@ -1,11 +1,14 @@
-﻿using Locadora_Auto.Application.Extensions;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Extensions;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Locadora_Auto.Application.Services.OAuth.Users
 {
@@ -15,21 +18,24 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
         private readonly IUserRepository _userRepository;
         private readonly SignInManager<User> _signInManager;
         private readonly ITokenRepository _tokenRepository;
-
+        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly INotificadorService _notificador;
         public UserService(
             UserManager<User> userManager,
             IUserRepository userRepository,
             SignInManager<User> signInManager,
+            RoleManager<IdentityRole> roleManager,
+            INotificadorService notificador,
             ITokenRepository tokenRepository)
         {
             _userManager = userManager;
             _userRepository = userRepository;
             _signInManager = signInManager;
             _tokenRepository = tokenRepository;
+            _roleManager = roleManager;
         }
 
        
-
 
         public async Task<SignInResult> LoginAsync(LoginDto dto)
         {

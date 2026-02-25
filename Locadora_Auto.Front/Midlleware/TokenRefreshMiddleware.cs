@@ -7,12 +7,10 @@ namespace Locadora_Auto.Front.Midlleware
     public class TokenRefreshMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IApiHttpService _api;
 
-        public TokenRefreshMiddleware(RequestDelegate next,IApiHttpService api)
+        public TokenRefreshMiddleware(RequestDelegate next)
         {
             _next = next;
-            _api = api;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -32,17 +30,19 @@ namespace Locadora_Auto.Front.Midlleware
                     {
                         if (!string.IsNullOrEmpty(refreshToken))
                         {
-                            
+
+                            var _api = context.RequestServices
+                                             .GetRequiredService<IApiHttpService>();
 
                             var response = await _api.PostAsync<TokenResponse,string>("/api/v1/Users/renovar", refreshToken);
 
-                            if (response!=null)
+                            if (response.objeto !=null)
                             {
                                 var authResult =  await context.AuthenticateAsync("Cookies");
 
-                                authResult.Properties.UpdateTokenValue("access_token", response.AccessToken);
+                                authResult.Properties.UpdateTokenValue("access_token", response.objeto.AccessToken);
 
-                                authResult.Properties.UpdateTokenValue("refresh_token",response.RefreshToken);
+                                authResult.Properties.UpdateTokenValue("refresh_token",response.objeto.RefreshToken);
 
                                 await context.SignInAsync("Cookies", authResult.Principal, authResult.Properties);
                             }

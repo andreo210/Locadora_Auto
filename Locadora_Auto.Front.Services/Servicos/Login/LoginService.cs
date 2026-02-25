@@ -26,10 +26,10 @@ namespace Locadora_Auto.Front.Services.Servicos.Login
         {
             var response = await _api.PostAsync<TokenResponse, LoginRequest>("api/v1/Users/autenticar", request);
 
-            if (response == null || string.IsNullOrWhiteSpace(response.AccessToken))
+            if (response.objeto == null || string.IsNullOrWhiteSpace(response.objeto.AccessToken))
                 return (null, null, null);
 
-            var token = response.AccessToken;
+            var token = response.objeto.AccessToken;
             var handler = new JwtSecurityTokenHandler();
 
             var jwt = handler.ReadJwtToken(token);
@@ -64,7 +64,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Login
             try
             {
                 var principal = handler.ValidateToken(token, validationParameters, out _);
-                return (principal, token,response.RefreshToken);
+                return (principal, token,response.objeto.RefreshToken);
             }
             catch
             {

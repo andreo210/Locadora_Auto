@@ -37,7 +37,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         public async Task<ActionResult<FuncionarioDto>> Post([FromBody] CriarFuncionarioDto dto, CancellationToken ct)
         {
             var funcionario = await _funcionarioService.CriarFuncionarioAsync(dto, ct);
-            return CustomResponse(HttpStatusCode.Created);
+            return CustomResponse(funcionario,HttpStatusCode.Created);
         }
 
         /// <summary>

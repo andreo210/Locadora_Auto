@@ -1,5 +1,6 @@
 ﻿using Blazored.LocalStorage;
 using Locadora_Auto.Front.Services.Configuration;
+using Locadora_Auto.Front.Services.Servicos.Funcionario;
 using Locadora_Auto.Front.Services.Servicos.Login;
 using Locadora_Auto.Front.Services.Servicos.Notificacao;
 using Locadora_Auto.Front.Services.Usuarios;
@@ -36,7 +37,8 @@ namespace Locadora_Auto.Front.Extensions
 
             services.AddScoped<IUsuarioAsp, UsuarioAsp>();
             services.AddScoped<ILoginService, LoginService>();
- 
+            services.AddScoped<IFuncionarioService, FuncionarioService>();
+
 
             return services;
         }

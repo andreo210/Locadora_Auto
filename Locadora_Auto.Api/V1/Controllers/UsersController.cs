@@ -26,6 +26,15 @@ namespace Locadora_Auto.Api.V1.Controllers
             _tokenService = tokenService;
         }
 
+        [HttpPost("roles")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesDefaultResponseType]
+        public async Task<IActionResult> CriarRole(CriarRoleDto role)
+        {
+            var result = await _roleService.CriarRolesAsync(role.Nome, role.Descricao);
+            return CustomResponse(result,HttpStatusCode.Created);
+        }
+
 
         [HttpPost("{userId:guid}/roles/{role}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -40,6 +49,13 @@ namespace Locadora_Auto.Api.V1.Controllers
         public async Task<IActionResult> ObterRoles(string userId)
         {
             var roles = await _roleService.ObterRolesAsync(userId);
+            return Ok(roles);
+        }
+
+        [HttpGet("roles")]
+        public async Task<IActionResult> ObterTodasRoles()
+        {
+            var roles = await _roleService.ObterTodasRoles();
             return Ok(roles);
         }
 

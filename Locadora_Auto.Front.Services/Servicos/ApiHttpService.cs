@@ -1,5 +1,4 @@
-﻿// Services/Servicos/ApiHttpService.cs
-using Locadora_Auto.Front.Models.Error;
+﻿using Locadora_Auto.Front.Models.Error;
 using Locadora_Auto.Front.Services.Exceptions;
 using Locadora_Auto.Front.Services.Models;
 using Locadora_Auto.Front.Services.Servicos.Notificacao;
@@ -15,7 +14,7 @@ using System.Text.Json.Serialization;
 public interface IApiHttpService
 {
     Task<T?> GetAsync<T>(string url);
-    Task<TResponse?> PostAsync<TResponse, TRequest>(string url, TRequest data);
+    Task<(TResponse? objeto, HttpStatusCode code)> PostAsync<TResponse, TRequest>(string url, TRequest data);
     Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest data);
     Task<TResponse?> PatchAsync<TRequest, TResponse>(string url, TRequest data);
     Task<bool> DeleteAsync(string url);
@@ -31,9 +30,9 @@ public class ApiHttpService : IApiHttpService
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ILogger<ApiHttpService>? _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly INotificationService NotificationService;
 
-    public ApiHttpService(HttpClient http, ILogger<ApiHttpService>? logger = null, IServiceProvider serviceProvider = null)
+    public ApiHttpService(HttpClient http, ILogger<ApiHttpService>? logger = null, INotificationService _NotificationService = null)
     {
         _http = http;
         _logger = logger;
@@ -43,27 +42,11 @@ public class ApiHttpService : IApiHttpService
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
-        _serviceProvider = serviceProvider;
+        NotificationService = _NotificationService;
     }
 
     // Propriedade para acessar o NotificationService com segurança
-    private INotificationService? NotificationService
-    {
-        get
-        {
-            try
-            {
-                // Cria um escopo para resolver o serviço scoped
-                using var scope = _serviceProvider.CreateScope();
-                return scope.ServiceProvider.GetRequiredService<INotificationService>();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Erro ao resolver NotificationService");
-                return null;
-            }
-        }
-    }
+   
 
 
     // GET
@@ -75,12 +58,21 @@ public class ApiHttpService : IApiHttpService
     }
 
     // POST com retorno
-    public async Task<TResponse?> PostAsync<TResponse,TRequest>(string url, TRequest data)
+    // POST com retorno
+    public async Task<(TResponse? objeto, HttpStatusCode code)> PostAsync<TResponse, TRequest>(string url, TRequest data)
     {
-        var response = await _http.PostAsJsonAsync(url, data, _jsonOptions);
-        await TratarErrosResponse(response);
-        return await DeserializarObjetoResponse<TResponse>(response);
+        var response = await _http.PostAsJsonAsync(url, data);
+         await TratarErrosResponse(response);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return (default, response.StatusCode);
+        }
+
+        var resposta = await DeserializarObjetoResponse<TResponse>(response);
+        return (resposta, response.StatusCode);
     }
+
 
     // POST sem retorno
     public async Task<bool> PostAsync<TRequest>(string url, TRequest data)
@@ -158,55 +150,87 @@ public class ApiHttpService : IApiHttpService
             return;
 
         var content = await response.Content.ReadAsStringAsync();
-
-        try
+        if (response.StatusCode != HttpStatusCode.BadRequest)
         {
+            var mensagem = GetErrorMessageForStatusCode(response.StatusCode);
+            NotificationService.ShowError(mensagem);
+        }
+        else
+        {
+
             // Tenta desserializar como ValidationProblemDetails primeiro
-            var validationError = JsonSerializer.Deserialize<ValidationProblemDetails>( content, _jsonOptions);
+            var validationError = JsonSerializer.Deserialize<ValidationProblemDetails>(content, _jsonOptions);
 
             if (validationError?.Errors != null && validationError.Errors.Any())
             {
                 NotificationService.ShowValidationErrors(validationError.Errors);
-                // Cria uma exceção de validação com os detalhes
-                //throw new ValidationErrorException(validationError.GetErrorMessage(), response.StatusCode,validationError.Errors);
+
             }
 
-
-            // Se não for ValidationProblemDetails, tenta como erro simples
             var simpleError = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
             if (simpleError?.Message != null)
             {
                 NotificationService.ShowError(simpleError.Message);
-                throw new CustomHttpRequestException(simpleError.Message, response.StatusCode, simpleError);
+                await Task.Delay(2000);
             }
-        }
-        catch (JsonException)
-        {
-            // Se não conseguir desserializar, usa o conteúdo bruto
-            _logger?.LogDebug("Resposta de erro não está em formato JSON esperado");
-        }
-
-        // Fallback para erros padrão HTTP
-        //throw response.StatusCode switch
-        //{
-        //    //HttpStatusCode.Unauthorized =>new CustomHttpRequestException("Token inválido ou expirado", response.StatusCode),
-
-        //    HttpStatusCode.Forbidden => new CustomHttpRequestException("Acesso negado", response.StatusCode),
-
-        //    //HttpStatusCode.BadRequest => new CustomHttpRequestException("Requisição inválida", response.StatusCode),
-
-        //    //HttpStatusCode.NotFound =>   new CustomHttpRequestException("Recurso não encontrado", response.StatusCode),
-
-        //   // HttpStatusCode.Conflict =>    new CustomHttpRequestException("Conflito de dados", response.StatusCode),
-
-        //    HttpStatusCode.InternalServerError =>
-        //        new CustomHttpRequestException("Erro interno do servidor", response.StatusCode),
-
-        //    _ => new CustomHttpRequestException(
-        //        $"Erro na requisição: {response.StatusCode}",
-        //        response.StatusCode)
-        //};
+        }        
     }
+
+    //private async Task TratarErrosResponse(HttpResponseMessage response)
+    //{
+    //    if (response.IsSuccessStatusCode)
+    //        return;
+
+    //    var content = await response.Content.ReadAsStringAsync();
+
+    //    try
+    //    {
+    //        // Tenta desserializar como ValidationProblemDetails primeiro
+    //        var validationError = JsonSerializer.Deserialize<ValidationProblemDetails>(content, _jsonOptions);
+
+    //        if (validationError?.Errors != null && validationError.Errors.Any())
+    //        {
+    //            NotificationService.ShowValidationErrors(validationError.Errors);
+    //            // Cria uma exceção de validação com os detalhes
+    //            //throw new ValidationErrorException(validationError.GetErrorMessage(), response.StatusCode,validationError.Errors);
+    //        }
+
+
+    //        // Se não for ValidationProblemDetails, tenta como erro simples
+    //        var simpleError = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
+    //        if (simpleError?.Message != null)
+    //        {
+    //            NotificationService.ShowError(simpleError.Message);
+    //            throw new CustomHttpRequestException(simpleError.Message, response.StatusCode, simpleError);
+    //        }
+    //    }
+    //    catch (JsonException)
+    //    {
+    //        // Se não conseguir desserializar, usa o conteúdo bruto
+    //        _logger?.LogDebug("Resposta de erro não está em formato JSON esperado");
+    //    }
+
+    //    // Fallback para erros padrão HTTP
+    //    //throw response.StatusCode switch
+    //    //{
+    //    //    //HttpStatusCode.Unauthorized =>new CustomHttpRequestException("Token inválido ou expirado", response.StatusCode),
+
+    //    //    HttpStatusCode.Forbidden => new CustomHttpRequestException("Acesso negado", response.StatusCode),
+
+    //    //    //HttpStatusCode.BadRequest => new CustomHttpRequestException("Requisição inválida", response.StatusCode),
+
+    //    //    //HttpStatusCode.NotFound =>   new CustomHttpRequestException("Recurso não encontrado", response.StatusCode),
+
+    //    //   // HttpStatusCode.Conflict =>    new CustomHttpRequestException("Conflito de dados", response.StatusCode),
+
+    //    //    HttpStatusCode.InternalServerError =>
+    //    //        new CustomHttpRequestException("Erro interno do servidor", response.StatusCode),
+
+    //    //    _ => new CustomHttpRequestException(
+    //    //        $"Erro na requisição: {response.StatusCode}",
+    //    //        response.StatusCode)
+    //    //};
+    //}
 
     private string GetErrorMessageForStatusCode(HttpStatusCode statusCode)
     {

@@ -7,7 +7,7 @@ namespace Locadora_Auto.Application.Models.Dto
         public string Matricula { get; set; } = null!;
         public string Nome { get; set; } = null!;
         public string? Cargo { get; set; }
-        public bool Status { get; set; } 
+        
         public string Email { get; set; } = string.Empty;
         public string Telefone { get; set; } = string.Empty;
         public List<string> Permissoes { get; set; } = new();
@@ -30,6 +30,7 @@ namespace Locadora_Auto.Application.Models.Dto
         public int IdFuncionario { get; set; }
         public string UsuarioId { get; set; } = string.Empty;
         public string Cpf { get; set; } = string.Empty;
-        public DateTime DataCadastro { get; set; }       
+        public DateTime DataCadastro { get; set; }
+        public bool Status { get; set; }
     }
 }
