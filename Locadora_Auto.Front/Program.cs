@@ -61,13 +61,13 @@ app.UseMiddleware<TokenRefreshMiddleware>();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapPost("/auth/login", async (HttpContext context, ILoginService loginService,  [FromForm] LoginRequest request) =>
+app.MapPost("/auth/login", async (HttpContext context, ILoginService loginService, [FromForm] LoginRequest request) =>
 {
-    request.username = request.username.Replace(".","").Replace("-", "");
+    request.username = request.username.Replace(".", "").Replace("-", "");
     var result = await loginService.Login(request);
 
     if (result.Principal == null)
-        return Results.Redirect("/login?erro=1");
+        return Results.Json(new { success = false, error = "Usuário ou senha inválidos" });
 
     var properties = new AuthenticationProperties
     {
@@ -77,21 +77,14 @@ app.MapPost("/auth/login", async (HttpContext context, ILoginService loginServic
 
     properties.StoreTokens(new[]
     {
-        new AuthenticationToken
-        {
-            Name = "access_token",
-            Value = result.AccessToken
-        },
-        new AuthenticationToken
-        {
-            Name = "refresh_token",
-            Value = result.RefreshToken
-        }
+        new AuthenticationToken { Name = "access_token", Value = result.AccessToken },
+        new AuthenticationToken { Name = "refresh_token", Value = result.RefreshToken }
     });
 
     await context.SignInAsync("Cookies", result.Principal, properties);
 
-    return Results.Redirect("/");
+    // Retorna JSON em vez de redirect
+    return Results.Json(new { success = true, redirect = "/" });
 })
 .DisableAntiforgery();
 
