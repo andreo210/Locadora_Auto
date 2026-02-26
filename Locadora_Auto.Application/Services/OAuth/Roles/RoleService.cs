@@ -23,7 +23,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Roles
             _notificador = notificador;
         }
 
-        public async Task<RoleDto> CriarRolesAsync(string nome, string descricao, CancellationToken ct = default)
+        public async Task<RoleDto> CriarRolesAsync(string nome, CancellationToken ct = default)
         {
             // Verificar se a role já existe
             var roleExists = await _roleManager.RoleExistsAsync(nome);
@@ -50,8 +50,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Roles
             var resposta = new RoleDto
             {
                 Id = role.Id,
-                Name = role.Name,
-                Description = descricao
+                Nome = role.Name
             };
             return resposta;
 
@@ -102,7 +101,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Roles
                 rolesResponse.Add(new RoleDto
                 {
                     Id = role.Id,
-                    Name = role.Name
+                    Nome = role.Name
                 });
             }
 

@@ -29,8 +29,12 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             {
                 return objeto;
             }
-            // Para qualquer outro status, retorna null (a notificação já foi mostrada)
             return null;
+        }
+
+        public async Task<List<RoleResponse>?> ObterTodasRoles()
+        {
+            return await _api.GetAsync<List<RoleResponse>>("api/v1/Users/roles");
         }
     }
 }

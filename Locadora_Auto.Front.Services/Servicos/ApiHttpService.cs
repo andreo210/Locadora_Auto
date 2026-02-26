@@ -54,6 +54,10 @@ public class ApiHttpService : IApiHttpService
     {
         var response = await _http.GetAsync(url);
         await TratarErrosResponse(response);
+        if (!response.IsSuccessStatusCode)
+        {
+            return default;
+        }
         return await DeserializarObjetoResponse<T>(response);
     }
 

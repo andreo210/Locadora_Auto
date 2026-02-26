@@ -3,13 +3,14 @@
 @using Locadora_Auto.Front.Components.Forms
 @using Locadora_Auto.Front.Models.Enum
 @using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Servicos.Notificacao
-@inject NavigationManager Navigation
-@inject INotificationService NotificationService
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
 @inject IFuncionarioService FuncionarioService
-@inject IServiceProvider ServiceProvider
+@inject IServiceProvider ProvedorServicos
 @* @attribute [Authorize(Roles = "Administrador")] *@
 @rendermode InteractiveServer
 
@@ -21,8 +22,8 @@
         </div>
     </div>
 
-    <EditForm Model="@usuario" OnValidSubmit="@HandleSubmit" Context="formContext">
-        <FluentValidationValidator @ref="fluentValidator" />
+    <EditForm Model="@usuario" OnValidSubmit="@ManipularEnvio" Context="formContext">
+        <FluentValidationValidator @ref="validadorFluent" />
 
         <div class="row">
             <div class="col-md-6">
@@ -34,23 +35,19 @@
                         <!-- Matrícula -->
                         <div class="mb-3">
                             <label class="form-label">Matrícula <span class="text-danger">*</span></label>
-                            <InputText @bind-Value="usuario.Matricula"
-                                       class="form-control"
-                                       placeholder="Digite a matrícula" />
+                            <InputText @bind-Value="usuario.Matricula" class="form-control" placeholder="Digite a matrícula" />
                             <ValidationMessage For="@(() => usuario.Matricula)" />
                         </div>
 
                         <!-- Nome -->
                         <div class="mb-3">
                             <label class="form-label">Nome Completo <span class="text-danger">*</span></label>
-                            <InputText @bind-Value="usuario.Nome"
-                                       class="form-control"
-                                       placeholder="Digite o nome completo" />
+                            <InputText @bind-Value="usuario.Nome" class="form-control" placeholder="Digite o nome completo" />
                             <ValidationMessage For="@(() => usuario.Nome)" />
                         </div>
 
                         <!-- CPF com máscara -->
-                        <InputCPF @bind-Value="usuario.Cpf"  Label="CPF:"  Placeholder="Digite o CPF"/>
+                        <InputCPF @bind-Value="usuario.Cpf" Label="CPF:" Placeholder="Digite o CPF" />
                         <ValidationMessage For="@(() => usuario.Cpf)" />
                     </div>
                 </div>
@@ -63,17 +60,12 @@
                         <!-- E-mail -->
                         <div class="mb-3">
                             <label class="form-label">E-mail <span class="text-danger">*</span></label>
-                            <InputText @bind-Value="usuario.Email"
-                                       class="form-control"
-                                       type="email"
-                                       placeholder="email@exemplo.com" />
+                            <InputText @bind-Value="usuario.Email"  class="form-control" type="email" placeholder="email@exemplo.com" />
                             <ValidationMessage For="@(() => usuario.Email)" />
                         </div>
 
                         <!-- Telefone com máscara -->
-                        <InputTelefone @bind-Value="usuario.Telefone"
-                                       Label="Telefone para Contato"
-                                       Placeholder="(00) 00000-0000" />
+                        <InputTelefone @bind-Value="usuario.Telefone" Label="Telefone para Contato" Placeholder="(00) 00000-0000" />
                         <ValidationMessage For="@(() => usuario.Telefone)" />
                     </div>
                 </div>
@@ -107,7 +99,7 @@
                                         <input type="checkbox"
                                                class="form-check-input"
                                                id="@permissao"
-                                               @onchange="@((e) => TogglePermissao(permissao, e))"
+                                               @onchange="@((e) => AlternarPermissao(permissao, e))"
                                                checked="@usuario.Permissoes.Contains(permissao)" />
                                         <label class="form-check-label" for="@permissao">
                                             @permissao
@@ -154,8 +146,8 @@
                             <div class="mt-2">
                                 <label class="small">Força da senha:</label>
                                 <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar @GetForcaSenhaClass()"
-                                         style="width: @(GetForcaSenha() * 20)%"></div>
+                                    <div class="progress-bar @ObterClasseForcaSenha()"
+                                         style="width: @(ObterForcaSenha() * 20)%"></div>
                                 </div>
                             </div>
                         }
@@ -189,165 +181,269 @@
 </div>
 
 @code {
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+
+    /// <summary>
+    /// Armazena os dados do formulário de funcionário sendo preenchido
+    /// </summary>
     private FuncionarioRequest usuario = new();
+
+    /// <summary>
+    /// Controla o estado de processamento (loading) para evitar múltiplos envios
+    /// </summary>
     private bool processando;
-    private FluentValidationValidator? fluentValidator;
 
-    private List<string> permissoesDisponiveis = new()
+    /// <summary>
+    /// Referência para o validador FluentValidation usado no formulário
+    /// </summary>
+    private FluentValidationValidator? validadorFluent;
+
+    /// <summary>
+    /// Indica se as permissões estão sendo carregadas da API (mostra spinner)
+    /// </summary>
+    private bool carregandoPermissoes = true;
+
+    /// <summary>
+    /// Lista de permissões disponíveis carregadas da API para exibir no checkbox
+    /// </summary>
+    private List<string> permissoesDisponiveis = new();
+
+
+    // ===== MÉTODOS DO CICLO DE VIDA DO COMPONENTE =====
+
+    /// <summary>
+    /// Executado quando o componente é inicializado pela primeira vez
+    /// Inicializa a lista de permissões do usuário e carrega as permissões disponíveis da API
+    /// </summary>
+    protected override async Task OnInitializedAsync()
     {
-        "Administrador",
-        "Gerente",
-        "Operador",
-        "Vendedor",
-        "Financeiro",
-        "Relatorios",
-        "Configuracoes"
-    };
+        usuario.Permissoes = new List<string>(); // Inicia com lista vazia de permissões selecionadas
+        await CarregarPermissoes(); // Busca as permissões disponíveis da API
+    }
 
-    private void TogglePermissao(string permissao, ChangeEventArgs e)
+
+    // ===== MÉTODOS DE CARREGAMENTO DE DADOS =====
+
+    /// <summary>
+    /// Busca a lista de permissões/roles disponíveis na API
+    /// Atualiza a interface com spinner durante o carregamento
+    /// Em caso de erro, usa uma lista padrão como fallback
+    /// </summary>
+    private async Task CarregarPermissoes()
     {
-        var isChecked = e.Value as bool? ?? false;
+        carregandoPermissoes = true; // Ativa o spinner de carregamento
+        StateHasChanged(); // Força atualização da UI para mostrar o spinner
 
-        if (isChecked && !usuario.Permissoes.Contains(permissao))
+        try
+        {
+            // Chama o serviço para obter todas as roles (permissões) da API
+            var permissoes = await FuncionarioService.ObterTodasRoles();
+
+            // Converte a lista de objetos Role para lista de nomes
+            foreach (var n in permissoes)
+            {
+                permissoesDisponiveis.Add(n.Nome);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log do erro e usa lista padrão em caso de falha na API
+            Console.WriteLine($"Erro ao carregar permissões: {ex.Message}");
+            // Fallback para lista padrão quando a API não responde
+            permissoesDisponiveis = new List<string>
+            {
+                "Administrador",
+                "Gerente",
+                "Operador",
+                "Vendedor",
+                "Financeiro",
+                "Relatorios",
+                "Configuracoes"
+            };
+        }
+        finally
+        {
+            carregandoPermissoes = false; // Desativa o spinner
+            StateHasChanged(); // Atualiza UI para mostrar as permissões carregadas
+        }
+    }
+
+
+    // ===== MÉTODOS DE INTERAÇÃO DO USUÁRIO =====
+
+    /// <summary>
+    /// Gerencia a seleção/deseleção de permissões nos checkboxes
+    /// Adiciona ou remove permissões da lista do usuário conforme o clique
+    /// </summary>
+    /// <param name="permissao">Nome da permissão sendo alternada</param>
+    /// <param name="e">Evento do checkbox contendo o estado (marcado/desmarcado)</param>
+    private void AlternarPermissao(string permissao, ChangeEventArgs e)
+    {
+        // Converte o valor do evento para boolean (true = marcado, false = desmarcado)
+        var estaSelecionado = e.Value as bool? ?? false;
+
+        // Se foi marcado e não está na lista, adiciona
+        if (estaSelecionado && !usuario.Permissoes.Contains(permissao))
             usuario.Permissoes.Add(permissao);
-        else if (!isChecked && usuario.Permissoes.Contains(permissao))
+        // Se foi desmarcado e está na lista, remove
+        else if (!estaSelecionado && usuario.Permissoes.Contains(permissao))
             usuario.Permissoes.Remove(permissao);
 
-        // Log para debug
-        Console.WriteLine($"Permissão {permissao}: {isChecked}");
+        // Logs para debug
+        Console.WriteLine($"Permissão {permissao}: {estaSelecionado}");
         Console.WriteLine($"Total de permissões: {usuario.Permissoes.Count}");
 
-        StateHasChanged();
+        StateHasChanged(); // Atualiza a UI para refletir a mudança
     }
 
-    protected override void OnInitialized()
-    {
-        // Inicializar com algumas permissões padrão se necessário
-        usuario.Permissoes = new List<string>();
-    }
 
-    // private void TogglePermissao(string permissao, string? checkedValue)
-    // {
-    //     var isChecked = checkedValue == "on";
+    // ===== MÉTODOS DE VALIDAÇÃO DE SENHA =====
 
-    //     if (isChecked && !usuario.Permissoes.Contains(permissao))
-    //         usuario.Permissoes.Add(permissao);
-    //     else if (!isChecked && usuario.Permissoes.Contains(permissao))
-    //         usuario.Permissoes.Remove(permissao);
-
-    //     // Forçar atualização da UI
-    //     StateHasChanged();
-    // }
-
-    private int GetForcaSenha()
+    /// <summary>
+    /// Calcula a força da senha baseado em critérios de complexidade
+    /// Retorna um valor de 0 a 5 quanto mais forte a senha
+    /// </summary>
+    /// <returns>Número inteiro representando a força (0-5)</returns>
+    private int ObterForcaSenha()
     {
         if (string.IsNullOrEmpty(usuario.Senha)) return 0;
 
         int forca = 0;
 
-        if (usuario.Senha.Length >= 6) forca++;
-        if (usuario.Senha.Any(char.IsUpper)) forca++;
-        if (usuario.Senha.Any(char.IsLower)) forca++;
-        if (usuario.Senha.Any(char.IsDigit)) forca++;
-        if (usuario.Senha.Any(c => !char.IsLetterOrDigit(c))) forca++;
+        // Critérios de avaliação da senha
+        if (usuario.Senha.Length >= 6) forca++; // Tamanho mínimo
+        if (usuario.Senha.Any(char.IsUpper)) forca++; // Tem maiúscula
+        if (usuario.Senha.Any(char.IsLower)) forca++; // Tem minúscula
+        if (usuario.Senha.Any(char.IsDigit)) forca++; // Tem número
+        if (usuario.Senha.Any(c => !char.IsLetterOrDigit(c))) forca++; // Tem caractere especial
 
         return forca;
     }
 
-    private string GetForcaSenhaClass()
+    /// <summary>
+    /// Retorna a classe CSS apropriada para a barra de progresso
+    /// baseado na força da senha (vermelho, amarelo, azul, verde)
+    /// </summary>
+    /// <returns>Nome da classe Bootstrap para cor da barra</returns>
+    private string ObterClasseForcaSenha()
     {
-        return GetForcaSenha() switch
+        return ObterForcaSenha() switch
         {
-            0 or 1 => "bg-danger",
-            2 or 3 => "bg-warning",
-            4 => "bg-info",
-            5 => "bg-success",
+            0 or 1 => "bg-danger",   // Senha fraca - vermelho
+            2 or 3 => "bg-warning",   // Senha média - amarelo
+            4 => "bg-info",            // Senha boa - azul
+            5 => "bg-success",         // Senha forte - verde
             _ => "bg-secondary"
         };
     }
 
-    private async Task HandleSubmit()
+
+    // ===== MÉTODOS DE AÇÃO PRINCIPAL =====
+
+    /// <summary>
+    /// Processa o envio do formulário quando válido
+    /// Valida os dados, chama a API para criar o funcionário
+    /// e fornece feedback visual sobre o resultado
+    /// </summary>
+    private async Task ManipularEnvio()
     {
-        processando = true;
-        StateHasChanged();
+        processando = true; // Ativa estado de loading
+        StateHasChanged(); // Atualiza UI para mostrar spinner no botão
 
         try
         {
-            // Validar usando FluentValidation
-            var validator = new FuncionarioValidator();
-            var result = await validator.ValidateAsync(usuario);
+            // Valida o modelo usando FluentValidation
+            var validador = new FuncionarioValidator();
+            var resultado = await validador.ValidateAsync(usuario);
 
-            if (!result.IsValid)
+            // Se houver erros de validação
+            if (!resultado.IsValid)
             {
-                // Converter erros do FluentValidation para o formato do NotificationService
-                var errors = result.Errors
+                // Agrupa os erros por propriedade para exibição organizada
+                var erros = resultado.Errors
                     .GroupBy(e => e.PropertyName)
                     .ToDictionary(
                         g => g.Key,
                         g => g.Select(e => e.ErrorMessage).ToArray()
                     );
 
-                NotificationService.ShowValidationErrors(errors);
+                // Exibe os erros usando o serviço de notificação
+                NotificacaoService.ShowValidationErrors(erros);
                 processando = false;
                 StateHasChanged();
                 return;
             }
 
-            // Simular chamada à API
+            // Chama o serviço para inserir o funcionário na API
             var funcionarioCriado = await FuncionarioService.Inserir(usuario);
+
             if (funcionarioCriado != null)
             {
-                var teste = NotificationService;
-                NotificationService.ShowSuccess("Funcionário cadastrado com sucesso!", "Cadastro Realizado");
-                
-                // Limpar formulário
+                // Sucesso - mostra mensagem de confirmação
+                NotificacaoService.ShowSuccess("Funcionário cadastrado com sucesso!", "Cadastro Realizado");
+
+                // Limpa o formulário para novo cadastro
                 usuario = new FuncionarioRequest();
                 usuario.Permissoes = new List<string>();
 
-                // Opcional: redirecionar após sucesso
-                await Task.Delay(2000); // Espera 2 segundos para mostrar a mensagem
-                Navigation.NavigateTo("/funcionarios/novo");
-            }            
+                // Aguarda 2 segundos para o usuário ver a mensagem de sucesso
+                await Task.Delay(2000);
+
+                // Redireciona para a mesma página (limpa o formulário)
+                Navegacao.NavigateTo("/funcionarios/novo");
+            }
         }
         catch (Exception ex)
         {
-            NotificationService.ShowError(
+            // Erro na chamada da API - mostra mensagem de erro
+            NotificacaoService.ShowError(
                 $"Erro ao cadastrar usuário: {ex.Message}",
                 "Erro no Cadastro"
             );
         }
         finally
         {
-            processando = false;
-            StateHasChanged();
+            processando = false; // Desativa estado de loading
+            StateHasChanged(); // Atualiza UI
         }
     }
 
+    /// <summary>
+    /// Cancela a operação e retorna para a lista de funcionários
+    /// Verifica se há dados não salvos antes de sair
+    /// </summary>
     private async Task Cancelar()
     {
-        if (HasUnsavedChanges())
+        // Verifica se existem alterações não salvas no formulário
+        if (PossuiAlteracoesNaoSalvas())
         {
-            // Aqui você pode implementar um diálogo de confirmação
-            // Como ainda não temos o ConfirmDialogService pronto, vamos usar confirm do JS
-            var confirmed = await Task.Run(() => false); // Placeholder
-
-            // Se tiver o ConfirmDialogService, use assim:
-            // var confirmed = await ConfirmService.ConfirmAsync(
+            // TODO: Implementar diálogo de confirmação quando o serviço estiver pronto
+            // var confirmado = await ConfirmService.ConfirmarAsync(
             //     "Existem dados não salvos. Deseja realmente sair?",
             //     "Cancelar Cadastro"
             // );
 
-            // Por enquanto, vamos cancelar direto
-            Navigation.NavigateTo("/funcionarios");
+            // Por enquanto, navega direto
+            Navegacao.NavigateTo("/funcionarios");
         }
         else
         {
-            Navigation.NavigateTo("/funcionarios");
+            // Sem alterações, navega direto
+            Navegacao.NavigateTo("/funcionarios");
         }
     }
 
-    private bool HasUnsavedChanges()
+
+    // ===== MÉTODOS AUXILIARES =====
+
+    /// <summary>
+    /// Verifica se existem dados preenchidos no formulário que não foram salvos
+    /// Útil para confirmar antes de sair da página
+    /// </summary>
+    /// <returns>True se houver dados não salvos, False se o formulário estiver vazio</returns>
+    private bool PossuiAlteracoesNaoSalvas()
     {
+        // Verifica cada campo do formulário para ver se foi preenchido
         return !string.IsNullOrEmpty(usuario.Matricula) ||
                !string.IsNullOrEmpty(usuario.Nome) ||
                !string.IsNullOrEmpty(usuario.Cpf) ||
@@ -355,6 +451,6 @@
                !string.IsNullOrEmpty(usuario.Telefone) ||
                !string.IsNullOrEmpty(usuario.Cargo) ||
                !string.IsNullOrEmpty(usuario.Senha) ||
-               usuario.Permissoes.Any();
+               usuario.Permissoes.Any(); // Verifica se há permissões selecionadas
     }
 }

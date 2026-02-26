@@ -29,9 +29,9 @@ namespace Locadora_Auto.Api.V1.Controllers
         [HttpPost("roles")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> CriarRole(CriarRoleDto role)
+        public async Task<IActionResult> CriarRole(string role)
         {
-            var result = await _roleService.CriarRolesAsync(role.Nome, role.Descricao);
+            var result = await _roleService.CriarRolesAsync(role);
             return CustomResponse(result,HttpStatusCode.Created);
         }
 

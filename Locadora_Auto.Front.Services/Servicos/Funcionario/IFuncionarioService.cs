@@ -11,5 +11,6 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
     public interface IFuncionarioService
     {
         Task<FuncionarioResponse?> Inserir(FuncionarioRequest request);
+        Task<List<RoleResponse?>> ObterTodasRoles();
     }
 }
