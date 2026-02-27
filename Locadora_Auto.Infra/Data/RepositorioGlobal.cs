@@ -104,13 +104,12 @@ namespace Locadora_Auto.Infra.Data
                 ? await DbSet.AsNoTracking().CountAsync(ct)
                 : await DbSet.AsNoTracking().CountAsync(filtro, ct);
         }
-
         public virtual async Task<IReadOnlyList<TEntity>> ObterPaginadoAsync(
-            Expression<Func<TEntity, bool>> filtro,
-            int skip,
-            int take,
-            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
-            CancellationToken ct = default)
+           Expression<Func<TEntity, bool>> filtro,
+           int skip,
+           int take,
+           Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+           CancellationToken ct = default)
         {
             IQueryable<TEntity> query = DbSet.AsNoTracking().Where(filtro);
 
@@ -118,6 +117,75 @@ namespace Locadora_Auto.Infra.Data
                 query = ordenarPor(query);
 
             return await query.Skip(skip).Take(take).ToListAsync(ct);
+        }
+
+        public async Task<PaginatedResult<TEntity>> ObterPaginadoComFiltroAsync<TEntity>(
+            Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            int? pagina = null,  // Se null, retorna todos (sem paginação)
+            int? itensPorPagina = null,
+            bool asNoTracking = true,
+            bool asSplitQuery = false,
+            CancellationToken ct = default)
+            where TEntity : class
+        {
+            // 1. Query base
+            IQueryable<TEntity> query = Context.Set<TEntity>();
+
+            // 2. Configurações
+            if (asNoTracking)
+                query = query.AsNoTracking();
+
+            if (asSplitQuery)
+                query = query.AsSplitQuery();
+
+            if (incluir != null)
+                query = incluir(query);
+
+            if (filtro != null)
+                query = query.Where(filtro);
+
+            // 3. Contar total (sempre útil)
+            var total = await query.CountAsync(ct);
+
+            // 4. Aplicar ordenação
+            if (ordenarPor != null)
+                query = ordenarPor(query);
+            else if (pagina.HasValue) // Se tem paginação, precisa de ordenação
+                query = query.OrderBy(e => EF.Property<object>(e, "Id")); // Ordenação padrão
+
+            // 5. Aplicar paginação se solicitado
+            IReadOnlyList<TEntity> items;
+
+            if (pagina.HasValue && itensPorPagina.HasValue)
+            {
+                var skip = (pagina.Value - 1) * itensPorPagina.Value;
+                items = await query
+                    .Skip(skip)
+                    .Take(itensPorPagina.Value)
+                    .ToListAsync(ct);
+            }
+            else
+            {
+                items = await query.ToListAsync(ct);
+            }
+
+            // 6. Calcular total de páginas (se aplicável)
+            int totalPaginas = 1;
+            if (itensPorPagina.HasValue && itensPorPagina.Value > 0)
+            {
+                totalPaginas = (int)Math.Ceiling(total / (double)itensPorPagina.Value);
+            }
+
+            return new PaginatedResult<TEntity>
+            {
+                Items = items,
+                Total = total,
+                Pagina = pagina ?? 1,
+                TotalPaginas = totalPaginas,
+                ItensPorPagina = itensPorPagina ?? items.Count
+            };
         }
 
         public async Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(

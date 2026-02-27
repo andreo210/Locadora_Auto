@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Locadora_Auto.Front.Extensions
+namespace Locadora_Auto.Front.Services.Extensions
 {
     public static class DependencyInjectionServiceExtensions
     {

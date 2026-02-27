@@ -1,6 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
-using Locadora_Auto.Domain.Entidades;
-using System.Linq.Expressions;
+using Locadora_Auto.Domain;
 
 namespace Locadora_Auto.Application.Services.FuncionarioServices
 {
@@ -12,13 +11,17 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default);
         Task<FuncionarioDto?> ObterPorFuncionarioCpfAsync(string cpf, CancellationToken ct = default);
         Task<IReadOnlyList<FuncionarioDto>> ObterTodosAsync(CancellationToken ct = default);
-
         Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync(bool? ativos = true, string? nome = null, string cargo = null, CancellationToken ct = default);
+        Task<PaginatedResult<FuncionarioDto>> ObterPaginadoAsync(
+            bool? ativos = null, // Mude de true para null
+            string? nome = null,
+            string? cargo = null,
+            string? ordenarPor = "Matricula",
+            string? ordem = "asc",
+            int pagina = 1, // Adicionar parâmetros de paginação
+            int itensPorPagina = 10,
+            CancellationToken ct = default);
 
-        //Task<IReadOnlyList<FuncionarioDto>> ObterAtivosAsync(CancellationToken ct = default);
-        //Task<IReadOnlyList<FuncionarioDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default);
-        //Task<IReadOnlyList<FuncionarioDto>> ObterPorCargoAsync(string cargo, CancellationToken ct = default);
-        //Task<IReadOnlyList<FuncionarioDto>> ObterPorDepartamentoAsync(string departamento, CancellationToken ct = default);
         Task<bool> ExisteFuncionarioAsync(string matricula, CancellationToken ct = default);
         Task<bool> ExisteFuncionarioPorCpfAsync(string cpf, CancellationToken ct = default);
         Task<int> ContarFuncionariosAtivosAsync(CancellationToken ct = default);

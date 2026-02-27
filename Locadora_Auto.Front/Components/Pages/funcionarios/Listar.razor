@@ -1,0 +1,775 @@
+﻿@page "/funcionarios"
+@using Locadora_Auto.Front.Models
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@using Locadora_Auto.Front.Models.Request
+@inject NavigationManager Navegacao
+@inject IFuncionarioService FuncionarioService
+@inject INotificationService NotificacaoService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Funcionários</h2>
+            <p class="text-muted">Gerencie os funcionários do sistema</p>
+        </div>
+        <div class="col-auto">
+            <a href="/funcionarios/novo" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>
+                Novo Funcionário
+            </a>
+        </div>
+    </div>
+
+    <!-- Card de filtros e pesquisa -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Campo de pesquisa por nome -->
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text"
+                               class="form-control"
+                               placeholder="Pesquisar por nome..."
+                               @bind="filtroNome"
+                               @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <!-- Filtro por cargo -->
+                <div class="col-md-3">
+                    <select class="form-select" @bind="filtroCargo">
+                        <option value="">Todos os cargos</option>
+                        @foreach (var cargo in Enum.GetValues<CargoEnum>())
+                        {
+                            <option value="@cargo">@cargo.GetDisplayName()</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- Filtro por status (ativo/inativo) -->
+                <div class="col-md-2">
+                    <select class="form-select" @bind="filtroAtivo">
+                        <option value="">Todos</option>
+                        <option value="true">Ativos</option>
+                        <option value="false">Inativos</option>
+                    </select>
+                </div>
+
+                <!-- Botões de ação -->
+                <div class="col-md-4 d-flex gap-2 justify-content-end">
+                    <button class="btn btn-outline-secondary" @onclick="LimparTodosFiltros" title="Limpar filtros">
+                        <i class="bi bi-eraser"></i> Limpar
+                    </button>
+                    <button class="btn btn-outline-primary" @onclick="AplicarFiltros" title="Aplicar filtros">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                    <button class="btn btn-outline-success" @onclick="RecarregarDados" title="Atualizar lista">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-outline-info" @onclick="ExportarExcel" title="Exportar para Excel">
+                        <i class="bi bi-file-earmark-excel"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resumo dos filtros ativos -->
+            @if (TemFiltrosAtivos)
+            {
+                <div class="row mt-3">
+                    <div class="col">
+                        <div class="alert alert-info alert-dismissible fade show mb-0 py-2" role="alert">
+                            <i class="bi bi-funnel-fill me-2"></i>
+                            <strong>Filtros ativos:</strong>
+                            @if (!string.IsNullOrEmpty(filtroNome))
+                            {
+                                <span class="badge bg-info text-white me-2">Nome: @filtroNome</span>
+                            }
+                            @if (!string.IsNullOrEmpty(filtroCargo))
+                            {
+                                <span class="badge bg-info text-white me-2">Cargo: @filtroCargo</span>
+                            }
+                            @if (!string.IsNullOrEmpty(filtroAtivo))
+                            {
+                                <span class="badge bg-info text-white me-2">
+                                    Status: @(filtroAtivo == "true" ? "Ativos" : "Inativos")
+                                </span>
+                            }
+                            <button type="button" class="btn-close btn-sm" @onclick="LimparTodosFiltros"></button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Tabela de funcionários -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (carregando)
+            {
+                <!-- Loading spinner -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="text-muted">Carregando funcionários...</p>
+                </div>
+            }
+            else if (!funcionarios.Any())
+            {
+                <!-- Nenhum resultado -->
+                <div class="text-center py-5">
+                    <i class="bi bi-people fs-1 text-muted"></i>
+                    <h5 class="mt-3">Nenhum funcionário encontrado</h5>
+                    <p class="text-muted">
+                        @if (TemFiltrosAtivos)
+                        {
+                            <span>Tente ajustar os filtros de pesquisa</span>
+                        }
+                        else
+                        {
+                            <span>Clique em "Novo Funcionário" para começar</span>
+                        }
+                    </p>
+                </div>
+            }
+            else
+            {
+                <!-- Tabela de resultados -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4" width="50">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           @onclick="AlternarSelecaoTodos"
+                                           checked="@TodosSelecionados" />
+                                </th>
+                                <th @onclick="@(() => OrdenarPor("Matricula"))" style="cursor: pointer">
+                                    Matrícula
+                                    @if (ordenacao.Propriedade == "Matricula")
+                                    {
+                                        <i class="bi @ordenacao.Icone ms-1"></i>
+                                    }
+                                </th>
+                                <th @onclick="@(() => OrdenarPor("Nome"))" style="cursor: pointer">
+                                    Nome
+                                    @if (ordenacao.Propriedade == "Nome")
+                                    {
+                                        <i class="bi @ordenacao.Icone ms-1"></i>
+                                    }
+                                </th>
+                                <th @onclick="@(() => OrdenarPor("Email"))" style="cursor: pointer">
+                                    Email
+                                    @if (ordenacao.Propriedade == "Email")
+                                    {
+                                        <i class="bi @ordenacao.Icone ms-1"></i>
+                                    }
+                                </th>
+                                <th @onclick="@(() => OrdenarPor("Cargo"))" style="cursor: pointer">
+                                    Cargo
+                                    @if (ordenacao.Propriedade == "Cargo")
+                                    {
+                                        <i class="bi @ordenacao.Icone ms-1"></i>
+                                    }
+                                </th>
+                                <th>Telefone</th>
+                                <th @onclick="@(() => OrdenarPor("Status"))" style="cursor: pointer">
+                                    Status
+                                    @if (ordenacao.Propriedade == "Status")
+                                    {
+                                        <i class="bi @ordenacao.Icone ms-1"></i>
+                                    }
+                                </th>
+                                <th width="120">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var funcionario in funcionarios)
+                            {
+                                <tr class="@(selecionados[funcionario.IdFuncionario.ToString()] ? "table-primary" : "")">
+                                    <td class="ps-4">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               @onclick="@(() => AlternarSelecaoIndividual(funcionario.IdFuncionario.ToString()))"
+                                               checked="@selecionados[funcionario.IdFuncionario.ToString()]" />
+                                    </td>
+                                    <td><span class="fw-bold">@funcionario.Matricula</span></td>
+                                    <td>@funcionario.Nome</td>
+                                    <td>@funcionario.Email</td>
+                                    <td>
+                                        <span class="badge bg-secondary">@funcionario.Cargo</span>
+                                    </td>
+                                    <td>@funcionario.Telefone</td>
+                                    <td>
+                                        @if (funcionario.Status)
+                                        {
+                                            <span class="badge bg-success">Ativo</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Inativo</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    title="Editar"
+                                                    @onclick="@(() => EditarFuncionario(funcionario.IdFuncionario.ToString()))">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    title="Visualizar"
+                                                    @onclick="@(() => VisualizarFuncionario(funcionario.IdFuncionario.ToString()))">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" 
+                                                    title="Excluir"
+                                                    @onclick="@(() => ExcluirFuncionario(funcionario.IdFuncionario.ToString(), funcionario.Nome))">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Rodapé da tabela com paginação e ações em massa -->
+                <div class="card-footer bg-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="text-muted small">
+                                    Mostrando @primeiroItem - @ultimoItem de @totalItems funcionários
+                                </span>
+                                
+                                @if (QuantidadeSelecionados > 0)
+                                {
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                                type="button" 
+                                                data-bs-toggle="dropdown">
+                                            <i class="bi bi-check-all me-1"></i>
+                                            @QuantidadeSelecionados selecionados
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="#" @onclick="ExportarSelecionados">
+                                                    <i class="bi bi-file-earmark-excel me-2"></i>Exportar selecionados
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" @onclick="AtivarSelecionados">
+                                                    <i class="bi bi-check-circle me-2"></i>Ativar selecionados
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" @onclick="InativarSelecionados">
+                                                    <i class="bi bi-pause-circle me-2"></i>Inativar selecionados
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#" @onclick="ExcluirSelecionados">
+                                                    <i class="bi bi-trash me-2"></i>Excluir selecionados
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end align-items-center gap-3">
+                                <!-- Seletor de itens por página -->
+                                <select class="form-select form-select-sm w-auto"
+                                        @bind="itensPorPagina">
+                                    <option value="10">10 por página</option>
+                                    <option value="25">25 por página</option>
+                                    <option value="50">50 por página</option>
+                                    <option value="100">100 por página</option>
+                                </select>
+
+                                <!-- Paginação -->
+                                <nav aria-label="Navegação de páginas">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <!-- Primeira página -->
+                                        <li class="page-item @(paginaAtual == 1 ? "disabled" : "")">
+                                            <a class="page-link" href="#"
+                                               @onclick="@(() => MudarPagina(1))"
+                                               @onclick:preventDefault="true">
+                                                <i class="bi bi-chevron-double-left"></i>
+                                            </a>
+                                        </li>
+
+                                        <!-- Página anterior -->
+                                        <li class="page-item @(paginaAtual == 1 ? "disabled" : "")">
+                                            <a class="page-link" href="#"
+                                               @onclick="@(() => MudarPagina(paginaAtual - 1))"
+                                               @onclick:preventDefault="true">
+                                                <i class="bi bi-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                        <!-- botões com numero -->
+                                        @{
+                                            var paginasExibidas = ObterPaginasParaExibir();
+                                        }
+                                        @foreach (var pagina in paginasExibidas)
+                                        {
+                                            <li class="page-item @(pagina == paginaAtual ? "active" : "")" @key="pagina">
+                                                <a class="page-link" href="#"
+                                                   @onclick="@(() => MudarPagina(pagina))"
+                                                   @onclick:preventDefault="true">
+                                                    @pagina
+                                                </a>
+                                            </li>
+
+                                            @if (pagina == paginaAtual - 2 && paginaAtual + 2 < totalPaginas)
+                                            {
+                                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                            }
+                                        }
+
+                                        <!-- Próxima página -->
+                                        <li class="page-item @(paginaAtual == totalPaginas ? "disabled" : "")">
+                                            <a class="page-link" href="#"
+                                               @onclick="@(() => MudarPagina(paginaAtual+1))"
+                                               @onclick:preventDefault="true">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </a>
+                                        </li>
+
+                                        <!-- Última página -->
+                                        <li class="page-item @(paginaAtual == totalPaginas ? "disabled" : "")">
+                                            <a class="page-link" href="#"
+                                               @onclick="@(() => MudarPagina(totalPaginas))"
+                                               @onclick:preventDefault="true">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    // ===== MODELO DE RESPOSTA DA API COM PAGINAÇÃO =====
+    private class FuncionariosPaginadosResponse
+    {
+        public List<FuncionarioResponse> Items { get; set; } = new();
+        public int Total { get; set; }
+        public int Pagina { get; set; }
+        public int TotalPaginas { get; set; }
+    }
+
+    // ===== MODELO DE FILTROS =====
+    private class FiltrosFuncionario
+    {
+        public string? Nome { get; set; }
+        public string? Cargo { get; set; }
+        public bool? Ativo { get; set; }
+        public int Pagina { get; set; } = 1;
+        public int ItensPorPagina { get; set; } = 10;
+    }
+
+    // ===== VARIÁVEIS DE ESTADO =====
+    private List<FuncionarioResponse> funcionarios = new();
+    private bool carregando = true;
+
+    // ===== VARIÁVEIS DE FILTRO =====
+    private string filtroNome = string.Empty;
+    private string filtroCargo = string.Empty;
+    private string filtroAtivo = string.Empty;
+
+    //variavel de ordenação
+    private EstadoOrdenacao ordenacao = new();
+
+    // ===== VARIÁVEIS DE PAGINAÇÃO =====
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private int totalItems = 0;
+    private int totalPaginas = 1;
+
+    private int primeiroItem => ((paginaAtual - 1) * itensPorPagina) + 1;
+    private int ultimoItem => Math.Min(paginaAtual * itensPorPagina, totalItems);
+
+    // ===== CONTROLE DE SELEÇÃO =====
+    private Dictionary<string, bool> selecionados = new();
+
+    // ===== PROPRIEDADES COMPUTADAS =====
+    private int QuantidadeSelecionados => selecionados.Count(x => x.Value);
+
+    private bool TodosSelecionados => funcionarios.Any() && 
+                                       funcionarios.All(f => 
+                                           selecionados.ContainsKey(f.IdFuncionario.ToString()) && 
+                                           selecionados[f.IdFuncionario.ToString()]);
+
+    private bool TemFiltrosAtivos => !string.IsNullOrEmpty(filtroNome) || 
+                                      !string.IsNullOrEmpty(filtroCargo) || 
+                                      !string.IsNullOrEmpty(filtroAtivo);
+
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarFuncionarios();
+    }
+
+
+    // ===== MÉTODOS DE CARREGAMENTO =====
+    private async Task CarregarFuncionarios()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Usar o novo método paginado
+            var resultado = await FuncionarioService.ObterTodos(
+                nome: string.IsNullOrWhiteSpace(filtroNome) ? null : filtroNome,
+                cargo: string.IsNullOrWhiteSpace(filtroCargo) ? null : filtroCargo,
+                ativos: string.IsNullOrEmpty(filtroAtivo) ? null : bool.Parse(filtroAtivo),                
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                ordenarPor: $"{ordenacao.Propriedade}",
+                ordem: $"{ordenacao.Direcao}"
+            );
+
+            funcionarios = resultado.Items ?? new();
+            totalItems = resultado.Total;
+            totalPaginas = resultado.TotalPaginas;
+
+            // Ajusta página atual se necessário
+            if (paginaAtual > totalPaginas && totalPaginas > 0)
+            {
+                paginaAtual = totalPaginas;
+                await CarregarFuncionarios(); // Recarrega com página correta
+                return;
+            }
+
+            // Inicializar dicionário de seleção
+            selecionados = funcionarios.ToDictionary(
+                f => f.IdFuncionario.ToString(),
+                f => false
+            );
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError(
+                $"Erro ao carregar funcionários: {ex.Message}",
+                "Erro"
+            );
+            funcionarios = new List<FuncionarioResponse>();
+            totalItems = 0;
+            totalPaginas = 1;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Aplica os filtros e volta para primeira página
+    /// </summary>
+    private async Task AplicarFiltros()
+    {
+        paginaAtual = 1;
+        await CarregarFuncionarios();
+    }
+
+    /// <summary>
+    /// Recarrega os dados manualmente (botão de refresh)
+    /// </summary>
+    private async Task RecarregarDados()
+    {
+        await CarregarFuncionarios();
+        NotificacaoService.ShowSuccess("Lista atualizada com sucesso!", "Atualização");
+    }
+
+    /// <summary>
+    /// Limpa todos os filtros e recarrega
+    /// </summary>
+    private async Task LimparTodosFiltros()
+    {
+        filtroNome = string.Empty;
+        filtroCargo = string.Empty;
+        filtroAtivo = string.Empty;
+        paginaAtual = 1;
+        await CarregarFuncionarios();
+    }
+
+
+    // ===== MÉTODOS DE PAGINAÇÃO =====
+    private async Task MudarPagina(int pagina)
+    {
+        if (pagina >= 1 && pagina <= totalPaginas && pagina != paginaAtual)
+        {
+            paginaAtual = pagina;
+            await CarregarFuncionarios(); // Recarrega os dados da nova página
+        }
+    }
+
+    private List<int> ObterPaginasParaExibir()
+    {
+        var paginas = new List<int>();
+
+        for (int i = 1; i <= totalPaginas; i++)
+        {
+            // Sempre mostrar primeira, última e vizinhas
+            if (i == 1 || i == totalPaginas ||
+                (i >= paginaAtual - 2 && i <= paginaAtual + 2))
+            {
+                paginas.Add(i);
+            }
+        }
+
+        return paginas;
+    }
+
+    private async Task MudarItensPorPagina()
+    {
+        paginaAtual = 1; // Volta para primeira página
+        await CarregarFuncionarios(); // Recarrega com novo tamanho de página
+    }
+
+    // Método auxiliar para navegação (opcional)
+    private async Task IrParaPrimeiraPagina() => await MudarPagina(1);
+    private async Task IrParaUltimaPagina() => await MudarPagina(totalPaginas);
+    private async Task PaginaAnterior() => await MudarPagina(paginaAtual - 1);
+    private async Task ProximaPagina() => await MudarPagina(paginaAtual + 1);
+
+
+    // ===== MÉTODOS DE SELEÇÃO =====
+    private void AlternarSelecaoTodos()
+    {
+        var todosSelecionados = TodosSelecionados;
+        
+        foreach (var f in funcionarios)
+        {
+            selecionados[f.IdFuncionario.ToString()] = !todosSelecionados;
+        }
+    }
+
+    private void AlternarSelecaoIndividual(string id)
+    {
+        if (selecionados.ContainsKey(id))
+        {
+            selecionados[id] = !selecionados[id];
+        }
+    }
+
+    private List<string> ObterIdsSelecionados()
+    {
+        return selecionados
+            .Where(x => x.Value)
+            .Select(x => x.Key)
+            .ToList();
+    }
+
+    private void LimparSelecao()
+    {
+        foreach (var id in selecionados.Keys.ToList())
+        {
+            selecionados[id] = false;
+        }
+    }
+
+
+    private async Task OrdenarPor(string propriedade)
+    {
+        ordenacao.Alternar(propriedade);
+        paginaAtual = 1; // Volta para primeira página ao ordenar
+        await CarregarFuncionarios();
+    }
+
+
+
+
+    // ===== MÉTODOS DE AÇÕES INDIVIDUAIS =====
+    private void EditarFuncionario(string id)
+    {
+        Navegacao.NavigateTo($"/funcionarios/editar/{id}");
+    }
+
+    private void VisualizarFuncionario(string id)
+    {
+        Navegacao.NavigateTo($"/funcionarios/visualizar/{id}");
+    }
+
+    private async Task ExcluirFuncionario(string id, string nome)
+    {
+        var confirmado = await Task.Run(() => true); // Placeholder para diálogo
+
+        if (confirmado)
+        {
+            try
+            {
+               // var sucesso = await FuncionarioService.Excluir(id);
+                // if (sucesso)
+                // {
+                //     NotificacaoService.ShowSuccess($"Funcionário {nome} excluído com sucesso!", "Exclusão");
+                    
+                //     // Se a página atual ficar vazia, volta uma página
+                //     if (funcionarios.Count == 1 && paginaAtual > 1)
+                //     {
+                //         paginaAtual--;
+                //     }
+                    
+                //     await CarregarFuncionarios(); // Recarrega a lista
+                // }
+            }
+            catch (Exception ex)
+            {
+                NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+            }
+        }
+    }
+
+
+    // ===== MÉTODOS DE AÇÕES EM MASSA =====
+    private async Task ExportarSelecionados()
+    {
+        var idsSelecionados = ObterIdsSelecionados();
+        
+        if (!idsSelecionados.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
+            return;
+        }
+
+        var selecionados = funcionarios
+            .Where(f => idsSelecionados.Contains(f.IdFuncionario.ToString()))
+            .Select(f => f.Nome);
+            
+        NotificacaoService.ShowInfo($"Exportando {idsSelecionados.Count} funcionários", "Exportação");
+        // TODO: Implementar exportação real
+    }
+
+    private async Task AtivarSelecionados()
+    {
+        var idsSelecionados = ObterIdsSelecionados();
+        
+        if (!idsSelecionados.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
+            return;
+        }
+
+        var sucesso = true;
+        foreach (var id in idsSelecionados)
+        {
+           // sucesso = sucesso && await FuncionarioService.Ativar(id);
+        }
+        
+        if (sucesso)
+        {
+            NotificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários ativados com sucesso!", "Sucesso");
+            LimparSelecao();
+            await CarregarFuncionarios(); // Recarrega para mostrar status atualizado
+        }
+    }
+
+    private async Task InativarSelecionados()
+    {
+        var idsSelecionados = ObterIdsSelecionados();
+        
+        if (!idsSelecionados.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
+            return;
+        }
+
+        var sucesso = true;
+        foreach (var id in idsSelecionados)
+        {
+           // sucesso = sucesso && await FuncionarioService.Inativar(id);
+        }
+        
+        if (sucesso)
+        {
+            NotificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários inativados com sucesso!", "Sucesso");
+            LimparSelecao();
+            await CarregarFuncionarios(); // Recarrega para mostrar status atualizado
+        }
+    }
+
+    private async Task ExcluirSelecionados()
+    {
+        var idsSelecionados = ObterIdsSelecionados();
+        
+        if (!idsSelecionados.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
+            return;
+        }
+
+        var confirmado = await Task.Run(() => true); // Placeholder
+
+        if (confirmado)
+        {
+            var sucesso = true;
+            foreach (var id in idsSelecionados)
+            {
+               // sucesso = sucesso && await FuncionarioService.Excluir(id);
+            }
+            
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários excluídos com sucesso!", "Exclusão");
+                
+                // Se a página atual ficar vazia, volta uma página
+                if (funcionarios.Count == idsSelecionados.Count && paginaAtual > 1)
+                {
+                    paginaAtual--;
+                }
+                
+                await CarregarFuncionarios(); // Recarrega a lista
+            }
+        }
+    }
+
+
+    // ===== MÉTODOS DE EXPORTAÇÃO =====
+    private async Task ExportarExcel()
+    {
+        NotificacaoService.ShowInfo($"Exportando {totalItems} funcionários para Excel", "Exportação");
+        // TODO: Implementar exportação geral
+    }
+}
+<style>
+    /* Adicione no seu arquivo CSS */
+    th {
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s;
+    }
+
+        th:hover {
+            background-color: #e9ecef;
+        }
+
+        th i {
+            font-size: 0.8rem;
+            margin-left: 0.3rem;
+        }
+</style>

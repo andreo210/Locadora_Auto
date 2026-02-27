@@ -4,6 +4,7 @@ using Locadora_Auto.Front.Extensions;
 using Locadora_Auto.Front.Midlleware;
 using Locadora_Auto.Front.Models.OAuth;
 using Locadora_Auto.Front.Services;
+using Locadora_Auto.Front.Services.Extensions;
 using Locadora_Auto.Front.Services.Servicos.Login;
 using Locadora_Auto.Front.Services.Servicos.Notificacao;
 using Microsoft.AspNetCore.Authentication;

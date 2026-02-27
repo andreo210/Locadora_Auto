@@ -6,8 +6,7 @@ namespace Locadora_Auto.Application.Models.Dto
     {
         public string Matricula { get; set; } = null!;
         public string Nome { get; set; } = null!;
-        public string? Cargo { get; set; }
-        
+        public string? Cargo { get; set; }        
         public string Email { get; set; } = string.Empty;
         public string Telefone { get; set; } = string.Empty;
         public List<string> Permissoes { get; set; } = new();

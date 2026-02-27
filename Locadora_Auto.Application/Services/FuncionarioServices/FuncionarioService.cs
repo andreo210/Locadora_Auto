@@ -1,12 +1,14 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Locadora_Auto.Application.Services.FuncionarioServices
 {
@@ -232,30 +234,152 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //        throw;
         //    }
         //}
-
-        public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync( 
-            bool? ativos = true, 
-            string? nome = null,
-            string cargo = null,
-            CancellationToken ct = default
-            )
+        public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync(
+           bool? ativos = true,
+           string? nome = null,
+           string cargo = null,
+           CancellationToken ct = default
+           )
         {
             Expression<Func<Funcionario, bool>>? filtro = null;
             if (ativos != null || nome != null || cargo != null)
             {
-                filtro = s =>( s.Ativo == ativos) &&  (s.Usuario.NomeCompleto == nome) && (s.Cargo == cargo);
+                filtro = s => (s.Ativo == ativos) && (s.Usuario.NomeCompleto == nome) && (s.Cargo == cargo);
             }
 
 
             var funcionarios = await _funcionarioRepository.ObterComFiltroAsync(
                 filtro: filtro,
                 incluir: q => q.Include(f => f.Usuario),
-                ordenarPor: q=>q.OrderBy(f => f.Matricula),
+                ordenarPor: q => q.OrderBy(f => f.Matricula),
                 asNoTracking: true,
-                asSplitQuery:true,
+                asSplitQuery: true,
                 ct: ct);
 
-            return funcionarios.ToDtoList();           
+            return funcionarios.ToDtoList();
+        }
+        public async Task<PaginatedResult<FuncionarioDto>> ObterPaginadoAsync(
+            bool? ativos = null, // Mude de true para null
+            string? nome = null,
+            string? cargo = null,
+            string? ordenarPor = "Matricula",
+            string? ordem = "asc",
+            int pagina = 1, // Adicionar parâmetros de paginação
+            int itensPorPagina = 10,
+            CancellationToken ct = default)
+        {
+            // Lista para armazenar as condições
+            var condicoes = new List<Expression<Func<Funcionario, bool>>>();
+
+            // Adiciona cada condição separadamente
+            if (ativos.HasValue)
+            {
+                condicoes.Add(f => f.Ativo == ativos.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(nome))
+            {
+                condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
+            }
+
+            if (!string.IsNullOrWhiteSpace(cargo))
+            {
+                condicoes.Add(f => f.Cargo == cargo);
+            }
+
+            // Combina todas as condições com AND
+            Expression<Func<Funcionario, bool>>? filtro = null;
+
+            if (condicoes.Any())
+            {
+                filtro = condicoes.Aggregate((atual, proxima) =>
+                {
+                    // Combina duas expressions com AND
+                    var parameter = Expression.Parameter(typeof(Funcionario));
+                    var body = Expression.AndAlso(
+                        Expression.Invoke(atual, parameter),
+                        Expression.Invoke(proxima, parameter)
+                    );
+                    return Expression.Lambda<Func<Funcionario, bool>>(body, parameter);
+                });
+            }
+
+            // Passar os parâmetros de paginação para o repositório
+            var funcionarios = await _funcionarioRepository.ObterPaginadoComFiltroAsync(
+                filtro: filtro,
+                incluir: q => q.Include(f => f.Usuario),
+                ordenarPor: ObterOrdenacao(ordenarPor,ordem),
+                pagina: pagina,
+                itensPorPagina: itensPorPagina,
+                asNoTracking: true,
+                asSplitQuery: true,
+                ct: ct);
+
+            // Mapear manualmente para DTO (incluindo IdFuncionario)
+            var itemsDto = funcionarios.Items.Select(f => new FuncionarioDto
+            {
+                IdFuncionario = f.IdFuncionario, // IMPORTANTE: Incluir o Id
+                Matricula = f.Matricula,
+                Nome = f.Usuario?.NomeCompleto ?? string.Empty,
+                Email = f.Usuario?.Email ?? string.Empty,
+                Telefone = f.Usuario.PhoneNumber, // Adicionar Telefone se existir
+                Cargo = f.Cargo,
+                Status = f.Ativo
+            }).ToList();
+
+            // Retornar resultado paginado com DTOs
+            return new PaginatedResult<FuncionarioDto>
+            {
+                Items = itemsDto,
+                Total = funcionarios.Total,
+                Pagina = funcionarios.Pagina,
+                TotalPaginas = funcionarios.TotalPaginas,
+                ItensPorPagina = funcionarios.ItensPorPagina
+            };
+        }
+
+        private Func<IQueryable<Funcionario>, IOrderedQueryable<Funcionario>>? ObterOrdenacao(string? ordenarPor, string? ordem)
+        {
+            if (string.IsNullOrWhiteSpace(ordenarPor))
+                return null;
+
+            var ascendente = ordem?.ToLower() != "desc";
+
+            return ordenarPor.ToLower() switch
+            {
+                "nome" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.NomeCompleto)
+                    : q => q.OrderByDescending(f => f.Usuario.NomeCompleto),
+
+                "email" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.Email)
+                    : q => q.OrderByDescending(f => f.Usuario.Email),
+
+                "cargo" => ascendente
+                    ? q => q.OrderBy(f => f.Cargo)
+                    : q => q.OrderByDescending(f => f.Cargo),
+
+                "matricula" => ascendente
+                    ? q => q.OrderBy(f => f.Matricula)
+                    : q => q.OrderByDescending(f => f.Matricula),
+
+                "status" => ascendente
+                    ? q => q.OrderBy(f => f.Ativo)
+                    : q => q.OrderByDescending(f => f.Ativo),
+
+                "telefone" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.PhoneNumber)
+                    : q => q.OrderByDescending(f => f.Usuario.PhoneNumber),
+
+                "id" => ascendente
+                    ? q => q.OrderBy(f => f.IdFuncionario)
+                    : q => q.OrderByDescending(f => f.IdFuncionario),
+
+                // Padrão: ordenar por matrícula
+                _ => ascendente
+                    ? q => q.OrderBy(f => f.Matricula)
+                    : q => q.OrderByDescending(f => f.Matricula)
+            };
         }
 
         //#endregion

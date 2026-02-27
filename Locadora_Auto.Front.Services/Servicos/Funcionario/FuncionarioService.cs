@@ -1,15 +1,8 @@
 ﻿using Locadora_Auto.Front.Models.Request;
 using Locadora_Auto.Front.Models.Response;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Net;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 {
@@ -36,5 +29,56 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
         {
             return await _api.GetAsync<List<RoleResponse>>("api/v1/Users/roles");
         }
+
+        //public async Task<List<FuncionarioResponse>?> ObterTodos(string? url = null)
+        //{
+        //    if(url == null)
+        //    {
+        //        return await _api.GetAsync<List<FuncionarioResponse>>("api/v1/Funcionarios");
+        //    }
+        //    return await _api.GetAsync<List<FuncionarioResponse>>($"api/v1/Funcionarios?{url}");
+        //}
+
+        public async Task<PaginatedResponse<FuncionarioResponse>> ObterTodos(
+        string? nome = null,
+        string? cargo = null,
+        bool? ativos = null,
+        int pagina = 1,
+        int itensPorPagina = 10,
+         string? ordenarPor = "Matricula",
+        string? ordem = "asc",
+        CancellationToken ct = default)
+        {
+            
+            // Construir query string
+            var queryParams = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(nome))
+                queryParams.Add($"nome={Uri.EscapeDataString(nome)}");
+
+            if (!string.IsNullOrWhiteSpace(cargo))
+                queryParams.Add($"cargo={Uri.EscapeDataString(cargo)}");
+
+            if (ativos.HasValue)
+                queryParams.Add($"ativos={ativos.Value.ToString().ToLower()}");
+
+            // Adicionar paginação
+            queryParams.Add($"pagina={pagina}");
+            queryParams.Add($"itensPorPagina={itensPorPagina}");
+
+            // ordenação
+            if (!string.IsNullOrWhiteSpace(ordenarPor))
+            {
+                queryParams.Add($"ordenarPor={ordenarPor}");
+                queryParams.Add($"ordem={ordem}");
+            }
+
+
+            var queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
+            var url = $"api/v1/Funcionarios{queryString}";
+
+            return await _api.GetAsync<PaginatedResponse<FuncionarioResponse>>(url);
+        }
+
     }
 }

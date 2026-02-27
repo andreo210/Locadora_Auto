@@ -16,6 +16,8 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Status = entidade.Ativo,
                 Cpf = entidade.Usuario?.Cpf ?? string.Empty,
                 Nome = entidade.Usuario?.NomeCompleto ?? string.Empty,
+                Cargo = entidade.Cargo,
+                Matricula = entidade.Matricula,
                 Email = entidade.Usuario?.Email ?? string.Empty,
                 Telefone = entidade.Usuario?.PhoneNumber ?? string.Empty
             };
