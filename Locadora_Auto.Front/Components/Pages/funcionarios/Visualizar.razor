@@ -1,0 +1,241 @@
+﻿@page "/funcionarios/visualizar/{id:int}"
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IFuncionarioService FuncionarioService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Detalhes do Funcionário</h2>
+            </div>
+            <p class="text-muted mt-2">Visualize as informações completas do funcionário</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do funcionário...</p>
+        </div>
+    }
+    else if (funcionario == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Funcionário não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Dados Pessoais</h5>
+                        @if (funcionario.Status == true)
+                        {
+                            <span class="badge @ObterBadgeStatus()">Ativo</span>
+                        }
+                        else
+                        {
+                            <span class="badge @ObterBadgeStatus()">Inativo</span>
+                        }
+
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Matrícula</label>
+                                <p class="mb-0">@funcionario.Matricula</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">CPF</label>
+                                <p class="mb-0">@funcionario.Cpf</p>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold text-muted small">Nome Completo</label>
+                                <p class="mb-0 fs-5">@funcionario.Nome</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Data de Cadastro</label>
+                                <p class="mb-0">@funcionario.DataCadastro.ToString("dd/MM/yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Contato</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">E-mail</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-envelope me-1"></i>
+                                    <a href="mailto:@funcionario.Email">@funcionario.Email</a>
+                                </p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Telefone</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-telephone me-1"></i>
+                                    @(funcionario.Telefone ?? "Não informado")
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados Profissionais</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Cargo</label>
+                                <p class="mb-0">
+                                    <span class="badge bg-info">@funcionario.Cargo</span>
+                                </p>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold text-muted small">Permissões</label>
+                                <div class="d-flex flex-wrap gap-2 mt-1">
+                                    @if (funcionario.Permissoes != null && funcionario.Permissoes.Any())
+                                    {
+                                        @foreach (var permissao in funcionario.Permissoes)
+                                        {
+                                            <span class="badge bg-secondary">@permissao</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted mb-0">Nenhuma permissão atribuída</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Voltar">
+                        <i class="bi bi-arrow-left me-1"></i>Voltar
+                    </button>
+                    <a href="/funcionarios/editar/@id" class="btn btn-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar Funcionário
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+
+    /// <summary>
+    /// ID do funcionário obtido da URL
+    /// </summary>
+    [Parameter] public int id { get; set; }
+
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+
+    /// <summary>
+    /// Dados do funcionário carregado da API
+    /// </summary>
+    private FuncionarioResponse? funcionario;
+
+    /// <summary>
+    /// Controla o estado de carregamento (spinner)
+    /// </summary>
+    private bool carregando = true;
+
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+
+    /// <summary>
+    /// Executado quando o parâmetro da rota muda
+    /// Permite recarregar os dados se o ID for alterado
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarFuncionario();
+    }
+
+
+    // ===== MÉTODOS DE CARREGAMENTO =====
+
+    /// <summary>
+    /// Busca os dados do funcionário na API usando o ID da rota
+    /// </summary>
+    private async Task CarregarFuncionario()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            funcionario = await FuncionarioService.ObterPorId(id.ToString());
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar funcionário: {ex.Message}");
+            funcionario = null;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+
+    /// <summary>
+    /// Retorna para a lista de funcionários
+    /// </summary>
+    private void Voltar()
+    {
+        Navegacao.NavigateTo("/funcionarios");
+    }
+
+
+    // ===== MÉTODOS AUXILIARES =====
+
+    /// <summary>
+    /// Retorna a classe CSS apropriada para o badge de status
+    /// </summary>
+    private string ObterBadgeStatus()
+    {
+        string status;
+        if (funcionario?.Status == null) return "bg-secondary";
+        if (funcionario?.Status == true) return "bg-success";
+        if (funcionario?.Status == false) return "bg-bg-danger";
+        return "bg-secondary";
+    }
+}

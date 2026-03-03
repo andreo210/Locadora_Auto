@@ -1,4 +1,5 @@
 ﻿@page "/funcionarios"
+@using Locadora_Auto.Front.Components.Notificacao
 @using Locadora_Auto.Front.Models
 @using Locadora_Auto.Front.Models.Enum
 @using Locadora_Auto.Front.Models.Response
@@ -8,8 +9,12 @@
 @inject NavigationManager Navegacao
 @inject IFuncionarioService FuncionarioService
 @inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
 
 <div class="container-fluid py-4">
     <!-- Cabeçalho da página -->
@@ -228,6 +233,16 @@
                                                     @onclick="@(() => EditarFuncionario(funcionario.IdFuncionario.ToString()))">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    title="Ativar"
+                                                    @onclick="@(() => AtivarFuncionario(funcionario.IdFuncionario.ToString(), funcionario.Nome))">
+                                                <i class="bi bi-arrow-up"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    title="Desativar"
+                                                    @onclick="@(() => DesativarFuncionario(funcionario.IdFuncionario.ToString(), funcionario.Nome))">
+                                                <i class="bi bi-arrow-down"></i>
+                                            </button>
                                             <button class="btn btn-sm btn-outline-info" 
                                                     title="Visualizar"
                                                     @onclick="@(() => VisualizarFuncionario(funcionario.IdFuncionario.ToString()))">
@@ -271,13 +286,13 @@
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="#" @onclick="AtivarSelecionados">
-                                                    <i class="bi bi-check-circle me-2"></i>Ativar selecionados
+                                                <a class="dropdown-item text-success" href="#" @onclick="AtivarSelecionados">
+                                                    <i class="bi bi-check-circle-fill me-2"></i>Ativar selecionados
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="#" @onclick="InativarSelecionados">
-                                                    <i class="bi bi-pause-circle me-2"></i>Inativar selecionados
+                                                <a class="dropdown-item text-warning" href="#" @onclick="InativarSelecionados">
+                                                    <i class="bi bi-pause-circle-fill me-2"></i>Inativar selecionados
                                                 </a>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
@@ -371,6 +386,10 @@
 </div>
 
 @code {
+    // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
+    private ConfirmDialog? confirmDialog;
+
+
     // ===== MODELO DE RESPOSTA DA API COM PAGINAÇÃO =====
     private class FuncionariosPaginadosResponse
     {
@@ -563,7 +582,7 @@
     private void AlternarSelecaoTodos()
     {
         var todosSelecionados = TodosSelecionados;
-        
+
         foreach (var f in funcionarios)
         {
             selecionados[f.IdFuncionario.ToString()] = !todosSelecionados;
@@ -594,16 +613,13 @@
         }
     }
 
-
+    //método para ordenação
     private async Task OrdenarPor(string propriedade)
     {
         ordenacao.Alternar(propriedade);
         paginaAtual = 1; // Volta para primeira página ao ordenar
         await CarregarFuncionarios();
     }
-
-
-
 
     // ===== MÉTODOS DE AÇÕES INDIVIDUAIS =====
     private void EditarFuncionario(string id)
@@ -618,29 +634,102 @@
 
     private async Task ExcluirFuncionario(string id, string nome)
     {
-        var confirmado = await Task.Run(() => true); // Placeholder para diálogo
+        var confirmado = await ConfirmService.ConfirmAsync(
+            
+            $"Deseja realmente excluir o funcionário '{nome}'?",
+            "Confirmar Exclusão"
+        );
 
         if (confirmado)
         {
             try
             {
-               // var sucesso = await FuncionarioService.Excluir(id);
-                // if (sucesso)
-                // {
-                //     NotificacaoService.ShowSuccess($"Funcionário {nome} excluído com sucesso!", "Exclusão");
-                    
-                //     // Se a página atual ficar vazia, volta uma página
-                //     if (funcionarios.Count == 1 && paginaAtual > 1)
-                //     {
-                //         paginaAtual--;
-                //     }
-                    
-                //     await CarregarFuncionarios(); // Recarrega a lista
-                // }
+                var sucesso = await FuncionarioService.Excluir(id);
+                if (sucesso)
+                {
+                    NotificacaoService.ShowSuccess($"Funcionário {nome} excluído com sucesso!", "Exclusão");
+
+                    // Se a página atual ficar vazia, volta uma página
+                    if (funcionarios.Count == 1 && paginaAtual > 1)
+                    {
+                        paginaAtual--;
+                    }
+
+                    await CarregarFuncionarios(); // Recarrega a lista
+                }
+                else
+                {
+                    NotificacaoService.ShowError($"Erro ao excluir funcionario, contate o suporte.", "Erro");
+                }
             }
             catch (Exception ex)
             {
                 NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+            }
+        }
+    }
+    private async Task AtivarFuncionario(string id, string nome)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+
+           $"Deseja realmente ativar o funcionário '{nome}'?",
+           "Confirmar Exclusão"
+       );
+
+        if (confirmado)
+        {
+            try
+            {
+                var sucesso = await FuncionarioService.Ativar(id);
+                if (sucesso)
+                {
+                    NotificacaoService.ShowSuccess($"Funcionário {nome} ativado com sucesso!", "Exclusão");
+
+                    // Se a página atual ficar vazia, volta uma página
+                    if (funcionarios.Count == 1 && paginaAtual > 1)
+                    {
+                        paginaAtual--;
+                    }
+
+                    await CarregarFuncionarios(); // Recarrega a lista
+                }               
+            }
+            catch (Exception ex)
+            {
+                NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
+            }
+        }
+    }
+
+    private async Task DesativarFuncionario(string id, string nome)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+
+           $"Deseja realmente desativar o funcionário '{nome}'?",
+           "Confirmar Exclusão"
+       );
+
+        if (confirmado)
+        {
+            try
+            {
+                var sucesso = await FuncionarioService.Desativar(id);
+                if (sucesso)
+                {
+                    NotificacaoService.ShowSuccess($"Funcionário {nome} desativado com sucesso!", "Exclusão");
+
+                    // Se a página atual ficar vazia, volta uma página
+                    if (funcionarios.Count == 1 && paginaAtual > 1)
+                    {
+                        paginaAtual--;
+                    }
+
+                    await CarregarFuncionarios(); // Recarrega a lista
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
             }
         }
     }
@@ -730,7 +819,7 @@
             var sucesso = true;
             foreach (var id in idsSelecionados)
             {
-               // sucesso = sucesso && await FuncionarioService.Excluir(id);
+               sucesso = sucesso && await FuncionarioService.Excluir(id);
             }
             
             if (sucesso)

@@ -25,19 +25,34 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             return null;
         }
 
+        public async Task<bool?> Atualizar(int id,FuncionarioEditarRequest request)
+        {
+            return await _api.PutAsync<FuncionarioEditarRequest>($"api/v1/Funcionarios/{id}", request);
+        }
+
         public async Task<List<RoleResponse>?> ObterTodasRoles()
         {
             return await _api.GetAsync<List<RoleResponse>>("api/v1/Users/roles");
         }
 
-        //public async Task<List<FuncionarioResponse>?> ObterTodos(string? url = null)
-        //{
-        //    if(url == null)
-        //    {
-        //        return await _api.GetAsync<List<FuncionarioResponse>>("api/v1/Funcionarios");
-        //    }
-        //    return await _api.GetAsync<List<FuncionarioResponse>>($"api/v1/Funcionarios?{url}");
-        //}
+        public async Task<bool> Excluir(string id)
+        {           
+            return await _api.DeleteAsync($"api/v1/Funcionarios/{id}");            
+        }
+
+        public async Task<bool> Ativar(string id)
+        {
+            return await _api.PatchAsync($"api/v1/Funcionarios/{id}/ativar", id);
+        }
+        public async Task<bool> Desativar(string id)
+        {
+            return await _api.PatchAsync($"api/v1/Funcionarios/{id}/desativar", id);
+        }
+
+        public async Task<FuncionarioResponse> ObterPorId(string id)
+        {
+            return await _api.GetAsync<FuncionarioResponse>($"api/v1/Funcionarios/obter-funcionario?usuarioId={id}");
+        }
 
         public async Task<PaginatedResponse<FuncionarioResponse>> ObterTodos(
         string? nome = null,
@@ -45,8 +60,8 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
         bool? ativos = null,
         int pagina = 1,
         int itensPorPagina = 10,
-         string? ordenarPor = "Matricula",
-        string? ordem = "asc",
+         string? ordenarPor = null,
+        string? ordem = null,
         CancellationToken ct = default)
         {
             
@@ -72,8 +87,6 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 queryParams.Add($"ordenarPor={ordenarPor}");
                 queryParams.Add($"ordem={ordem}");
             }
-
-
             var queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
             var url = $"api/v1/Funcionarios{queryString}";
 

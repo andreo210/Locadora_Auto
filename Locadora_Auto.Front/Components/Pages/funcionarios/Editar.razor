@@ -1,0 +1,477 @@
+﻿@page "/funcionarios/editar/{id:int}"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IFuncionarioService FuncionarioService
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Editar Funcionário</h2>
+            </div>
+            <p class="text-muted mt-2">Altere os dados do funcionário</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do funcionário...</p>
+        </div>
+    }
+    else if (funcionarioOriginal == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Funcionário não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@funcionarioEdit" OnValidSubmit="@ManipularEnvio" Context="formContext">
+            <FluentValidationValidator @ref="validadorFluent" />
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Dados Pessoais</h5>
+                            <span class="badge @(funcionarioEdit.Ativo == true ? "bg-success" : "bg-danger")">
+                                @(funcionarioEdit.Ativo == true ? "Ativo" : "Inativo")
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <!-- Status (Ativo/Inativo) -->
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" @bind="funcionarioEdit.Ativo" id="statusSwitch">
+                                    <label class="form-check-label" for="statusSwitch">
+                                        @(funcionarioEdit.Ativo == true ? "Ativo" : "Inativo")
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Matrícula -->
+                            <div class="mb-3">
+                                <label class="form-label">Matrícula <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="funcionarioEdit.Matricula" class="form-control" placeholder="Digite a matrícula" />
+                                <ValidationMessage For="@(() => funcionarioEdit.Matricula)" />
+                            </div>
+
+                            <!-- Nome -->
+                            <div class="mb-3">
+                                <label class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="funcionarioEdit.Nome" class="form-control" placeholder="Digite o nome completo" />
+                                <ValidationMessage For="@(() => funcionarioEdit.Nome)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Contato</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- E-mail -->
+                            <div class="mb-3">
+                                <label class="form-label">E-mail <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="funcionarioEdit.Email" class="form-control" type="email" placeholder="email@exemplo.com" />
+                                <ValidationMessage For="@(() => funcionarioEdit.Email)" />
+                            </div>
+
+                            <!-- Telefone com máscara -->
+                            <InputTelefone @bind-Value="funcionarioEdit.Telefone" Label="Telefone para Contato" Placeholder="(00) 00000-0000" />
+                            <ValidationMessage For="@(() => funcionarioEdit.Telefone)" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Dados Profissionais</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Cargo -->
+                            <div class="mb-3">
+                                <label class="form-label">Cargo <span class="text-danger">*</span></label>
+                                <InputSelect @bind-Value="funcionarioEdit.Cargo" class="form-select">
+                                    <option value="">Selecione um cargo</option>
+                                    @foreach (var cargo in Enum.GetValues<CargoEnum>())
+                                    {
+                                        <option value="@cargo">@cargo.GetDisplayName()</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => funcionarioEdit.Cargo)" />
+                            </div>
+
+                            <!-- Permissões -->
+                            <div class="mb-3">
+                                <label class="form-label d-block">Permissões <span class="text-danger">*</span></label>
+                                @if (carregandoPermissoes)
+                                {
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Carregando...</span>
+                                        </div>
+                                        <span class="ms-2">Carregando permissões...</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                        @foreach (var permissao in permissoesDisponiveis)
+                                        {
+                                            <div class="form-check">
+                                                <input type="checkbox"
+                                                       class="form-check-input"
+                                                       id="@permissao"
+                                                       @onchange="@((e) => AlternarPermissao(permissao, e))"
+                                                       checked="@funcionarioEdit.Permissoes.Contains(permissao)" />
+                                                <label class="form-check-label" for="@permissao">
+                                                    @permissao
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                    <ValidationMessage For="@(() => funcionarioEdit.Permissoes)" />
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Segurança</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Opção de alterar senha -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" @bind="alterarSenha" id="alterarSenhaCheck">
+                                    <label class="form-check-label" for="alterarSenhaCheck">
+                                        Alterar senha
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    Marque esta opção se deseja definir uma nova senha para o funcionário
+                                </small>
+                            </div>
+
+                            @if (alterarSenha)
+                            {
+                                <!-- Nova Senha -->
+                                <div class="mb-3">
+                                    <label class="form-label">Nova Senha</label>
+                                    <InputText type="password"
+                                               @bind-Value="novaSenha"
+                                               class="form-control"
+                                               placeholder="Mínimo 6 caracteres" />
+                                    <small class="text-muted">
+                                        A senha deve conter letras maiúsculas, minúsculas e números
+                                    </small>
+                                </div>
+
+                                <!-- Confirme Nova Senha -->
+                                <div class="mb-3">
+                                    <label class="form-label">Confirme a Nova Senha</label>
+                                    <InputText type="password"
+                                               @bind-Value="confirmeNovaSenha"
+                                               class="form-control"
+                                               placeholder="Digite a senha novamente" />
+                                </div>
+
+                                <!-- Indicador de força da senha -->
+                                @if (!string.IsNullOrEmpty(novaSenha))
+                                {
+                                    <div class="mt-2">
+                                        <label class="small">Força da senha:</label>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar @ObterClasseForcaSenha()"
+                                                 style="width: @(ObterForcaSenha() * 20)%"></div>
+                                        </div>
+                                        @if (novaSenha != confirmeNovaSenha && !string.IsNullOrEmpty(confirmeNovaSenha))
+                                        {
+                                            <div class="text-danger small mt-1">
+                                                <i class="bi bi-exclamation-circle"></i> As senhas não conferem
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    A senha atual será mantida.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                            <i class="bi bi-x-circle me-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@processando">
+                            @if (processando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Salvando...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                                <span>Salvar Alterações</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private FuncionarioEditarRequest? funcionarioEdit = new();
+    private FuncionarioResponse? funcionarioOriginal;
+    private bool carregando = true;
+    private bool processando;
+    private bool carregandoPermissoes = true;
+    private bool alterarSenha = false;
+    private string novaSenha = string.Empty;
+    private string confirmeNovaSenha = string.Empty;
+    private List<string> permissoesDisponiveis = new();
+    private FluentValidationValidator? validadorFluent;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarDados();
+    }
+
+    // ===== MÉTODOS DE CARREGAMENTO =====
+    private async Task CarregarDados()
+    {
+        try
+        {
+            carregando = true;
+            carregandoPermissoes = true;
+            StateHasChanged();
+
+            // Carrega os dados do funcionário
+            funcionarioOriginal = await FuncionarioService.ObterPorId(id.ToString());
+
+            if (funcionarioOriginal != null)
+            {
+                // Mapeia os dados para o request de edição
+                funcionarioEdit = new FuncionarioEditarRequest
+                {
+                    Ativo = funcionarioOriginal.Status,
+                    Matricula = funcionarioOriginal.Matricula,
+                    Nome = funcionarioOriginal.Nome,
+                    Email = funcionarioOriginal.Email,
+                    Telefone = funcionarioOriginal.Telefone ?? string.Empty,
+                    Cargo = funcionarioOriginal.Cargo,
+                    Permissoes = funcionarioOriginal.Permissoes ?? new List<string>()
+                };
+            }
+
+            // Carrega as permissões disponíveis
+            await CarregarPermissoes();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar funcionário: {ex.Message}");
+            funcionarioOriginal = null;
+        }
+        finally
+        {
+            carregando = false;
+            carregandoPermissoes = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CarregarPermissoes()
+    {
+        try
+        {
+            var permissoes = await FuncionarioService.ObterTodasRoles();
+            permissoesDisponiveis = permissoes.Select(p => p.Nome).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar permissões: {ex.Message}");
+            permissoesDisponiveis = new List<string>
+            {
+                "Administrador",
+                "Gerente",
+                "Operador",
+                "Vendedor",
+                "Financeiro",
+                "Relatorios",
+                "Configuracoes"
+            };
+        }
+    }
+
+    // ===== MÉTODOS DE INTERAÇÃO =====
+    private void AlternarPermissao(string permissao, ChangeEventArgs e)
+    {
+        if (funcionarioEdit == null) return;
+
+        var estaSelecionado = e.Value as bool? ?? false;
+
+        if (estaSelecionado && !funcionarioEdit.Permissoes.Contains(permissao))
+            funcionarioEdit.Permissoes.Add(permissao);
+        else if (!estaSelecionado && funcionarioEdit.Permissoes.Contains(permissao))
+            funcionarioEdit.Permissoes.Remove(permissao);
+
+        StateHasChanged();
+    }
+
+    // ===== MÉTODOS DE VALIDAÇÃO DE SENHA =====
+    private int ObterForcaSenha()
+    {
+        if (string.IsNullOrEmpty(novaSenha)) return 0;
+
+        int forca = 0;
+        if (novaSenha.Length >= 6) forca++;
+        if (novaSenha.Any(char.IsUpper)) forca++;
+        if (novaSenha.Any(char.IsLower)) forca++;
+        if (novaSenha.Any(char.IsDigit)) forca++;
+        if (novaSenha.Any(c => !char.IsLetterOrDigit(c))) forca++;
+
+        return forca;
+    }
+
+    private string ObterClasseForcaSenha()
+    {
+        return ObterForcaSenha() switch
+        {
+            0 or 1 => "bg-danger",
+            2 or 3 => "bg-warning",
+            4 => "bg-info",
+            5 => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private bool ValidarSenhas()
+    {
+        if (!alterarSenha) return true;
+        if (string.IsNullOrEmpty(novaSenha)) return false;
+        if (novaSenha != confirmeNovaSenha) return false;
+        return true;
+    }
+
+    // ===== MÉTODO PRINCIPAL DE ENVIO =====
+    private async Task ManipularEnvio()
+    {
+        if (funcionarioEdit == null || funcionarioOriginal == null) return;
+
+        if (!ValidarSenhas())
+        {
+            NotificacaoService.ShowError("As senhas não conferem ou são inválidas.");
+            return;
+        }
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Cria o request de atualização
+            var updateRequest = new FuncionarioEditarRequest
+            {
+                Ativo = funcionarioEdit.Ativo,
+                Matricula = funcionarioEdit.Matricula,
+                Nome = funcionarioEdit.Nome,
+                Email = funcionarioEdit.Email,
+                Telefone = funcionarioEdit.Telefone,
+                Cargo = funcionarioEdit.Cargo,
+                Permissoes = funcionarioEdit.Permissoes
+            };
+
+            // Se alterar senha, inclui a nova senha
+            // if (alterarSenha && !string.IsNullOrEmpty(novaSenha))
+            // {
+            //     updateRequest.NovaSenha = novaSenha;
+            // }
+
+            // Chama o serviço para atualizar
+            var sucesso = await FuncionarioService.Atualizar(id, updateRequest);
+
+            if (sucesso.Value)
+            {
+                NotificacaoService.ShowSuccess("Funcionário atualizado com sucesso!");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo($"/funcionarios/visualizar/{id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao atualizar funcionário: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Voltar()
+    {
+        if (PossuiAlteracoesNaoSalvas())
+        {
+            // TODO: Implementar diálogo de confirmação
+            Navegacao.NavigateTo($"/funcionarios/visualizar/{id}");
+        }
+        else
+        {
+            Navegacao.NavigateTo($"/funcionarios/visualizar/{id}");
+        }
+    }
+
+    private void Cancelar() => Voltar();
+
+    private bool PossuiAlteracoesNaoSalvas()
+    {
+        if (funcionarioEdit == null || funcionarioOriginal == null) return false;
+
+        return funcionarioEdit.Ativo != funcionarioOriginal.Status ||
+               funcionarioEdit.Matricula != funcionarioOriginal.Matricula ||
+               funcionarioEdit.Nome != funcionarioOriginal.Nome ||
+               funcionarioEdit.Email != funcionarioOriginal.Email ||
+               funcionarioEdit.Telefone != (funcionarioOriginal.Telefone ?? string.Empty) ||
+               funcionarioEdit.Cargo != funcionarioOriginal.Cargo ||
+               !funcionarioEdit.Permissoes.SequenceEqual(funcionarioOriginal.Permissoes ?? new List<string>()) ||
+               alterarSenha;
+    }
+}

@@ -80,7 +80,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(typeof(FuncionarioDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<FuncionarioDto>> ObterFuncionario([FromQuery] string? cpf = null,[FromQuery] string? matricula = null,[FromQuery] string? usuarioId = null,  CancellationToken ct = default )
+        public async Task<ActionResult<FuncionarioDto>> ObterFuncionario([FromQuery] string? cpf = null,[FromQuery] string? matricula = null,[FromQuery] int? usuarioId = null,  CancellationToken ct = default )
         {
 
             if (!string.IsNullOrWhiteSpace(cpf))
@@ -95,9 +95,9 @@ namespace Locadora_Auto.Api.V1.Controllers
                 if (model != null) return Ok(model);
                 return NotFound();
             }        
-            else if (!string.IsNullOrWhiteSpace(usuarioId))
+            else if (usuarioId!=0)
             {
-                var model = await _funcionarioService.ObterPorUsuarioIdAsync(usuarioId, ct);
+                var model = await _funcionarioService.ObterPorFunciopnarioIdAsync(usuarioId, ct);
                 if (model != null) return Ok(model);
                 return NotFound();
             }
@@ -155,12 +155,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Ativar([FromRoute] int id, CancellationToken ct = default)
         {
-            var ativado = await _funcionarioService.AtivarFuncionarioAsync(id, ct);
-            if (!ativado)
-            {
-                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao ativar funcionario");
-            }
-            return Ok(new { Message = "Funcionario ativado com sucesso" });
+            return CustomResponse(await _funcionarioService.AtivarFuncionarioAsync(id, ct));
         }
 
         /// <summary>
@@ -176,13 +171,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Desativar([FromRoute] int id, CancellationToken ct = default)
         {
-            var desativado = await _funcionarioService.DesativarFuncionarioAsync(id, ct);
-
-            if (!desativado)
-            {
-                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao desativar funcionario");
-            }
-            return Ok(new { Message = "Funcionario desativado com sucesso" });
+            return CustomResponse(await _funcionarioService.DesativarFuncionarioAsync(id, ct));
         }
 
         [HttpGet]

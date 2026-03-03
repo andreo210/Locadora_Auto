@@ -51,6 +51,16 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             return funcionario.ToDto();            
         }
 
+        public async Task<FuncionarioDto?> ObterPorFunciopnarioIdAsync(int? id, CancellationToken ct = default)
+        {
+            var funcionario = await ObterPorIdAsync(id, ct);
+
+            if (funcionario == null)
+                return null; 
+
+           return funcionario.ToDto();
+        }
+
         private async Task<Funcionario?> ObterPorIdAsync(int? id, CancellationToken ct = default)
         {
             var funcionario = await _funcionarioRepository.ObterPrimeiroAsync(c => c!.IdFuncionario == id, ct: ct, incluir: q => q.Include(c => c.Usuario),rastreado:true);
@@ -504,49 +514,38 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         }
 
         public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
-        {
-            await _unitOfWork.BeginTransactionAsync(ct);
-            try
+        {           
+            // Buscar funcionário
+            var funcionario = await ObterPorIdAsync(id);
+            if (funcionario == null)
             {
-                // Buscar funcionário
-                var funcionario = await ObterPorIdAsync(id);
-                if (funcionario == null)
-                {
-                    _notificador.Add($"Funcionário com ID {id} não encontrado.");
-                    return false;
-                }
-
-                // Verificar se funcionário tem registros ativos
-                //var temLocacoesAtivas = await _funcionarioRepository.ExisteAsync(
-                //    l => l.IdFuncionario == id 
-                //    && (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
-                //    ct);
-
-                //if (temLocacoesAtivas)
-                //{
-                //    throw new InvalidOperationException(
-                //        "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
-                //}
-
-                // Excluir usuário do Identity
-                var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
-                if (user != null)
-                {
-                    var deleteResult = await _userManager.DeleteAsync(user);
-                    if (!deleteResult.Succeeded)
-                        throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
-                }
-
-                // Excluir funcionário (cascata excluirá o usuário também)
-                await _funcionarioRepository.Excluir(funcionario, ct);
-                await _unitOfWork.CommitAsync(ct);
-                return true;
+                _notificador.Add($"Funcionário com ID {id} não encontrado.");
+                return false;
             }
-            catch (Exception ex)
+
+            // Verificar se funcionário tem registros ativos
+            //var temLocacoesAtivas = await _funcionarioRepository.ExisteAsync(
+            //    l => l.IdFuncionario == id 
+            //    && (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
+            //    ct);
+
+            //if (temLocacoesAtivas)
+            //{
+            //    throw new InvalidOperationException(
+            //        "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
+            //}
+
+            // Excluir usuário do Identity
+            var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
+            if (user != null)
             {
-                await _unitOfWork.RollbackAsync(ct);
-                throw;
+                var deleteResult = await _userManager.DeleteAsync(user);
+                if (!deleteResult.Succeeded)
+                    throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
             }
+
+            return true;           
+            
         }
 
         public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
@@ -559,7 +558,11 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             }
 
             if (funcionario.Ativo)
-                return true; // Já está ativo
+            {
+                _notificador.Add($"O Funcionário {funcionario.Usuario.NomeCompleto}, já esta ativo.");
+                return false; // Já está ativo
+            }
+                
 
             var user = await _userManager.FindByIdAsync(funcionario!.Usuario!.Id);
             if (user != null)
@@ -582,7 +585,10 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             }
 
             if (!funcionario.Ativo)
-                return true; // Já está inativo
+            {
+                _notificador.Add($"O Funcionário {funcionario.Usuario.NomeCompleto}, já esta desativado");
+                return false;
+            }
 
             // Verificar se funcionário tem locações ativas
             //var temLocacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(

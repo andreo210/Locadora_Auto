@@ -61,8 +61,7 @@ public class ApiHttpService : IApiHttpService
         return await DeserializarObjetoResponse<T>(response);
     }
 
-    // POST com retorno
-    // POST com retorno
+
     public async Task<(TResponse? objeto, HttpStatusCode code)> PostAsync<TResponse, TRequest>(string url, TRequest data)
     {
         var response = await _http.PostAsJsonAsync(url, data);
@@ -99,6 +98,10 @@ public class ApiHttpService : IApiHttpService
     {
         var response = await _http.PutAsJsonAsync(url, data, _jsonOptions);
         await TratarErrosResponse(response);
+        if (!response.IsSuccessStatusCode)
+        {
+            return false;
+        }
         return true;
     }
 
@@ -115,6 +118,10 @@ public class ApiHttpService : IApiHttpService
     {
         var response = await _http.PatchAsJsonAsync(url, data, _jsonOptions);
         await TratarErrosResponse(response);
+        if (!response.IsSuccessStatusCode)
+        {
+            return false;
+        }
         return true;
     }
 
@@ -123,6 +130,10 @@ public class ApiHttpService : IApiHttpService
     {
         var response = await _http.DeleteAsync(url);
         await TratarErrosResponse(response);
+        if(!response.IsSuccessStatusCode)
+        {
+            return false;
+        }
         return true;
     }
 

@@ -10,6 +10,7 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         Task<FuncionarioDto?> ObterPorMatriculaAsync(string matricula, CancellationToken ct = default);
         Task<FuncionarioDto?> ObterPorUsuarioIdAsync(string usuarioId, CancellationToken ct = default);
         Task<FuncionarioDto?> ObterPorFuncionarioCpfAsync(string cpf, CancellationToken ct = default);
+        Task<FuncionarioDto?> ObterPorFunciopnarioIdAsync(int? id, CancellationToken ct = default);
         Task<IReadOnlyList<FuncionarioDto>> ObterTodosAsync(CancellationToken ct = default);
         Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync(bool? ativos = true, string? nome = null, string cargo = null, CancellationToken ct = default);
         Task<PaginatedResult<FuncionarioDto>> ObterPaginadoAsync(
