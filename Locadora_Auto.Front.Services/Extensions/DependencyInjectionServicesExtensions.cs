@@ -38,6 +38,7 @@ namespace Locadora_Auto.Front.Services.Extensions
             services.AddScoped<IUsuarioAsp, UsuarioAsp>();
             services.AddScoped<ILoginService, LoginService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
+            services.AddScoped<IClienteService, ClienteService>();
 
 
             return services;
