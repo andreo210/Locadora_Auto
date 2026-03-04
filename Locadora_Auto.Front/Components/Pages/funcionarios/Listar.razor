@@ -287,12 +287,16 @@
                                             </li>
                                             <li>
                                                 <a class="dropdown-item text-success" href="#" @onclick="AtivarSelecionados">
-                                                    <i class="bi bi-check-circle-fill me-2"></i>Ativar selecionados
+                                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                                    Ativar selecionados
+                                                    <span class="badge bg-success ms-2">@QuantidadeSelecionados</span>
                                                 </a>
                                             </li>
                                             <li>
                                                 <a class="dropdown-item text-warning" href="#" @onclick="InativarSelecionados">
-                                                    <i class="bi bi-pause-circle-fill me-2"></i>Inativar selecionados
+                                                    <i class="bi bi-pause-circle-fill me-2"></i>
+                                                    Inativar selecionados
+                                                    <span class="badge bg-warning ms-2">@QuantidadeSelecionados</span>
                                                 </a>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
@@ -673,7 +677,7 @@
         var confirmado = await ConfirmService.ConfirmAsync(
 
            $"Deseja realmente ativar o funcionário '{nome}'?",
-           "Confirmar Exclusão"
+           "Confirmar Ativação"
        );
 
         if (confirmado)
@@ -706,7 +710,7 @@
         var confirmado = await ConfirmService.ConfirmAsync(
 
            $"Deseja realmente desativar o funcionário '{nome}'?",
-           "Confirmar Exclusão"
+           "Confirmar Desativação"
        );
 
         if (confirmado)
