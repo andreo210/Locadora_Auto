@@ -3,6 +3,7 @@
 @using Locadora_Auto.Front.Components.Forms
 @using Locadora_Auto.Front.Models.Enum
 @using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Request.Cliente
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
@@ -27,6 +28,7 @@
 
         <div class="row">
             <div class="col-md-6">
+                <!-- Dados pessoais -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Dados Pessoais</h5>
@@ -59,6 +61,7 @@
                     </div>
                 </div>
 
+                <!-- Contato -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Contato</h5>
@@ -76,11 +79,8 @@
                         <ValidationMessage For="@(() => usuario.Telefone)" />
                     </div>
                 </div>
-            </div>
 
-            <div class="col-md-6">
-
-
+                <!-- Segurança -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Segurança</h5>
@@ -123,6 +123,10 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-md-6">
+                <EnderecoForm @bind-Endereco="usuario.Endereco" Titulo="Endereço do Cliente" />              
+            </div>
         </div>
 
         <div class="row mt-3">
@@ -153,80 +157,25 @@
     // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
 
     /// <summary>
-    /// Armazena os dados do formulário de funcionário sendo preenchido
+    /// Armazena os dados do formulário de cliente sendo preenchido
     /// </summary>
-    private ClienteRequest usuario = new();
+    private ClienteRequest usuario = new()
+    {
+        Endereco = new EnderecoRequest()
+    };
 
-    /// <summary>
-    /// Controla o estado de processamento (loading) para evitar múltiplos envios
-    /// </summary>
+
+    // Controla o estado de processamento (loading) para evitar múltiplos envios
     private bool processando;
 
-    /// <summary>
-    /// Referência para o validador FluentValidation usado no formulário
-    /// </summary>
+
+    // Referência para o validador FluentValidation usado no formulário
     private FluentValidationValidator? validadorFluent;
 
-    /// <summary>
-    /// Indica se as permissões estão sendo carregadas da API (mostra spinner)
-    /// </summary>
-    private bool carregandoPermissoes = true;
-
-    /// <summary>
-    /// Lista de permissões disponíveis carregadas da API para exibir no checkbox
-    /// </summary>
-    private List<string> permissoesDisponiveis = new();
-
-
-    // ===== MÉTODOS DO CICLO DE VIDA DO COMPONENTE =====
-
-    /// <summary>
-    /// Executado quando o componente é inicializado pela primeira vez
-    /// Inicializa a lista de permissões do usuário e carrega as permissões disponíveis da API
-    /// </summary>
-    protected override async Task OnInitializedAsync()
-    {
-        // usuario.Permissoes = new List<string>(); // Inicia com lista vazia de permissões selecionadas
-        // await CarregarPermissoes(); // Busca as permissões disponíveis da API
-    }
-
-
-    // ===== MÉTODOS DE CARREGAMENTO DE DADOS =====
-
-    /// <summary>
-    /// Busca a lista de permissões/roles disponíveis na API
-    /// Atualiza a interface com spinner durante o carregamento
-    /// Em caso de erro, usa uma lista padrão como fallback
-    /// </summary>
 
 
 
-    // ===== MÉTODOS DE INTERAÇÃO DO USUÁRIO =====
 
-    /// <summary>
-    /// Gerencia a seleção/deseleção de permissões nos checkboxes
-    /// Adiciona ou remove permissões da lista do usuário conforme o clique
-    /// </summary>
-    /// <param name="permissao">Nome da permissão sendo alternada</param>
-    /// <param name="e">Evento do checkbox contendo o estado (marcado/desmarcado)</param>
-    private void AlternarPermissao(string permissao, ChangeEventArgs e)
-    {
-        // Converte o valor do evento para boolean (true = marcado, false = desmarcado)
-        var estaSelecionado = e.Value as bool? ?? false;
-
-        // Se foi marcado e não está na lista, adiciona
-        if (estaSelecionado && !usuario.Permissoes.Contains(permissao))
-            usuario.Permissoes.Add(permissao);
-        // Se foi desmarcado e está na lista, remove
-        else if (!estaSelecionado && usuario.Permissoes.Contains(permissao))
-            usuario.Permissoes.Remove(permissao);
-
-        // Logs para debug
-        Console.WriteLine($"Permissão {permissao}: {estaSelecionado}");
-        Console.WriteLine($"Total de permissões: {usuario.Permissoes.Count}");
-
-        StateHasChanged(); // Atualiza a UI para refletir a mudança
-    }
 
 
     // ===== MÉTODOS DE VALIDAÇÃO DE SENHA =====
@@ -292,12 +241,7 @@
             if (!resultado.IsValid)
             {
                 // Agrupa os erros por propriedade para exibição organizada
-                var erros = resultado.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.Select(e => e.ErrorMessage).ToArray()
-                    );
+                var erros = resultado.Errors.GroupBy(e => e.PropertyName).ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray() );
 
                 // Exibe os erros usando o serviço de notificação
                 NotificacaoService.ShowValidationErrors(erros);
@@ -312,17 +256,19 @@
             if (clienteCriado != null)
             {
                 // Sucesso - mostra mensagem de confirmação
-                NotificacaoService.ShowSuccess("Funcionário cadastrado com sucesso!", "Cadastro Realizado");
+                NotificacaoService.ShowSuccess("Cliente cadastrado com sucesso!", "Cadastro Realizado");
 
                 // Limpa o formulário para novo cadastro
-                usuario = new ClienteRequest();
-                usuario.Permissoes = new List<string>();
+                usuario = new ClienteRequest()
+                {
+                    Endereco = new EnderecoRequest()
+                };
 
                 // Aguarda 2 segundos para o usuário ver a mensagem de sucesso
                 await Task.Delay(2000);
 
                 // Redireciona para a mesma página (limpa o formulário)
-                Navegacao.NavigateTo("/funcionarios/novo");
+                Navegacao.NavigateTo("/clientes/novo");
             }
         }
         catch (Exception ex)
@@ -381,7 +327,6 @@
                !string.IsNullOrEmpty(usuario.Cpf) ||
                !string.IsNullOrEmpty(usuario.Email) ||
                !string.IsNullOrEmpty(usuario.Telefone) ||
-               !string.IsNullOrEmpty(usuario.Senha) ||
-               usuario.Permissoes.Any(); // Verifica se há permissões selecionadas
+               !string.IsNullOrEmpty(usuario.Senha); // Verifica se há permissões selecionadas
     }
 }

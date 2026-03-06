@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Front.Models.Request;
+﻿using Locadora_Auto.Front.Models.Request.Cliente;
 using Locadora_Auto.Front.Models.Response;
 using System.Net;
 using System.Net.Http;
@@ -17,7 +17,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 
         public async Task<ClienteResponse?> Inserir(ClienteRequest request)
         {
-            var (objeto, code) = await _api.PostAsync<ClienteResponse, ClienteRequest>("api/v1/Funcionarios", request);
+            var (objeto, code) = await _api.PostAsync<ClienteResponse, ClienteRequest>("api/v1/Clientes", request);
             if (code == HttpStatusCode.Created || code == HttpStatusCode.OK)
             {
                 return objeto;
@@ -27,31 +27,27 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 
         public async Task<bool?> Atualizar(int id,ClienteEditarRequest request)
         {
-            return await _api.PutAsync<ClienteEditarRequest>($"api/v1/Funcionarios/{id}", request);
+            return await _api.PutAsync<ClienteEditarRequest>($"api/v1/Clientes/{id}", request);
         }
 
-        public async Task<List<RoleResponse>?> ObterTodasRoles()
-        {
-            return await _api.GetAsync<List<RoleResponse>>("api/v1/Users/roles");
-        }
 
         public async Task<bool> Excluir(string id)
         {           
-            return await _api.DeleteAsync($"api/v1/Funcionarios/{id}");            
+            return await _api.DeleteAsync($"api/v1/Clientes/{id}");            
         }
 
         public async Task<bool> Ativar(string id)
         {
-            return await _api.PatchAsync($"api/v1/Funcionarios/{id}/ativar", id);
+            return await _api.PatchAsync($"api/v1/Clientes/{id}/ativar", id);
         }
         public async Task<bool> Desativar(string id)
         {
-            return await _api.PatchAsync($"api/v1/Funcionarios/{id}/desativar", id);
+            return await _api.PatchAsync($"api/v1/Clientes/{id}/desativar", id);
         }
 
         public async Task<ClienteResponse> ObterPorId(string id)
         {
-            return await _api.GetAsync<ClienteResponse>($"api/v1/Funcionarios/obter-funcionario?usuarioId={id}");
+            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/obter-funcionario?usuarioId={id}");
         }
 
         public async Task<PaginatedResponse<ClienteResponse>> ObterTodos(
@@ -88,7 +84,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 queryParams.Add($"ordem={ordem}");
             }
             var queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
-            var url = $"api/v1/Funcionarios{queryString}";
+            var url = $"api/v1/Clientes{queryString}";
 
             return await _api.GetAsync<PaginatedResponse<ClienteResponse>>(url);
         }

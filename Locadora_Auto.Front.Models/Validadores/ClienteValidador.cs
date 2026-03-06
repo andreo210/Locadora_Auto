@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using Locadora_Auto.Front.Models.Request;
+using Locadora_Auto.Front.Models.Request.Cliente;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,17 +13,10 @@ namespace Locadora_Auto.Front.Models.Validadores
     {
         public ClienteValidator()
         {
-            //RuleFor(x => x.Matricula)
-            //    .NotEmpty().WithMessage("Matrícula é obrigatória")
-            //    .Length(3, 20).WithMessage("Matrícula deve ter entre 3 e 20 caracteres");
-
             RuleFor(x => x.Nome)
                 .NotEmpty().WithMessage("Nome é obrigatório")
                 .Length(3, 100).WithMessage("Nome deve ter entre 3 e 100 caracteres")
                 .Matches(@"^[a-zA-ZÀ-ÿ\s]+$").WithMessage("Nome deve conter apenas letras");
-
-            //RuleFor(x => x.Cargo)
-            //    .NotEmpty().WithMessage("Cargo é obrigatório");
 
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("E-mail é obrigatório")
@@ -38,8 +31,6 @@ namespace Locadora_Auto.Front.Models.Validadores
                 .Length(11, 11).WithMessage("CPF deve ter 11 dígitos")
                 .Must(ValidarCPF).WithMessage("CPF inválido");
 
-            RuleFor(x => x.Permissoes)
-                .NotEmpty().WithMessage("Selecione pelo menos uma permissão");
 
             RuleFor(x => x.Senha)
                 .NotEmpty().WithMessage("Senha é obrigatória")

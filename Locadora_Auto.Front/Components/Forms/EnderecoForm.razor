@@ -1,0 +1,239 @@
+﻿@* Components/Forms/EnderecoForm.razor *@
+@namespace Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models
+@using System.Net.Http.Json
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Response
+@implements IDisposable
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">@Titulo</h5>
+    </div>
+    <div class="card-body">
+        <!-- CEP com botão de busca -->
+        <div class="mb-3">
+            <label class="form-label">CEP <span class="text-danger">*</span></label>
+            <div class="input-group">
+                <InputText @bind-Value="Endereco.Cep"  class="form-control"  placeholder="Digite o CEP"  disabled="@Processando" />
+                 <button class="btn btn-outline-primary"  type="button"  @onclick="BuscarCep"  disabled="@Processando"> 
+                
+
+                    @if (Processando)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-search"></i>
+                    }
+                    <span class="ms-1">Buscar</span>
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(ErroCep))
+            {
+                <span class="text-danger small">@ErroCep</span>
+            }
+            <ValidationMessage For="@(() => Endereco.Cep)" />
+        </div>
+
+        <!-- Logradouro -->
+        <div class="mb-3">
+            <label class="form-label">Logradouro <span class="text-danger">*</span></label>
+            <InputText @bind-Value="Endereco.Logradouro" class="form-control" placeholder="Digite o logradouro"  disabled="@Processando" />
+            <ValidationMessage For="@(() => Endereco.Logradouro)" />
+        </div>
+
+        <!-- Número e Complemento (grid 2 colunas) -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Número <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="Endereco.Numero"
+                               class="form-control"
+                               placeholder="Digite o número"
+                               disabled="@Processando" />
+                    <ValidationMessage For="@(() => Endereco.Numero)" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Complemento</label>
+                    <InputText @bind-Value="Endereco.Complemento"
+                               class="form-control"
+                               placeholder="Digite o complemento"
+                               disabled="@Processando" />
+                    <ValidationMessage For="@(() => Endereco.Complemento)" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Bairro -->
+        <div class="mb-3">
+            <label class="form-label">Bairro <span class="text-danger">*</span></label>
+            <InputText @bind-Value="Endereco.Bairro"
+                       class="form-control"
+                       placeholder="Digite o bairro"
+                       disabled="@Processando" />
+            <ValidationMessage For="@(() => Endereco.Bairro)" />
+        </div>
+
+        <!-- Cidade e Estado (grid 2 colunas) -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label class="form-label">Cidade <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="Endereco.Cidade"
+                               class="form-control"
+                               placeholder="Digite a cidade"
+                               disabled="@Processando" />
+                    <ValidationMessage For="@(() => Endereco.Cidade)" />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Estado <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="Endereco.Estado"
+                               class="form-control"
+                               placeholder="UF"
+                               disabled="@Processando" />
+                    <ValidationMessage For="@(() => Endereco.Estado)" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ===== PARÂMETROS DO COMPONENTE =====
+
+    /// <summary>
+    /// O objeto Endereço que será vinculado ao formulário
+    /// </summary>
+    [Parameter]
+    public EnderecoRequest Endereco { get; set; } = new();
+
+    /// <summary>
+    /// Evento disparado quando o endereço é alterado
+    /// </summary>
+    [Parameter]
+    public EventCallback<EnderecoRequest> EnderecoChanged { get; set; }
+
+    /// <summary>
+    /// Título do card de endereço
+    /// </summary>
+    [Parameter]
+    public string Titulo { get; set; } = "Endereço";
+
+    /// <summary>
+    /// Se o componente deve ser desabilitado
+    /// </summary>
+    [Parameter]
+    public bool Desabilitado { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO =====
+
+    private bool Processando { get; set; }
+    private string? ErroCep { get; set; }
+    private CancellationTokenSource? _cts;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+
+    protected override void OnInitialized()
+    {
+        // Garante que o endereço não seja nulo
+        Endereco ??= new EnderecoRequest();
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+
+    // ===== MÉTODOS DE AÇÃO =====
+  
+    // Busca o endereço pelo CEP usando a API ViaCEP
+
+    private async Task BuscarCep()
+    {
+        try
+        {
+            // Validação básica do CEP
+            var cepLimpo = new string(Endereco.Cep?.Where(char.IsDigit).ToArray() ?? Array.Empty<char>());
+
+            if (string.IsNullOrWhiteSpace(cepLimpo) || cepLimpo.Length != 8)
+            {
+                ErroCep = "CEP inválido. Digite um CEP com 8 dígitos.";
+                return;
+            }
+
+            Processando = true;
+            ErroCep = null;
+            await InvokeAsync(StateHasChanged);
+
+            // Cancela qualquer busca anterior
+            _cts?.Cancel();
+            _cts = new CancellationTokenSource();
+
+            // Chama a API ViaCEP
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            var url = $"https://viacep.com.br/ws/{cepLimpo}/json/";
+
+            var response = await httpClient.GetFromJsonAsync<ViaCepResponse>(url, _cts.Token);
+
+            // Verifica se a resposta é válida
+            if (response == null)
+            {
+                ErroCep = "CEP não encontrado.";
+                return;
+            }
+
+            // ViaCEP retorna { "erro": true } para CEP inexistente
+            if (response.Erro)
+            {
+                ErroCep = "CEP não encontrado.";
+                return;
+            }
+
+            // Cria um novo endereço com os dados do ViaCEP
+            var enderecoAtualizado = new EnderecoRequest
+            {
+                Cep = Endereco.Cep, // Mantém o CEP com máscara
+                Logradouro = response.Logradouro ?? Endereco.Logradouro,
+                Bairro = response.Bairro ?? Endereco.Bairro,
+                Cidade = response.Localidade ?? Endereco.Cidade, // Mapeia Localidade para Cidade
+                Estado = response.Uf ?? Endereco.Estado, // Mapeia Uf para Estado
+                Complemento = string.IsNullOrEmpty(Endereco.Complemento)
+                    ? response.Complemento ?? ""
+                    : Endereco.Complemento,
+                Numero = Endereco.Numero // Mantém o número que já foi digitado
+            };
+
+            // Atualiza o endereço
+            Endereco = enderecoAtualizado;
+            await EnderecoChanged.InvokeAsync(enderecoAtualizado);
+        }
+        catch (OperationCanceledException)
+        {
+            // Busca cancelada, ignorar
+            Console.WriteLine("Busca de CEP cancelada");
+        }
+        catch (HttpRequestException ex)
+        {
+            ErroCep = "Erro ao consultar o CEP. Verifique sua conexão.";
+            Console.WriteLine($"Erro HTTP: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErroCep = $"Erro inesperado: {ex.Message}";
+            Console.WriteLine($"Erro completo: {ex}");
+        }
+        finally
+        {
+            Processando = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}
