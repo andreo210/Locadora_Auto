@@ -15,7 +15,7 @@
         <div class="mb-3">
             <label class="form-label">CEP <span class="text-danger">*</span></label>
             <div class="input-group">
-                <InputText @bind-Value="Endereco.Cep"  class="form-control"  placeholder="Digite o CEP"  disabled="@Processando" />
+                 <InputCEP @bind-Value="Endereco.Cep"  CssClass="form-control" Disabled="@Processando" />
                  <button class="btn btn-outline-primary"  type="button"  @onclick="BuscarCep"  disabled="@Processando"> 
                 
 
@@ -235,5 +235,25 @@
             Processando = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    //mascara cpf
+    private string AplicarMascara(string? valor)
+    {
+        if (string.IsNullOrEmpty(valor))
+            return "";
+
+        var numeros = new string(valor.Where(char.IsDigit).ToArray());
+
+        if (numeros.Length <= 2)
+            return numeros;
+
+        if (numeros.Length <= 5)
+            return $"{numeros.Substring(0, 2)}.{numeros.Substring(2)}";
+
+        if (numeros.Length <= 9)
+            return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6)}";
+
+        return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6, 3)}-{numeros.Substring(9)}";
     }
 }
