@@ -5,7 +5,7 @@ namespace Locadora_Auto.Domain.Entidades
     public class Funcionario
     {
         public int IdFuncionario { get; private set; }
-        public string Matricula { get; private set; }
+        public string? Matricula { get; private set; }
         public string? Cargo { get; private set; }
         public bool Ativo { get; private set; }
 

@@ -1,10 +1,11 @@
 ﻿using Locadora_Auto.Front.Models.OAuth;
 using Locadora_Auto.Front.Models.Response;
+using System.Security.Claims;
 
 namespace Locadora_Auto.Front.Services.Servicos.Login
 {
     public interface ILoginService
     {
-        Task<TokenResponse?> Login(LoginRequest request);
+        Task<(ClaimsPrincipal? Principal, string? AccessToken, string? RefreshToken)> Login(LoginRequest request);
     }
 }

@@ -1,0 +1,115 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@using Locadora_Auto.Front.Components.Notificacao
+
+
+<script src="/js/Mascaras.js"></script>
+<script src="https://unpkg.com/imask"></script>
+<link href="/css/login.css" rel="stylesheet" />
+
+<div class="login-layout @(temaEscuro ? "dark-theme" : "")">
+    <NotificationDisplay />
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <img src="/img/logo.png" alt="Logo" />
+            </div>
+
+            <div class="login-body">
+                @Body
+                <!-- O conteúdo da página de login será renderizado aqui -->
+            </div>
+
+            <div class="login-footer">
+                <button class="theme-toggle" @onclick="AlternarTema">
+                    <span class="bi @(temaEscuro ? "bi-sun" : "bi-moon")"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* =========================
+           LOGIN LAYOUT
+           ========================= */
+    .login-layout {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        background-color: var(--bg-main);
+        transition: background 0.3s ease;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 16px;
+    }
+
+    .login-card {
+        background-color: var(--bg-topbar);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .login-logo img {
+        width: 180px;
+        margin-bottom: 80px;
+    }
+
+    .login-body {
+        width: 100%;
+    }
+
+    .login-footer {
+        margin-top: 24px;
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+    }
+
+    .theme-toggle {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1.3rem;
+        color: var(--text-main);
+        transition: color 0.2s ease;
+    }
+
+        .theme-toggle:hover {
+            color: var(--accent-color);
+        }
+
+  
+
+</style>
+
+
+@code {
+    private bool temaEscuro = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Carrega o tema salvo no localStorage via JS
+            temaEscuro = await JS.InvokeAsync<bool>("themeManager.loadTheme");
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlternarTema()
+    {
+        temaEscuro = !temaEscuro;
+        await JS.InvokeVoidAsync("themeManager.setTheme", temaEscuro);
+    }
+}

@@ -2,6 +2,7 @@
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.FuncionarioServices;
+using Locadora_Auto.Domain;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq.Expressions;
 using System.Net;
@@ -37,7 +38,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         public async Task<ActionResult<FuncionarioDto>> Post([FromBody] CriarFuncionarioDto dto, CancellationToken ct)
         {
             var funcionario = await _funcionarioService.CriarFuncionarioAsync(dto, ct);
-            return CustomResponse(HttpStatusCode.Created);
+            return CustomResponse(funcionario,HttpStatusCode.Created);
         }
 
         /// <summary>
@@ -79,12 +80,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(typeof(FuncionarioDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<FuncionarioDto>> ObterFuncionario(
-            [FromQuery] string? cpf = null,
-            [FromQuery] string? matricula = null,
-            [FromQuery] string? usuarioId = null,
-            CancellationToken ct = default
-            )
+        public async Task<ActionResult<FuncionarioDto>> ObterFuncionario([FromQuery] string? cpf = null,[FromQuery] string? matricula = null,[FromQuery] int? usuarioId = null,  CancellationToken ct = default )
         {
 
             if (!string.IsNullOrWhiteSpace(cpf))
@@ -99,9 +95,9 @@ namespace Locadora_Auto.Api.V1.Controllers
                 if (model != null) return Ok(model);
                 return NotFound();
             }        
-            else if (!string.IsNullOrWhiteSpace(usuarioId))
+            else if (usuarioId!=0)
             {
-                var model = await _funcionarioService.ObterPorUsuarioIdAsync(usuarioId, ct);
+                var model = await _funcionarioService.ObterPorFunciopnarioIdAsync(usuarioId, ct);
                 if (model != null) return Ok(model);
                 return NotFound();
             }
@@ -159,12 +155,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Ativar([FromRoute] int id, CancellationToken ct = default)
         {
-            var ativado = await _funcionarioService.AtivarFuncionarioAsync(id, ct);
-            if (!ativado)
-            {
-                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao ativar funcionario");
-            }
-            return Ok(new { Message = "Funcionario ativado com sucesso" });
+            return CustomResponse(await _funcionarioService.AtivarFuncionarioAsync(id, ct));
         }
 
         /// <summary>
@@ -180,28 +171,65 @@ namespace Locadora_Auto.Api.V1.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Desativar([FromRoute] int id, CancellationToken ct = default)
         {
-            var desativado = await _funcionarioService.DesativarFuncionarioAsync(id, ct);
-
-            if (!desativado)
-            {
-                return ProblemResponse(HttpStatusCode.InternalServerError, "Erro ao desativar funcionario");
-            }
-            return Ok(new { Message = "Funcionario desativado com sucesso" });
+            return CustomResponse(await _funcionarioService.DesativarFuncionarioAsync(id, ct));
         }
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesDefaultResponseType]
-        public async Task<ActionResult<SolicitacaoDto>> GetSolicitacoes(
-            [FromQuery] bool? ativos,
-            [FromQuery] string? nome,
-            [FromQuery] string? cargo,
+        public async Task<ActionResult<PaginatedResult<FuncionarioDto>>> ObterFuncionariosPaginados(
+            [FromQuery] bool? ativos = null,
+            [FromQuery] string? nome = null,
+            [FromQuery] string? cargo = null,
+            [FromQuery] string? ordenarPor = null,
+            [FromQuery] string? ordem = null,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int itensPorPagina = 10,
             CancellationToken ct = default)
         {
-            var solicitacoes = await _funcionarioService.ObterComFiltroAsync(ativos, nome, cargo,ct);
-            if (solicitacoes.Count == 0) return NotFound();
-            return Ok(solicitacoes);
+            // Validação dos parâmetros de paginação
+            if (pagina < 1) pagina = 1;
+            if (itensPorPagina < 1) itensPorPagina = 10;
+            if (itensPorPagina > 100) itensPorPagina = 100; // Limite máximo
+
+            var resultado = await _funcionarioService.ObterPaginadoAsync(
+                ativos: ativos,
+                nome: nome,
+                cargo: cargo,
+                ordenarPor: ordenarPor,
+                ordem: ordem,
+                pagina: pagina,
+                itensPorPagina: itensPorPagina,
+                ct: ct
+            );
+
+            // Adicionar cabeçalhos de paginação na resposta
+            Response.Headers.Add("X-Total-Items", resultado.Total.ToString());
+            Response.Headers.Add("X-Total-Pages", resultado.TotalPaginas.ToString());
+            Response.Headers.Add("X-Current-Page", resultado.Pagina.ToString());
+            Response.Headers.Add("X-Page-Size", resultado.ItensPorPagina.ToString());
+
+            return Ok(resultado);
+        }
+
+        // Manter método antigo se necessário para compatibilidade
+        [HttpGet("todos")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<List<FuncionarioDto>>> ObterTodosFuncionarios(
+            [FromQuery] bool? ativos = null,
+            [FromQuery] string? nome = null,
+            [FromQuery] string? cargo = null,
+            CancellationToken ct = default)
+        {
+            var resultado = await _funcionarioService.ObterComFiltroAsync(
+                ativos: ativos,
+                nome: nome,
+                cargo: cargo,
+                ct: ct
+            );
+
+            return Ok(resultado);
         }
 
         /// <summary>

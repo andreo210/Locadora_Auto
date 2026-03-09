@@ -1,23 +1,152 @@
-﻿@inherits LayoutComponentBase
+﻿@using Locadora_Auto.Front.Services
+@using Locadora_Auto.Front.Services.Usuarios
+@inherits LayoutComponentBase
+@inject NavigationManager Navegacao
+@inject IUsuarioAsp usuario
+@inject MenuService ServicoMenu
+@inject IJSRuntime JS
+@using Locadora_Auto.Front.Components.Notificacao
+<div class="app-layout">
+    <!-- NOTIFICAÇÕES - DEVE FICAR FORA DO FLUXO PRINCIPAL PARA FICAR SOBRE TUDO -->
+    <NotificationDisplay />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <aside class="sidebar
+    @(SidebarAberta ? "open" : "")
+    @(SidebarColapsada ? "collapsed" : "")">
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        <!-- BOTÃO DE COLAPSO (DESKTOP) -->
+        <div class="sidebar-collapse">
+            <img src="/img/logo.png" alt="Logo" class="sidebar-logo" /> 
+            <button @onclick="AlternarColapso">
+                <i class="bi @(SidebarColapsada ? "bi-chevron-right" : "bi-chevron-left")"></i>
+            </button>
         </div>
 
-        <article class="content px-4">
+        <NavMenu SidebarColapsada="@SidebarColapsada"  OnAlternarColapso="AlternarColapsoDoMenu" />
+    </aside>
+
+    @if (SidebarAberta)
+    {
+        <div class="sidebar-overlay show" @onclick="FecharSidebar"></div>
+    }
+
+    <div class="main-area">
+        <!-- CABEÇALHO -->
+        <header class="topbar">
+            <button class="menu-toggle" @onclick="AlternarSidebar">
+                <span class="bi bi-list"></span>
+            </button>
+
+            <div class="page-title">@ObterTituloPaginaAtual()</div>
+
+            <div class="topbar-actions">
+                <button class="theme-btn" @onclick="AlternarTema">
+                    <span class="bi @(TemaEscuro ? "bi-sun" : "bi-moon")"></span>
+                </button>
+
+                <div class="user-topbar" @onclick="AlternarMenuUsuario">
+                    <img class="avatar-top" src="@UrlAvatar" />
+                    <div class="user-meta">
+                        <span class="user-name-top">@NomeUsuario</span>
+                        <span class="user-role-top">Administrador</span>
+                    </div>
+                </div>
+
+                @if (ExibirMenuUsuario)
+                {
+                    <div class="user-dropdown">
+                        <a href="/perfil">Perfil</a>
+                        <a href="/configuracoes">Configurações</a>
+                        <hr />
+                        <a @onclick="Logout">Sair</a>
+                    </div>
+                }
+            </div>
+        </header>
+
+        <!-- CORPO -->
+        <main class="content">
             @Body
-        </article>
-    </main>
+        </main>
+
+        <!-- RODAPÉ -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span>© 2026 Locadora Auto. Todos os direitos reservados.</span>
+            </div>
+        </footer>
+    </div>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
+@code {
+    private bool SidebarColapsada = false;
+    private bool SidebarAberta = false;
+    private bool TemaEscuro = false;
+
+    private string NomeUsuario;
+    private string UrlAvatar = "/img/avatar.png";
+    private bool ExibirMenuUsuario = false;
+
+    private void AlternarMenuUsuario() => ExibirMenuUsuario = !ExibirMenuUsuario;
+
+    private async Task Logout()
+    {
+        ExibirMenuUsuario = false;
+        Navegacao.NavigateTo("/auth/logout", true);
+    }
+
+    private void FecharMenuUsuario() => ExibirMenuUsuario = false;
+
+    private void AlternarColapsoDoMenu()
+    {
+        SidebarColapsada = !SidebarColapsada;
+    }
+
+    private async Task AlternarSidebar()
+    {
+        SidebarAberta = !SidebarAberta;
+
+        if (SidebarAberta)
+            SidebarColapsada = false;
+    }
+
+    private void AlternarColapso()
+    {
+        if (EhMobile())
+            return;
+
+        SidebarColapsada = !SidebarColapsada;
+    }
+
+    private bool EhMobile() => false; // Futuro ajuste com JS
+
+    private void FecharSidebar() => SidebarAberta = false;
+
+    private async Task AlternarTema()
+    {
+        TemaEscuro = !TemaEscuro;
+        await JS.InvokeVoidAsync("themeManager.setTheme", TemaEscuro);
+    }
+
+    private string ObterTituloPaginaAtual()
+    {
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri);
+        return ServicoMenu.GetMenuTitleByUrl(urlAtual) ?? "Dashboard";
+    }
+
+    //construtor
+    protected override async Task OnInitializedAsync()
+    {
+        NomeUsuario = usuario.ObterNome();
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeiraRenderizacao)
+    {
+        if (primeiraRenderizacao)
+        {
+            TemaEscuro = await JS.InvokeAsync<bool>("themeManager.loadTheme");
+            StateHasChanged();
+        }
+    }
+}

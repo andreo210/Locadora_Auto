@@ -56,5 +56,6 @@ namespace Locadora_Auto.Front.Services.Servicos.Notificacao
                 Duration = 8000 // Mais tempo para validar vários campos
             });
         }
+
     }
 }

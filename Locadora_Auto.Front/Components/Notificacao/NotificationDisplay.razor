@@ -2,33 +2,37 @@
 @using Locadora_Auto.Front.Services.Servicos.Notificacao
 @inject INotificationService NotificationService
 @implements IDisposable
+@inject ILogger<NotificationDisplay> Logger
 
 <div class="notification-container">
     @if (currentNotification != null)
     {
         <div class="toast-notification @GetNotificationClass()"
-             style="animation: slideIn 0.3s ease;">
+             style="animation: slideIn 0.3s ease;"
+             @onclick="CloseNotification">
 
             <div class="toast-header">
                 <strong class="me-auto">@currentNotification.Title</strong>
-                <button type="button" class="btn-close" @onclick="CloseNotification"></button>
+                <small class="text-muted">@DateTime.Now.ToString("HH:mm:ss")</small>
+                <button type="button" class="btn-close" @onclick="CloseNotification" @onclick:stopPropagation="true"></button>
             </div>
 
             <div class="toast-body">
-                @if (currentNotification.Type == NotificationType.Validation &&  currentNotification.ValidationErrors != null)
+                @if (currentNotification.Type == NotificationType.Validation && currentNotification.ValidationErrors != null)
                 {
                     <div class="validation-errors">
-                        <ul class="mb-0">
-                            @foreach (var error in currentNotification.ValidationErrors)
-                            {
-                                @foreach (var message in error.Value)
-                                {
-                                    <li>
-                                        <strong>@error.Key:</strong> @message
-                                    </li>
-                                }
-                            }
-                        </ul>
+                        @foreach (var error in currentNotification.ValidationErrors)
+                        {
+                            <div class="mb-2">
+                                <strong class="text-danger">@error.Key:</strong>
+                                <ul class="mb-0 mt-1">
+                                    @foreach (var message in error.Value)
+                                    {
+                                        <li>@message</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
                     </div>
                 }
                 else
@@ -40,7 +44,7 @@
             @if (currentNotification.Type == NotificationType.Validation)
             {
                 <div class="toast-footer">
-                    <button class="btn btn-sm btn-primary" @onclick="CloseNotification">
+                    <button class="btn btn-sm btn-primary" @onclick="CloseNotification" @onclick:stopPropagation="true">
                         Entendi
                     </button>
                 </div>
@@ -127,6 +131,9 @@
         color: #dc3545;
     }
 
+
+
+
     @@keyframes slideIn {
         from {
             transform: translateX(100%);
@@ -141,36 +148,56 @@
 
 @code {
     private NotificationEventArgs? currentNotification;
-    private Timer? timer;
+    private CancellationTokenSource? _cts;
 
     protected override void OnInitialized()
     {
+        Logger.LogInformation("📢 Componente Notification inicializado");
         NotificationService.OnNotification += ShowNotification;
     }
 
     private void ShowNotification(NotificationEventArgs notification)
     {
+        Logger.LogInformation($"📨 Notificação recebida: {notification.Type} - {notification.Message}");
+
+        // Cancela qualquer timer anterior
+        _cts?.Cancel();
+
         currentNotification = notification;
         StateHasChanged();
 
         if (notification.Type != NotificationType.Validation)
         {
-            timer?.Dispose();
-            timer = new Timer(_ =>
+            _cts = new CancellationTokenSource();
+            _ = FecharAposTempo(notification.Duration, _cts.Token);
+        }
+    }
+
+    private async Task FecharAposTempo(int duracao, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(duracao, cancellationToken);
+            await InvokeAsync(() =>
             {
-                InvokeAsync(() =>
+                if (!cancellationToken.IsCancellationRequested)
                 {
                     currentNotification = null;
                     StateHasChanged();
-                });
-            }, null, notification.Duration, Timeout.Infinite);
+                }
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            // Timer cancelado, ignorar
         }
     }
 
     private void CloseNotification()
     {
+        Logger.LogInformation("❌ Fechando notificação manualmente");
+        _cts?.Cancel();
         currentNotification = null;
-        timer?.Dispose();
         StateHasChanged();
     }
 
@@ -189,7 +216,9 @@
 
     public void Dispose()
     {
+        Logger.LogInformation("🧹 Componente Notification sendo descartado");
         NotificationService.OnNotification -= ShowNotification;
-        timer?.Dispose();
+        _cts?.Cancel();
+        _cts?.Dispose();
     }
 }

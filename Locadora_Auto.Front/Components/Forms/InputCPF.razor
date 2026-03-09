@@ -1,0 +1,137 @@
+﻿@namespace Locadora_Auto.Front.Components.Forms
+@inherits InputBase<string>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="@ContainerClass">
+    <label for="@_inputId" class="@LabelClass">@Label</label>
+
+    @* Input SEM bind, controlado manualmente *@
+    <input type="text"
+           id="@_inputId"
+           class="@InputClass"
+           @oninput="OnInput"
+           @onblur="OnInputBlur"
+           maxlength="14"
+           disabled="@Disabled"
+           value="@CurrentValueForDisplay" /> @* Valor formatado *@
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <span class="text-danger small">@ErrorMessage</span>
+    }
+</div>
+
+@code {
+    private string _inputId = $"cpf-{Guid.NewGuid():N}";
+    private string _currentDisplayValue = "";
+
+    //parametros passado no imput
+    [Parameter] public string Label { get; set; } = "CPF";
+    [Parameter] public string ContainerClass { get; set; } = "mb-3";
+    [Parameter] public string LabelClass { get; set; } = "form-label";
+    [Parameter] public string InputClass { get; set; } = "form-control";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    // Propriedade para exibição formatada
+    private string CurrentValueForDisplay
+    {
+        get => _currentDisplayValue;
+        set
+        {
+            _currentDisplayValue = value;
+            // Atualiza o valor sem máscara no modelo
+            var apenasNumeros = new string(value?.Where(char.IsDigit).ToArray() ?? Array.Empty<char>());
+            if (apenasNumeros.Length <= 11)
+            {
+                CurrentValueAsString = apenasNumeros;
+            }
+        }
+    }
+    // 3. Executa quando parâmetros são recebidos/alterados
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        // Quando o valor do modelo muda externamente, atualiza a exibição
+        if (!string.IsNullOrEmpty(CurrentValue))
+        {
+            _currentDisplayValue = AplicarMascara(CurrentValue);
+        }
+    }
+
+    //chamadas javascript
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("mascaras.aplicarMascaraCPF", _inputId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao aplicar máscara CPF: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        var valorComMascara = e.Value?.ToString() ?? "";
+        var apenasNumeros = new string(valorComMascara.Where(char.IsDigit).ToArray());
+
+        if (apenasNumeros.Length <= 11)
+        {
+            // Atualiza o valor do modelo (sem máscara)
+            CurrentValueAsString = apenasNumeros;
+
+            // Aplica a máscara manualmente para feedback imediato
+            _currentDisplayValue = AplicarMascara(apenasNumeros);
+        }
+    }
+
+    private void OnInputBlur(FocusEventArgs e)
+    {
+        // Validação opcional no blur
+    }
+
+    //mascara cpf
+    private string AplicarMascara(string? valor)
+    {
+        if (string.IsNullOrEmpty(valor))
+            return "";
+
+        var numeros = new string(valor.Where(char.IsDigit).ToArray());
+
+        if (numeros.Length <= 3)
+            return numeros;
+
+        if (numeros.Length <= 6)
+            return $"{numeros.Substring(0, 3)}.{numeros.Substring(3)}";
+
+        if (numeros.Length <= 9)
+            return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6)}";
+
+        return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6, 3)}-{numeros.Substring(9)}";
+    }
+
+    protected override bool TryParseValueFromString(string? value, out string? result, out string? validationErrorMessage)
+    {
+        result = new string(value?.Where(char.IsDigit).ToArray() ?? Array.Empty<char>());
+        validationErrorMessage = null;
+        return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("mascaras.removerMascara", _inputId);
+        }
+        catch
+        {
+            // Ignora erros no dispose
+        }
+    }
+}

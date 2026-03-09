@@ -1,12 +1,14 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Locadora_Auto.Application.Services.FuncionarioServices
 {
@@ -47,6 +49,16 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             //    filtro: m => m.FuncionarioId == id, ct: ct);
 
             return funcionario.ToDto();            
+        }
+
+        public async Task<FuncionarioDto?> ObterPorFunciopnarioIdAsync(int? id, CancellationToken ct = default)
+        {
+            var funcionario = await ObterPorIdAsync(id, ct);
+
+            if (funcionario == null)
+                return null; 
+
+           return funcionario.ToDto();
         }
 
         private async Task<Funcionario?> ObterPorIdAsync(int? id, CancellationToken ct = default)
@@ -232,30 +244,152 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         //        throw;
         //    }
         //}
-
-        public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync( 
-            bool? ativos = true, 
-            string? nome = null,
-            string cargo = null,
-            CancellationToken ct = default
-            )
+        public async Task<IReadOnlyList<FuncionarioDto>> ObterComFiltroAsync(
+           bool? ativos = true,
+           string? nome = null,
+           string cargo = null,
+           CancellationToken ct = default
+           )
         {
             Expression<Func<Funcionario, bool>>? filtro = null;
             if (ativos != null || nome != null || cargo != null)
             {
-                filtro = s =>( s.Ativo == ativos) &&  (s.Usuario.NomeCompleto == nome) && (s.Cargo == cargo);
+                filtro = s => (s.Ativo == ativos) && (s.Usuario.NomeCompleto == nome) && (s.Cargo == cargo);
             }
 
 
             var funcionarios = await _funcionarioRepository.ObterComFiltroAsync(
                 filtro: filtro,
                 incluir: q => q.Include(f => f.Usuario),
-                ordenarPor: q=>q.OrderBy(f => f.Matricula),
+                ordenarPor: q => q.OrderBy(f => f.Matricula),
                 asNoTracking: true,
-                asSplitQuery:true,
+                asSplitQuery: true,
                 ct: ct);
 
-            return funcionarios.ToDtoList();           
+            return funcionarios.ToDtoList();
+        }
+        public async Task<PaginatedResult<FuncionarioDto>> ObterPaginadoAsync(
+            bool? ativos = null, // Mude de true para null
+            string? nome = null,
+            string? cargo = null,
+            string? ordenarPor = "Matricula",
+            string? ordem = "asc",
+            int pagina = 1, // Adicionar parâmetros de paginação
+            int itensPorPagina = 10,
+            CancellationToken ct = default)
+        {
+            // Lista para armazenar as condições
+            var condicoes = new List<Expression<Func<Funcionario, bool>>>();
+
+            // Adiciona cada condição separadamente
+            if (ativos.HasValue)
+            {
+                condicoes.Add(f => f.Ativo == ativos.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(nome))
+            {
+                condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
+            }
+
+            if (!string.IsNullOrWhiteSpace(cargo))
+            {
+                condicoes.Add(f => f.Cargo == cargo);
+            }
+
+            // Combina todas as condições com AND
+            Expression<Func<Funcionario, bool>>? filtro = null;
+
+            if (condicoes.Any())
+            {
+                filtro = condicoes.Aggregate((atual, proxima) =>
+                {
+                    // Combina duas expressions com AND
+                    var parameter = Expression.Parameter(typeof(Funcionario));
+                    var body = Expression.AndAlso(
+                        Expression.Invoke(atual, parameter),
+                        Expression.Invoke(proxima, parameter)
+                    );
+                    return Expression.Lambda<Func<Funcionario, bool>>(body, parameter);
+                });
+            }
+
+            // Passar os parâmetros de paginação para o repositório
+            var funcionarios = await _funcionarioRepository.ObterPaginadoComFiltroAsync(
+                filtro: filtro,
+                incluir: q => q.Include(f => f.Usuario),
+                ordenarPor: ObterOrdenacao(ordenarPor,ordem),
+                pagina: pagina,
+                itensPorPagina: itensPorPagina,
+                asNoTracking: true,
+                asSplitQuery: true,
+                ct: ct);
+
+            // Mapear manualmente para DTO (incluindo IdFuncionario)
+            var itemsDto = funcionarios.Items.Select(f => new FuncionarioDto
+            {
+                IdFuncionario = f.IdFuncionario, // IMPORTANTE: Incluir o Id
+                Matricula = f.Matricula,
+                Nome = f.Usuario?.NomeCompleto ?? string.Empty,
+                Email = f.Usuario?.Email ?? string.Empty,
+                Telefone = f.Usuario.PhoneNumber, // Adicionar Telefone se existir
+                Cargo = f.Cargo,
+                Status = f.Ativo
+            }).ToList();
+
+            // Retornar resultado paginado com DTOs
+            return new PaginatedResult<FuncionarioDto>
+            {
+                Items = itemsDto,
+                Total = funcionarios.Total,
+                Pagina = funcionarios.Pagina,
+                TotalPaginas = funcionarios.TotalPaginas,
+                ItensPorPagina = funcionarios.ItensPorPagina
+            };
+        }
+
+        private Func<IQueryable<Funcionario>, IOrderedQueryable<Funcionario>>? ObterOrdenacao(string? ordenarPor, string? ordem)
+        {
+            if (string.IsNullOrWhiteSpace(ordenarPor))
+                return null;
+
+            var ascendente = ordem?.ToLower() != "desc";
+
+            return ordenarPor.ToLower() switch
+            {
+                "nome" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.NomeCompleto)
+                    : q => q.OrderByDescending(f => f.Usuario.NomeCompleto),
+
+                "email" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.Email)
+                    : q => q.OrderByDescending(f => f.Usuario.Email),
+
+                "cargo" => ascendente
+                    ? q => q.OrderBy(f => f.Cargo)
+                    : q => q.OrderByDescending(f => f.Cargo),
+
+                "matricula" => ascendente
+                    ? q => q.OrderBy(f => f.Matricula)
+                    : q => q.OrderByDescending(f => f.Matricula),
+
+                "status" => ascendente
+                    ? q => q.OrderBy(f => f.Ativo)
+                    : q => q.OrderByDescending(f => f.Ativo),
+
+                "telefone" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.PhoneNumber)
+                    : q => q.OrderByDescending(f => f.Usuario.PhoneNumber),
+
+                "id" => ascendente
+                    ? q => q.OrderBy(f => f.IdFuncionario)
+                    : q => q.OrderByDescending(f => f.IdFuncionario),
+
+                // Padrão: ordenar por matrícula
+                _ => ascendente
+                    ? q => q.OrderBy(f => f.Matricula)
+                    : q => q.OrderByDescending(f => f.Matricula)
+            };
         }
 
         //#endregion
@@ -275,10 +409,18 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
             var createUserResult = await _userManager.CreateAsync(user, funcionarioDto.Senha);
             if (!createUserResult.Succeeded)
-                throw new InvalidOperationException(string.Join(", ", createUserResult.Errors.Select(e => e.Description)));
+            {
+                foreach (var error in createUserResult.Errors)
+                {
+                    _notificador.Add(error.Description);
+                }
+            }
 
+            foreach (var role in funcionarioDto.Permissoes)
+            {
+                await _userManager.AddToRoleAsync(user, role);
+            }
             // 2. Atribuir role de funcionário
-            await _userManager.AddToRoleAsync(user, "Admin");
             await _funcionarioRepository.SalvarAsync();
 
             // 3. Atribuir permissões específicas
@@ -372,49 +514,38 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
         }
 
         public async Task<bool> ExcluirFuncionarioAsync(int id, CancellationToken ct = default)
-        {
-            await _unitOfWork.BeginTransactionAsync(ct);
-            try
+        {           
+            // Buscar funcionário
+            var funcionario = await ObterPorIdAsync(id);
+            if (funcionario == null)
             {
-                // Buscar funcionário
-                var funcionario = await ObterPorIdAsync(id);
-                if (funcionario == null)
-                {
-                    _notificador.Add($"Funcionário com ID {id} não encontrado.");
-                    return false;
-                }
-
-                // Verificar se funcionário tem registros ativos
-                //var temLocacoesAtivas = await _funcionarioRepository.ExisteAsync(
-                //    l => l.IdFuncionario == id 
-                //    && (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
-                //    ct);
-
-                //if (temLocacoesAtivas)
-                //{
-                //    throw new InvalidOperationException(
-                //        "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
-                //}
-
-                // Excluir usuário do Identity
-                var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
-                if (user != null)
-                {
-                    var deleteResult = await _userManager.DeleteAsync(user);
-                    if (!deleteResult.Succeeded)
-                        throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
-                }
-
-                // Excluir funcionário (cascata excluirá o usuário também)
-                await _funcionarioRepository.Excluir(funcionario, ct);
-                await _unitOfWork.CommitAsync(ct);
-                return true;
+                _notificador.Add($"Funcionário com ID {id} não encontrado.");
+                return false;
             }
-            catch (Exception ex)
+
+            // Verificar se funcionário tem registros ativos
+            //var temLocacoesAtivas = await _funcionarioRepository.ExisteAsync(
+            //    l => l.IdFuncionario == id 
+            //    && (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
+            //    ct);
+
+            //if (temLocacoesAtivas)
+            //{
+            //    throw new InvalidOperationException(
+            //        "Funcionário possui locações ativas. Transfira as locações antes de excluir.");
+            //}
+
+            // Excluir usuário do Identity
+            var user = await _userManager.FindByIdAsync(funcionario.Usuario.Id);
+            if (user != null)
             {
-                await _unitOfWork.RollbackAsync(ct);
-                throw;
+                var deleteResult = await _userManager.DeleteAsync(user);
+                if (!deleteResult.Succeeded)
+                    throw new InvalidOperationException("Erro ao excluir usuário do sistema.");
             }
+
+            return true;           
+            
         }
 
         public async Task<bool> AtivarFuncionarioAsync(int id, CancellationToken ct = default)
@@ -427,7 +558,11 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             }
 
             if (funcionario.Ativo)
-                return true; // Já está ativo
+            {
+                _notificador.Add($"O Funcionário {funcionario.Usuario.NomeCompleto}, já esta ativo.");
+                return false; // Já está ativo
+            }
+                
 
             var user = await _userManager.FindByIdAsync(funcionario!.Usuario!.Id);
             if (user != null)
@@ -450,7 +585,10 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             }
 
             if (!funcionario.Ativo)
-                return true; // Já está inativo
+            {
+                _notificador.Add($"O Funcionário {funcionario.Usuario.NomeCompleto}, já esta desativado");
+                return false;
+            }
 
             // Verificar se funcionário tem locações ativas
             //var temLocacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(
@@ -688,9 +826,9 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
             // Verificar se matrícula já existe
             if (await ExisteFuncionarioAsync(funcionarioDto.Matricula, ct))_notificador.Add($"Matrícula {funcionarioDto.Matricula} já cadastrada.");
 
-            // Verificar se CPF já existe
-            //if (await ExisteFuncionarioPorCpfAsync(funcionarioDto.Cpf, ct))
-            //    throw new InvalidOperationException($"CPF {funcionarioDto.Cpf} já cadastrado.");
+            //Verificar se CPF já existe
+            if (await ExisteFuncionarioPorCpfAsync(funcionarioDto.Cpf, ct)) _notificador.Add($"CPF: {funcionarioDto.Cpf} já cadastrado.");
+
 
             // Verificar se email já existe no Identity
             var emailExists = await _userManager.FindByEmailAsync(funcionarioDto.Email);

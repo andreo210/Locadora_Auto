@@ -1,0 +1,152 @@
+﻿@page "/login"
+@using Locadora_Auto.Front.Components.Layout
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@layout LoginLayout
+@inject IJSRuntime JS
+@inject INotificationService NotificationService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3 class="mb-3">Entrar no Sistema</h3>
+
+<form id="loginForm" method="post" action="/auth/login" @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
+    <div class="mb-3">
+        <label>CPF:</label>
+        <input type="text"
+               class="form-control"
+               id="cpf-input"
+               name="username"
+               @bind="cpf"
+               @bind:event="oninput"
+               maxlength="14"
+               required />
+    </div>
+
+    <div class="mb-3">
+        <label>Senha</label>
+        <input type="password"
+               class="form-control"
+               name="password"
+               @bind="senha"
+               required />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@processando">
+        @if (processando)
+        {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+            <span>Entrando...</span>
+        }
+        else
+        {
+            <span>Entrar</span>
+        }
+    </button>
+</form>
+
+@if (!string.IsNullOrEmpty(erro))
+{
+    <div class="alert alert-danger mt-2">@erro</div>
+}
+
+<script>
+    window.submitLogin = async (cpf, senha) => {
+        try {
+            const formData = new FormData();
+            formData.append('username', cpf);
+            formData.append('password', senha);
+
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Erro no login:', error);
+            return { success: false, error: 'Erro de conexão' };
+        }
+    };
+</script>
+
+@code {
+    private string cpf = "";
+    private string senha = "";
+    private bool processando;
+    private string? erro;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("mascaras.aplicarMascaraCPF", "cpf-input");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao aplicar máscara: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        processando = true;
+        erro = null;
+        StateHasChanged();
+
+        try
+        {
+            // Validação básica
+            if (string.IsNullOrWhiteSpace(cpf) || string.IsNullOrWhiteSpace(senha))
+            {
+                NotificationService.ShowWarning("Preencha todos os campos", "Atenção");
+                return;
+            }
+
+            var cpfLimpo = new string(cpf.Where(char.IsDigit).ToArray());
+            if (cpfLimpo.Length != 11)
+            {
+                NotificationService.ShowWarning("CPF deve ter 11 dígitos", "Atenção");
+                return;
+            }
+
+            NotificationService.ShowInfo("Autenticando...", "Aguarde");
+
+            // Usar fetch para não recarregar a página
+            var result = await JS.InvokeAsync<LoginResult>("submitLogin", cpfLimpo, senha);
+
+            if (result?.success == true)
+            {
+                NotificationService.ShowSuccess("Login realizado com sucesso!", "Bem-vindo");
+                await Task.Delay(1500);
+                Navigation.NavigateTo(result.redirect ?? "/", true);
+            }
+            else
+            {
+                erro = result?.error ?? "Falha no login";
+                NotificationService.ShowError(erro, "Falha no login");
+            }
+        }
+        catch (Exception ex)
+        {
+            erro = $"Erro: {ex.Message}";
+            NotificationService.ShowError(erro, "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private class LoginResult
+    {
+        public bool success { get; set; }
+        public string? error { get; set; }
+        public string? redirect { get; set; }
+    }
+}

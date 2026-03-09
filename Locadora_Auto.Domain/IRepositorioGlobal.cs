@@ -24,13 +24,23 @@ namespace Locadora_Auto.Domain
         Task<bool> ExisteAsync(
             Expression<Func<TEntity, bool>> filtro,
             CancellationToken ct = default);
-
         Task<IReadOnlyList<TEntity>> ObterPaginadoAsync(
             Expression<Func<TEntity, bool>> filtro,
             int skip,
             int take,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             CancellationToken ct = default);
+        Task<PaginatedResult<TEntity>> ObterPaginadoComFiltroAsync<TEntity>(
+            Expression<Func<TEntity, bool>>? filtro = null,
+            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
+            Func<IQueryable<TEntity>, IQueryable<TEntity>>? incluir = null,
+            int? pagina = null,  // Se null, retorna todos (sem paginação)
+            int? itensPorPagina = null,
+            bool asNoTracking = true,
+            bool asSplitQuery = false,
+            CancellationToken ct = default)
+             where TEntity : class;
+          
 
         Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(
             Expression<Func<TEntity, bool>>? filtro = null,

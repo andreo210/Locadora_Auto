@@ -1,0 +1,660 @@
+﻿/* ============================================
+   VARIÁVEIS GLOBAIS E TEMAS
+   ============================================ */
+
+/* TEMA CLARO (PADRÃO) */
+:root {
+    --bg-sidebar: #f8f9fa;
+    --bg-main: #f4f6f9;
+    --bg-topbar: #ffffff;
+    --text-sidebar: #374151;
+    --text-main: #1f2937;
+    --text-hover: #ffffff;
+    --bg-hover: #e9ecef;
+    --accent-color: #2563eb;
+    --border-color: #e5e7eb;
+    --sidebar-width: 280px;
+}
+
+/* TEMA ESCURO */
+body.dark-theme {
+    --bg-sidebar: #1e293b;
+    --bg-main: #121212;
+    --bg-topbar: #1e1e1e;
+    --text-sidebar: #cbd5e1;
+    --text-main: #f4f4f4;
+    --accent-color: #3b82f6;
+    --border-color: #333;
+}
+
+/* ============================================
+   RESET E ESTRUTURA BASE
+   ============================================ */
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: var(--bg-main);
+    height: 100%;
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* ============================================
+   MAIN AREA
+   ============================================ */
+.main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-main);
+    min-width: 0;
+}
+
+/* ============================================
+   TOPBAR (BARRA SUPERIOR)
+   ============================================ */
+.topbar {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background-color: var(--bg-topbar);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+}
+
+/* Menu Toggle (Hambúrguer) */
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-main);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+    .menu-toggle:hover {
+        background-color: var(--bg-hover);
+    }
+
+/* Título da Página */
+.page-title {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--text-main);
+}
+
+/* Ações da Topbar */
+.topbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+    .topbar-actions button {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--text-main);
+        padding: 8px;
+        border-radius: 50%;
+        transition: background 0.2s ease;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .topbar-actions button:hover {
+            background-color: var(--bg-hover);
+        }
+
+/* ============================================
+   USER INFO - TOPBAR
+   ============================================ */
+.user-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+    .user-topbar:hover {
+        background: var(--bg-hover);
+    }
+
+.avatar-top {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-color);
+}
+
+.user-meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.user-name-top {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.user-role-top {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* ============================================
+   USER DROPDOWN
+   ============================================ */
+.user-menu-container {
+    position: relative;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    background: var(--bg-topbar);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    min-width: 200px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    padding: 8px 0;
+    z-index: 5000;
+    animation: fadeIn 0.15s ease;
+}
+
+    .user-dropdown a {
+        display: block;
+        padding: 10px 16px;
+        text-decoration: none;
+        color: var(--text-main);
+        font-size: 0.9rem;
+    }
+
+        .user-dropdown a:hover {
+            background: var(--bg-hover);
+        }
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 6px 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+
+body .app-layout .sidebar {
+    background-color: var(--bg-sidebar) !important;
+}
+.sidebar {
+    width: var(--sidebar-width) !important;
+    background: var(--bg-sidebar) !important;
+    color: var(--text-sidebar) !important;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    flex-shrink: 0;
+    transition: width 0.3s ease !important;
+}
+
+    /* Sidebar Colapsada */
+    .sidebar.collapsed {
+        width: 70px !important;
+    }
+
+        .sidebar.collapsed .nav-group-header,
+        .sidebar.collapsed .nav-link {
+            justify-content: center !important;
+            padding: 12px 0;
+        }
+
+        .sidebar.collapsed .nav-text,
+        .sidebar.collapsed .nav-arrow,
+        .sidebar.collapsed .user-details,
+        .sidebar.collapsed .user-name,
+        .sidebar.collapsed .user-role {
+            display: none !important;
+        }
+
+/* Header da Sidebar */
+.sidebar-header {
+    padding: 24px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: transparent !important;
+}
+
+/* Logo e Botão de Colapso */
+.sidebar-collapse {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+.sidebar.collapsed .sidebar-collapse {
+    justify-content: center;
+}
+
+.sidebar-logo {
+    max-width: 120px;
+    height: auto;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    opacity: 0;
+    width: 0;
+    margin: 0;
+}
+
+.sidebar-collapse button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--text-sidebar);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+}
+
+    .sidebar-collapse button:hover {
+        background: var(--bg-hover);
+    }
+
+/* User Info na Sidebar */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-color);
+}
+
+.user-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    color: var(--text-main);
+    display: block;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================
+   NAVEGAÇÃO
+   ============================================ */
+.nav-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px;
+    background-color: transparent !important;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Links de Navegação */
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    gap: 12px;
+    color: var(--text-sidebar);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+    .nav-link:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .nav-link.active {
+        background-color: var(--accent-color);
+        color: white;
+    }
+
+        .nav-link.active .nav-icon {
+            color: white;
+        }
+
+    /* Link de Logout */
+    .nav-link.text-danger {
+        color: #dc3545;
+        margin-top: 16px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 16px;
+    }
+
+        .nav-link.text-danger:hover {
+            background-color: #dc3545;
+            color: white;
+        }
+
+            .nav-link.text-danger:hover .nav-icon {
+                color: white;
+            }
+
+/* Ícones da Navegação */
+.nav-icon {
+    font-size: 1.2rem;
+    min-width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-sidebar);
+}
+
+.nav-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+/* ============================================
+   GRUPOS DE MENU E SUBMENUS
+   ============================================ */
+.nav-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Cabeçalho do Grupo */
+.nav-group-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 12px;
+    color: var(--text-sidebar);
+    font-weight: 500;
+}
+
+    .nav-group-header:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .nav-group-header.active {
+        background-color: var(--accent-color);
+        color: white;
+    }
+
+        .nav-group-header.active .nav-icon {
+            color: white;
+        }
+
+/* Seta do Grupo */
+.nav-arrow {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+    margin-left: auto;
+    color: var(--text-sidebar);
+}
+
+    .nav-arrow.open {
+        transform: rotate(180deg);
+    }
+
+/* Itens do Submenu */
+.nav-group-items {
+    display: flex;
+    flex-direction: column;
+    margin-left: 36px;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+/* ============================================
+   CONTEÚDO PRINCIPAL
+   ============================================ */
+.content {
+    flex: 1;
+    padding: 24px;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+}
+
+/* ============================================
+   FOOTER (RODAPÉ)
+   ============================================ */
+.footer {
+    padding: 12px 24px;
+    background-color: var(--bg-topbar);
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    flex-shrink: 0;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   OVERLAY (MOBILE)
+   ============================================ */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+    .sidebar-overlay.show {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+/* ============================================
+   SCROLLBAR PERSONALIZADA
+   ============================================ */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-color);
+    }
+
+/* ============================================
+   RESPONSIVIDADE - MOBILE (ATÉ 768px)
+   ============================================ */
+@media (max-width: 768px) {
+
+    /* Sidebar Mobile */
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        width: 280px !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
+        z-index: 2000 !important;
+        box-shadow: none !important;
+        background-color: var(--bg-sidebar) !important;
+    }
+
+        .sidebar.collapsed {
+            width: 280px !important;
+        }
+
+        .sidebar.open {
+            transform: translateX(0) !important;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2) !important;
+        }
+
+    /* Esconder botão de colapso no mobile */
+    .sidebar-collapse {
+        display: none !important;
+    }
+
+    /* Forçar visibilidade de todos elementos no mobile */
+    .sidebar .nav-text,
+    .sidebar .user-details,
+    .sidebar .nav-icon,
+    .sidebar .nav-arrow,
+    .sidebar .nav-link,
+    .sidebar .nav-group-header,
+    .sidebar .nav-group-items {
+        display: flex !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    .sidebar .nav-text {
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        margin-left: 8px !important;
+    }
+
+    /* Garantir fundo consistente */
+    .sidebar > *,
+    .sidebar-header,
+    .nav-scrollable {
+        background-color: var(--bg-sidebar) !important;
+    }
+
+    /* Botão Menu Visível */
+    .menu-toggle {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Main Area */
+    .main-area {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Topbar Mobile */
+    .topbar {
+        padding: 0 16px !important;
+        height: 60px !important;
+    }
+
+    .user-meta {
+        display: none;
+    }
+
+    .page-title {
+        font-size: 1rem !important;
+        flex: 1 !important;
+    }
+
+    /* Conteúdo Mobile */
+    .content {
+        padding: 16px !important;
+    }
+
+    /* Ajustes Menu Mobile */
+    .nav-group-header {
+        padding: 12px 16px !important;
+    }
+
+    .nav-link {
+        padding: 10px 16px 10px 36px !important;
+    }
+
+    .nav-group-items {
+        margin-left: 36px !important;
+    }
+
+    .nav-link.text-danger {
+        margin-top: 16px !important;
+        padding-left: 16px !important;
+    }
+
+    .nav-scrollable {
+        display: block !important;
+    }
+}

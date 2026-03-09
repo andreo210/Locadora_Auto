@@ -1,30 +1,112 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Locadora_Auto.Front</a>
-    </div>
-</div>
+﻿@using Locadora_Auto.Front.Models
+@using Locadora_Auto.Front.Services
+@inject NavigationManager Navegacao
+@inject MenuService ServicoMenu
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<div class="nav-scrollable">
+    <nav class="nav">
+        @foreach (var itemMenu in _itensMenu)
+        {
+            @if (itemMenu.SubItens == null || !itemMenu.SubItens.Any())
+            {
+                <NavLink class="@ObterClasseLink(itemMenu)" href="@itemMenu.Url" Match="NavLinkMatch.Prefix">
+                    <span class="nav-icon @($"bi {itemMenu.Icone}")"></span>
+                    <span class="nav-text">@itemMenu.Titulo</span>
+                </NavLink>
+            }
+            else
+            {
+                <div class="nav-group">
+                    <div class="@ObterClasseGrupo(itemMenu)" @onclick="() => CliqueGrupo(itemMenu)">
+                        <span class="nav-icon @($"bi {itemMenu.Icone}")"></span>
+                        <span class="nav-text">@itemMenu.Titulo</span>
+                        <span class="nav-arrow @(SubMenuAberto(itemMenu) ? "open" : "")">
+                            <span class="bi bi-chevron-down"></span>
+                        </span>
+                    </div>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+                    @if (SubMenuAberto(itemMenu))
+                    {
+                        <div class="nav-group-items">
+                            @foreach (var subItem in itemMenu.SubItens)
+                            {
+                                <NavLink class="@ObterClasseSubLink(subItem)" href="@subItem.Url" Match="NavLinkMatch.Prefix">
+                                    <span class="nav-icon @($"bi {subItem.Icone}")"></span>
+                                    <span class="nav-text">@subItem.Titulo</span>
+                                </NavLink>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+        <NavLink class="nav-link text-danger" href="/auth/logout">
+            <span class="nav-icon bi bi-box-arrow-right"></span>
+            <span class="nav-text">Sair</span>
+        </NavLink>
     </nav>
 </div>
 
+@code {
+    [Parameter] public bool SidebarColapsada { get; set; }
+    [Parameter] public EventCallback OnAlternarColapso { get; set; }
+
+    private List<MenuItem> _itensMenu = new();
+    private HashSet<string> _subMenusAbertos = new();
+
+    private async Task CliqueGrupo(MenuItem itemMenu)
+    {
+        if (SidebarColapsada)
+        {
+            await OnAlternarColapso.InvokeAsync();
+            AlternarSubMenu(itemMenu);
+            return;
+        }
+
+        AlternarSubMenu(itemMenu);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (SidebarColapsada)
+            FecharTodosSubMenus();
+    }
+
+    private void FecharTodosSubMenus() => _subMenusAbertos.Clear();
+
+    protected override void OnInitialized()
+    {
+        _itensMenu = ServicoMenu.GetMenuItems();
+
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
+
+        foreach (var item in _itensMenu)
+        {
+            if (item.SubItens?.Any(s => urlAtual.StartsWith(s.Url.Trim('/'), StringComparison.OrdinalIgnoreCase)) == true)
+                _subMenusAbertos.Add(item.Titulo);
+        }
+    }
+
+    private void AlternarSubMenu(MenuItem itemMenu)
+    {
+        if (_subMenusAbertos.Contains(itemMenu.Titulo))
+            _subMenusAbertos.Remove(itemMenu.Titulo);
+        else
+            _subMenusAbertos.Add(itemMenu.Titulo);
+    }
+
+    private bool SubMenuAberto(MenuItem itemMenu) => _subMenusAbertos.Contains(itemMenu.Titulo);
+
+    private bool EstaAtivo(MenuItem itemMenu)
+    {
+        if (string.IsNullOrEmpty(itemMenu.Url)) return false;
+        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
+        var urlItem = itemMenu.Url.Trim('/');
+        return urlAtual.Equals(urlItem, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string ObterClasseLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
+    private string ObterClasseSubLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
+    private string ObterClasseGrupo(MenuItem itemMenu) => SubMenuAberto(itemMenu) ? "nav-group-header active" : "nav-group-header";
+}
