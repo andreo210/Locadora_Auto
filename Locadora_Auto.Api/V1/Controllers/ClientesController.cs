@@ -2,6 +2,7 @@
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.ClienteServices;
+using Locadora_Auto.Domain;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -24,15 +25,15 @@ namespace Locadora_Auto.API.Controllers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        /// <summary>
-        /// Obtém todos os clientes
-        /// </summary>
-        /// <param name="nome">Filtrar por nome (opcional)</param>
-        /// <param name="somenteAtivos">Filtrar apenas clientes ativos (opcional, default: false)</param>
-        /// <param name="pageNumber">Número da página (opcional, default: 1)</param>
-        /// <param name="pageSize">Tamanho da página (opcional, default: 10)</param>
-        /// <param name="ct">Token de cancelamento</param>
-        /// <returns>Lista de clientes</returns>
+        ///// <summary>
+        ///// Obtém todos os clientes
+        ///// </summary>
+        ///// <param name="nome">Filtrar por nome (opcional)</param>
+        ///// <param name="somenteAtivos">Filtrar apenas clientes ativos (opcional, default: false)</param>
+        ///// <param name="pageNumber">Número da página (opcional, default: 1)</param>
+        ///// <param name="pageSize">Tamanho da página (opcional, default: 10)</param>
+        ///// <param name="ct">Token de cancelamento</param>
+        ///// <returns>Lista de clientes</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<ClienteDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -42,8 +43,8 @@ namespace Locadora_Auto.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken ct = default)
-        {           
- 
+        {
+
             IReadOnlyList<ClienteDto> clientes;
 
             if (!string.IsNullOrWhiteSpace(nome))
@@ -63,7 +64,47 @@ namespace Locadora_Auto.API.Controllers
                 clientes = await _clienteService.ObterTodosAsync(ct);
             }
 
-            return Ok(clientes);           
+            return Ok(clientes);
+        }
+
+
+        [HttpGet("obter-clientes-paginado")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesDefaultResponseType]
+        public async Task<ActionResult<PaginatedResult<ClienteDto>>> ObterClientesPaginados(
+           [FromQuery] bool? ativos = null,
+           [FromQuery] string? nome = null,
+           [FromQuery] string? numeroHabilitacao = null,
+           [FromQuery] string? ordenarPor = "numeroHabilitacao",
+           [FromQuery] string? ordem = "asc",
+           [FromQuery] int pagina = 1,
+           [FromQuery] int itensPorPagina = 10,
+           CancellationToken ct = default)
+        {
+            // Validação dos parâmetros de paginação
+            if (pagina < 1) pagina = 1;
+            if (itensPorPagina < 1) itensPorPagina = 10;
+            if (itensPorPagina > 100) itensPorPagina = 100; // Limite máximo
+
+            var resultado = await _clienteService.ObterPaginadoAsync(
+                ativos: ativos,
+                nome: nome,
+                numeroHabilitacao: numeroHabilitacao,
+                ordenarPor: ordenarPor,
+                ordem: ordem,
+                pagina: pagina,
+                itensPorPagina: itensPorPagina,
+                ct: ct
+            );
+
+            // Adicionar cabeçalhos de paginação na resposta
+            Response.Headers.Add("X-Total-Items", resultado.Total.ToString());
+            Response.Headers.Add("X-Total-Pages", resultado.TotalPaginas.ToString());
+            Response.Headers.Add("X-Current-Page", resultado.Pagina.ToString());
+            Response.Headers.Add("X-Page-Size", resultado.ItensPorPagina.ToString());
+
+            return Ok(resultado);
         }
 
         /// <summary>

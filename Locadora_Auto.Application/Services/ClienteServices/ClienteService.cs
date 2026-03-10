@@ -2,9 +2,11 @@
 using Locadora_Auto.Application.Configuration.UtilExtensions;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.Entidades.Indentity;
 using Locadora_Auto.Domain.IRepositorio;
+using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -125,6 +127,90 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             
         }
 
+
+        public async Task<PaginatedResult<ClienteDto>> ObterPaginadoAsync(
+            bool? ativos = null, // Mude de true para null
+            string? nome = null,
+            string? numeroHabilitacao = null,
+            string? ordenarPor = null,
+            string? ordem = null,
+            int pagina = 1, // Adicionar parâmetros de paginação
+            int itensPorPagina = 10,
+            CancellationToken ct = default)
+        {
+            // Lista para armazenar as condições
+            var condicoes = new List<Expression<Func<Clientes, bool>>>();
+
+            // Adiciona cada condição separadamente
+            if (ativos.HasValue)
+            {
+                condicoes.Add(f => f.Ativo == ativos.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(nome))
+            {
+                condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
+            }
+
+            if (!string.IsNullOrWhiteSpace(numeroHabilitacao))
+            {
+                condicoes.Add(f => f.NumeroHabilitacao == numeroHabilitacao);
+            }
+            if(string.IsNullOrEmpty(ordem)) ordem = "asc";
+            if (string.IsNullOrEmpty(ordenarPor)) ordem = "numeroHabilitacao";
+
+            // Combina todas as condições com AND
+            Expression<Func<Clientes, bool>>? filtro = null;
+
+            if (condicoes.Any())
+            {
+                filtro = condicoes.Aggregate((atual, proxima) =>
+                {
+                    // Combina duas expressions com AND
+                    var parameter = Expression.Parameter(typeof(Clientes));
+                    var body = Expression.AndAlso(
+                        Expression.Invoke(atual, parameter),
+                        Expression.Invoke(proxima, parameter)
+                    );
+                    return Expression.Lambda<Func<Clientes, bool>>(body, parameter);
+                });
+            }
+
+            // Passar os parâmetros de paginação para o repositório
+            var clientes = await _clienteRepository.ObterPaginadoComFiltroAsync(
+                filtro: filtro,
+                incluir: q => q.Include(f => f.Usuario),
+                ordenarPor: ObterOrdenacao(ordenarPor, ordem),
+                pagina: pagina,
+                itensPorPagina: itensPorPagina,
+                asNoTracking: true,
+                asSplitQuery: true,
+                ct: ct);
+
+            // Mapear manualmente para DTO (incluindo IdFuncionario)
+            var itemsDto = clientes.Items.Select(f => new ClienteDto
+            {
+                IdCliente = f.IdCliente, 
+                Cpf = f.Usuario.Cpf,
+                Nome = f.Usuario?.NomeCompleto ?? string.Empty,
+                Email = f.Usuario?.Email ?? string.Empty,
+                Telefone = f.Usuario.PhoneNumber, // Adicionar Telefone se existir
+                NumeroHabilitacao = f.NumeroHabilitacao,
+                ValidadeHabilitacao = f.ValidadeHabilitacao,
+                Ativo = f.Ativo
+            }).ToList();
+
+            // Retornar resultado paginado com DTOs
+            return new PaginatedResult<ClienteDto>
+            {
+                Items = itemsDto,
+                Total = clientes.Total,
+                Pagina = clientes.Pagina,
+                TotalPaginas = clientes.TotalPaginas,
+                ItensPorPagina = clientes.ItensPorPagina
+            };
+        }
+
         public async Task<List<ClienteDto>> ObterSolicitacoesComFiltroAsync(
            bool? ativo = null,
            string? cpf = null,
@@ -143,6 +229,46 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             }
             var entidades = await _clienteRepository.ObterComFiltroAsync(filtro);
             return entidades.Select(d => d.ToDto()).ToList(); 
+        }
+
+        private Func<IQueryable<Clientes>, IOrderedQueryable<Clientes>>? ObterOrdenacao(string? ordenarPor, string? ordem)
+        {
+            if (string.IsNullOrWhiteSpace(ordenarPor))
+                return null;
+
+            var ascendente = ordem?.ToLower() != "desc";
+
+            return ordenarPor.ToLower() switch
+            {
+                "nome" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.NomeCompleto)
+                    : q => q.OrderByDescending(f => f.Usuario.NomeCompleto),
+
+                "email" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.Email)
+                    : q => q.OrderByDescending(f => f.Usuario.Email),
+
+                "numeroHabilitacao" => ascendente
+                    ? q => q.OrderBy(f => f.NumeroHabilitacao)
+                    : q => q.OrderByDescending(f => f.NumeroHabilitacao),
+
+                "status" => ascendente
+                    ? q => q.OrderBy(f => f.Ativo)
+                    : q => q.OrderByDescending(f => f.Ativo),
+
+                "telefone" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.PhoneNumber)
+                    : q => q.OrderByDescending(f => f.Usuario.PhoneNumber),
+
+                "id" => ascendente
+                    ? q => q.OrderBy(f => f.IdCliente)
+                    : q => q.OrderByDescending(f => f.IdCliente),
+
+                // Padrão: ordenar por matrícula
+                _ => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.Cpf)
+                    : q => q.OrderByDescending(f => f.Usuario.Cpf)
+            };
         }
 
         //public async Task<IReadOnlyList<ClienteDto>> ObterComFiltroAsync(

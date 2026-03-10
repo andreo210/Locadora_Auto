@@ -48,7 +48,6 @@ namespace Locadora_Auto.Front.Services
                     {
                         new MenuItem { Titulo = "Listar Clientes", Icone = "bi-list", Url = "/clientes" },
                         new MenuItem { Titulo = "Novo Cliente", Icone = "bi-person-plus", Url = "/clientes/novo" },
-                        new MenuItem { Titulo = "Clientes Ativos", Icone = "bi-person-check", Url = "/clientes/ativos" }
                     }
                 },
 
@@ -162,20 +161,8 @@ namespace Locadora_Auto.Front.Services
                         new MenuItem { Titulo = "Listar Multas", Icone = "bi-list", Url = "/multas" },
                         new MenuItem { Titulo = "Tipos de Multa", Icone = "bi-tags", Url = "/multas/tipos" }
                     }
-                },
-
-                new MenuItem
-                {
-                    Titulo = "Usuários",
-                    Icone = "bi-person-badge",
-                    Url = "/usuarios",
-                    SubItens = new List<MenuItem>
-                    {
-                        new MenuItem { Titulo = "Listar Usuários", Icone = "bi-list", Url = "/usuarios" },
-                        new MenuItem { Titulo = "Novo Usuário", Icone = "bi-person-plus", Url = "/usuarios/novo" },
-                        new MenuItem { Titulo = "Papéis (Roles)", Icone = "bi-shield", Url = "/usuarios/papeis" }
-                    }
                 }
+
             };
         }
     }

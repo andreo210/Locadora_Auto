@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Domain;
 using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.ClienteServices
@@ -19,6 +20,15 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             Task<bool> ExisteClienteAsync(string cpf, CancellationToken ct = default);
             Task<int> ContarClientesAtivosAsync(CancellationToken ct = default);
             Task<IReadOnlyList<ClienteDto>> ObterPaginadoAsync(int pagina, int tamanhoPagina, CancellationToken ct = default);
+            Task<PaginatedResult<ClienteDto>> ObterPaginadoAsync(
+                bool? ativos = null, // Mude de true para null
+                string? nome = null,
+                string? numeroHabilitacao = null,
+                string? ordenarPor = "NumeroHabilitacao",
+                string? ordem = "asc",
+                int pagina = 1, // Adicionar parâmetros de paginação
+                int itensPorPagina = 10,
+                CancellationToken ct = default);
 
         // Métodos genéricos para consultas complexas
         //Task<IReadOnlyList<ClienteDto>> ObterComFiltroAsync(

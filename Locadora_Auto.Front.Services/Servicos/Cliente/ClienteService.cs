@@ -68,7 +68,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 queryParams.Add($"nome={Uri.EscapeDataString(nome)}");
 
             if (!string.IsNullOrWhiteSpace(cargo))
-                queryParams.Add($"cargo={Uri.EscapeDataString(cargo)}");
+                queryParams.Add($"numeroHabilitacao={Uri.EscapeDataString(cargo)}");
 
             if (ativos.HasValue)
                 queryParams.Add($"ativos={ativos.Value.ToString().ToLower()}");
@@ -84,7 +84,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 queryParams.Add($"ordem={ordem}");
             }
             var queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
-            var url = $"api/v1/Clientes{queryString}";
+            var url = $"api/v1/Clientes/obter-clientes-paginado/{queryString}";
 
             return await _api.GetAsync<PaginatedResponse<ClienteResponse>>(url);
         }
