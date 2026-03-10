@@ -49,7 +49,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Login
             var validationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = "https://localhost:61977",
+                ValidIssuer = "https://localhost:44310",
 
                 ValidateAudience = true,
                 ValidAudience = "locadora-front",
