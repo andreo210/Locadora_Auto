@@ -131,7 +131,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<PaginatedResult<ClienteDto>> ObterPaginadoAsync(
             bool? ativos = null, // Mude de true para null
             string? nome = null,
-            string? numeroHabilitacao = null,
+            string? cpf = null,
             string? ordenarPor = null,
             string? ordem = null,
             int pagina = 1, // Adicionar parâmetros de paginação
@@ -152,9 +152,9 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                 condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
             }
 
-            if (!string.IsNullOrWhiteSpace(numeroHabilitacao))
+            if (!string.IsNullOrWhiteSpace(cpf))
             {
-                condicoes.Add(f => f.NumeroHabilitacao == numeroHabilitacao);
+                condicoes.Add(f => f.Usuario.Cpf == cpf);
             }
             if(string.IsNullOrEmpty(ordem)) ordem = "asc";
             if (string.IsNullOrEmpty(ordenarPor)) ordem = "numeroHabilitacao";
@@ -248,9 +248,9 @@ namespace Locadora_Auto.Application.Services.ClienteServices
                     ? q => q.OrderBy(f => f.Usuario.Email)
                     : q => q.OrderByDescending(f => f.Usuario.Email),
 
-                "numeroHabilitacao" => ascendente
-                    ? q => q.OrderBy(f => f.NumeroHabilitacao)
-                    : q => q.OrderByDescending(f => f.NumeroHabilitacao),
+                "cpf" => ascendente
+                    ? q => q.OrderBy(f => f.Usuario.Cpf)
+                    : q => q.OrderByDescending(f => f.Usuario.Cpf),
 
                 "status" => ascendente
                     ? q => q.OrderBy(f => f.Ativo)
@@ -266,8 +266,8 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
                 // Padrão: ordenar por matrícula
                 _ => ascendente
-                    ? q => q.OrderBy(f => f.Usuario.Cpf)
-                    : q => q.OrderByDescending(f => f.Usuario.Cpf)
+                    ? q => q.OrderBy(f => f.NumeroHabilitacao)
+                    : q => q.OrderByDescending(f => f.NumeroHabilitacao),
             };
         }
 

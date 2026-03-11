@@ -1,15 +1,13 @@
 ﻿@page "/clientes"
+@using Locadora_Auto.Front.Components.UI
 @using Locadora_Auto.Front.Components.Notificacao
-@using Locadora_Auto.Front.Models
-@using Locadora_Auto.Front.Models.Enum
 @using Locadora_Auto.Front.Models.Response
-@using Locadora_Auto.Front.Services.Servicos
+@using Locadora_Auto.Front.Models.Tabelas
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Servicos.Notificacao
-@using Locadora_Auto.Front.Models.Request
 @inject NavigationManager Navegacao
-@inject IClienteService _clienteService
-@inject INotificationService _notificacaoService
+@inject IClienteService ClienteService
+@inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
@@ -18,434 +16,251 @@
 <ConfirmDialog @ref="confirmDialog" />
 
 <div class="container-fluid py-4">
-
     <!-- Cabeçalho da página -->
     <div class="row mb-4">
         <div class="col">
             <h2>Clientes</h2>
             <p class="text-muted">Gerencie os clientes do sistema</p>
         </div>
-        <div class="col-auto">
-            <a href="/clientes/novo" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                Novo Cliente
-            </a>
-        </div>
     </div>
 
-    <!-- Card de filtros e pesquisa -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <!-- Campo de pesquisa por nome -->
-                <div class="col-md-3">
+    <!-- Tabela genérica de clientes -->
+    <TabelaGenerica TItem="ClienteResponse"
+                    @bind-PaginaAtual="paginaAtual"
+                    @bind-ItensPorPagina="itensPorPagina"
+                    @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                    @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                    @bind-TermoBusca="termoBuscaGlobal"
+                    Items="clientes"
+                    TotalItens="totalItems"
+                    Colunas="colunas"
+                    Carregando="carregando"
+                    OnCarregarDados="CarregarClientes"
+                    Titulo="Clientes"
+                    PlaceholderBusca="Pesquisar por nome..."
+                    SelecaoHabilitada="true"
+                    LarguraColunaAcoes="200"
+                    Acoes="acoes"
+                    AcoesEmMassa="acoesEmMassa"
+                    ObterId="@(c => c.IdCliente.ToString())"
+                    IconeVazio="bi-people"
+                    MensagemVazio="Nenhum cliente encontrado"
+                    MensagemVazioDetalhe="Clique em 'Novo Cliente' para começar">
+
+        <!-- Ações no cabeçalho -->
+        <AcoesCabecalho>
+            <a href="/clientes/novo" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Novo Cliente
+            </a>
+        </AcoesCabecalho>
+
+        <!-- Filtros adicionais -->
+        <FiltrosAdicionais>
+            <div class="row g-2">
+                <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
+                            <i class="bi bi-upc-scan"></i>
                         </span>
-                        <input type="text"  class="form-control"  placeholder="Pesquisar por nome..." @bind="filtroNome" @bind:event="oninput" />
+                        <input type="text"
+                               class="form-control"
+                               placeholder="CPF..."
+                               @bind="filtroCpf"
+                               @bind:event="oninput" />
                     </div>
                 </div>
-
-                <!-- Filtro por numero de habilitacao-->
-                <div class="col-md-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" class="form-control" placeholder="Pesquisar por numero de habi..." @bind="filtroNumeroHabilitacao" @bind:event="oninput" />
-                    </div>
-                </div>
-
-                <!-- Filtro por status (ativo/inativo) -->
-                <div class="col-md-2">
+                <div class="col-md-6">
                     <select class="form-select" @bind="filtroAtivo">
-                        <option value="">Todos</option>
+                        <option value="">Todos os status</option>
                         <option value="true">Ativos</option>
                         <option value="false">Inativos</option>
                     </select>
                 </div>
-
-                <!-- Botões de ação -->
-                <div class="col-md-4 d-flex gap-2 justify-content-end">
-                    <button class="btn btn-outline-secondary" @onclick="LimparTodosFiltros" title="Limpar filtros">
-                        <i class="bi bi-eraser"></i> Limpar
-                    </button>
-                    <button class="btn btn-outline-primary" @onclick="AplicarFiltros" title="Aplicar filtros">
-                        <i class="bi bi-funnel"></i> Filtrar
-                    </button>
-                    <button class="btn btn-outline-success" @onclick="RecarregarDados" title="Atualizar lista">
-                        <i class="bi bi-arrow-clockwise"></i>
-                    </button>
-                    <button class="btn btn-outline-info" @onclick="ExportarExcel" title="Exportar para Excel">
-                        <i class="bi bi-file-earmark-excel"></i>
-                    </button>
-                </div>
             </div>
-
-            <!-- Resumo dos filtros ativos -->
-            @if (TemFiltrosAtivos)
-            {
-                <div class="row mt-3">
-                    <div class="col">
-                        <div class="alert alert-info alert-dismissible fade show mb-0 py-2" role="alert">
-                            <i class="bi bi-funnel-fill me-2"></i>
-                            <strong>Filtros ativos:</strong>
-                            @if (!string.IsNullOrEmpty(filtroNome))
-                            {
-                                <span class="badge bg-info text-white me-2">Nome: @filtroNome</span>
-                            }
-                            @if (!string.IsNullOrEmpty(filtroNumeroHabilitacao))
-                            {
-                                <span class="badge bg-info text-white me-2">Cargo: @filtroNumeroHabilitacao</span>
-                            }
-                            @if (!string.IsNullOrEmpty(filtroAtivo))
-                            {
-                                <span class="badge bg-info text-white me-2">
-                                    Status: @(filtroAtivo == "true" ? "Ativos" : "Inativos")
-                                </span>
-                            }
-                            <button type="button" class="btn-close btn-sm" @onclick="LimparTodosFiltros"></button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    </div>
-
-    <!-- Tabela de clientes -->
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            @if (carregando)
-            {
-                <!-- Loading spinner -->
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary mb-3" role="status">
-                        <span class="visually-hidden">Carregando...</span>
-                    </div>
-                    <p class="text-muted">Carregando clientes...</p>
-                </div>
-            }
-            else if (!clientes.Any())
-            {
-                <!-- Nenhum resultado -->
-                <div class="text-center py-5">
-                    <i class="bi bi-people fs-1 text-muted"></i>
-                    <h5 class="mt-3">Nenhum cliente encontrado</h5>
-                    <p class="text-muted">
-                        @if (TemFiltrosAtivos)
-                        {
-                            <span>Tente ajustar os filtros de pesquisa</span>
-                        }
-                        else
-                        {
-                            <span>Clique em "Novo Cliente" para começar</span>
-                        }
-                    </p>
-                </div>
-            }
-            else
-            {
-                <!-- Tabela de resultados -->
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-4" width="50">
-                                    <input type="checkbox"
-                                           class="form-check-input"
-                                           @onclick="AlternarSelecaoTodos"
-                                           checked="@TodosSelecionados" />
-                                </th>
-                                <th @onclick="@(() => OrdenarPor("Cpf"))" style="cursor: pointer">
-                                    Cpf
-                                    @if (ordenacao.Propriedade == "CPF")
-                                    {
-                                        <i class="bi @ordenacao.Icone ms-1"></i>
-                                    }
-                                </th>
-                                <th @onclick="@(() => OrdenarPor("Nome"))" style="cursor: pointer">
-                                    Nome
-                                    @if (ordenacao.Propriedade == "Nome")
-                                    {
-                                        <i class="bi @ordenacao.Icone ms-1"></i>
-                                    }
-                                </th>
-                                <th @onclick="@(() => OrdenarPor("Email"))" style="cursor: pointer">
-                                    Email
-                                    @if (ordenacao.Propriedade == "Email")
-                                    {
-                                        <i class="bi @ordenacao.Icone ms-1"></i>
-                                    }
-                                </th>
-                                <th @onclick="@(() => OrdenarPor("NumeroHabilitacao"))" style="cursor: pointer">
-                                    Nº Habilitação
-                                    @if (ordenacao.Propriedade == "NumeroHabilitacao")
-                                    {
-                                        <i class="bi @ordenacao.Icone ms-1"></i>
-                                    }
-                                </th>
-                                <th>Telefone</th>
-                                <th @onclick="@(() => OrdenarPor("Status"))" style="cursor: pointer">
-                                    Status
-                                    @if (ordenacao.Propriedade == "Status")
-                                    {
-                                        <i class="bi @ordenacao.Icone ms-1"></i>
-                                    }
-                                </th>
-                                <th width="120">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var cliente in clientes)
-                            {
-                                <tr class="@(selecionados[cliente.IdCliente.ToString()] ? "table-primary" : "")">
-                                    <td class="ps-4">
-                                        <input type="checkbox" 
-                                               class="form-check-input"
-                                               @onclick="@(() => AlternarSelecaoIndividual(cliente.IdCliente.ToString()))"
-                                               checked="@selecionados[cliente.IdCliente.ToString()]" />
-                                    </td>
-                                    <td><span class="fw-bold">@cliente.Cpf</span></td>
-                                    <td>@cliente.Nome</td>
-                                    <td>@cliente.Email</td>
-                                    <td>
-                                        <span class="badge bg-secondary">@cliente.NumeroHabilitacao</span>
-                                    </td>
-                                    <td>@cliente.Telefone</td>
-                                    <td>
-                                        @if (cliente.Ativo)
-                                        {
-                                            <span class="badge bg-success">Ativo</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-danger">Inativo</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            <button class="btn btn-sm btn-outline-primary" 
-                                                    title="Editar"
-                                                    @onclick="@(() => EditarCliente(cliente.IdCliente.ToString()))">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                    title="Ativar"
-                                                    @onclick="@(() => AtivarCliente(cliente.IdCliente.ToString(), cliente.Nome))">
-                                                <i class="bi bi-arrow-up"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                    title="Desativar"
-                                                    @onclick="@(() => DesativarCliente(cliente.IdCliente.ToString(), cliente.Nome))">
-                                                <i class="bi bi-arrow-down"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-info" 
-                                                    title="Visualizar"
-                                                    @onclick="@(() => VisualizarCliente(cliente.IdCliente.ToString()))">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" 
-                                                    title="Excluir"
-                                                    @onclick="@(() => ExcluirCliente(cliente.IdCliente.ToString(), cliente.Nome))">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Rodapé da tabela com paginação e ações em massa -->
-                <div class="card-footer bg-white">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="text-muted small">
-                                    Mostrando @primeiroItem - @ultimoItem de @totalItems funcionários
-                                </span>
-                                
-                                @if (QuantidadeSelecionados > 0)
-                                {
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
-                                                type="button" 
-                                                data-bs-toggle="dropdown">
-                                            <i class="bi bi-check-all me-1"></i>
-                                            @QuantidadeSelecionados selecionados
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li>
-                                                <a class="dropdown-item" href="#" @onclick="ExportarSelecionados">
-                                                    <i class="bi bi-file-earmark-excel me-2"></i>Exportar selecionados
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item text-success" href="#" @onclick="AtivarSelecionados">
-                                                    <i class="bi bi-check-circle-fill me-2"></i>
-                                                    Ativar selecionados
-                                                    <span class="badge bg-success ms-2">@QuantidadeSelecionados</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item text-warning" href="#" @onclick="InativarSelecionados">
-                                                    <i class="bi bi-pause-circle-fill me-2"></i>
-                                                    Inativar selecionados
-                                                    <span class="badge bg-warning ms-2">@QuantidadeSelecionados</span>
-                                                </a>
-                                            </li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                <a class="dropdown-item text-danger" href="#" @onclick="ExcluirSelecionados">
-                                                    <i class="bi bi-trash me-2"></i>Excluir selecionados
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-end align-items-center gap-3">
-                                <!-- Seletor de itens por página -->
-                                <select class="form-select form-select-sm w-auto"
-                                        @bind="itensPorPagina">
-                                    <option value="10">10 por página</option>
-                                    <option value="25">25 por página</option>
-                                    <option value="50">50 por página</option>
-                                    <option value="100">100 por página</option>
-                                </select>
-
-                                <!-- Paginação -->
-                                <nav aria-label="Navegação de páginas">
-                                    <ul class="pagination pagination-sm mb-0">
-                                        <!-- Primeira página -->
-                                        <li class="page-item @(paginaAtual == 1 ? "disabled" : "")">
-                                            <a class="page-link" href="#"
-                                               @onclick="@(() => MudarPagina(1))"
-                                               @onclick:preventDefault="true">
-                                                <i class="bi bi-chevron-double-left"></i>
-                                            </a>
-                                        </li>
-
-                                        <!-- Página anterior -->
-                                        <li class="page-item @(paginaAtual == 1 ? "disabled" : "")">
-                                            <a class="page-link" href="#"
-                                               @onclick="@(() => MudarPagina(paginaAtual - 1))"
-                                               @onclick:preventDefault="true">
-                                                <i class="bi bi-chevron-left"></i>
-                                            </a>
-                                        </li>
-                                        <!-- botões com numero -->
-                                        @{
-                                            var paginasExibidas = ObterPaginasParaExibir();
-                                        }
-                                        @foreach (var pagina in paginasExibidas)
-                                        {
-                                            <li class="page-item @(pagina == paginaAtual ? "active" : "")" @key="pagina">
-                                                <a class="page-link" href="#"
-                                                   @onclick="@(() => MudarPagina(pagina))"
-                                                   @onclick:preventDefault="true">
-                                                    @pagina
-                                                </a>
-                                            </li>
-
-                                            @if (pagina == paginaAtual - 2 && paginaAtual + 2 < totalPaginas)
-                                            {
-                                                <li class="page-item disabled"><span class="page-link">...</span></li>
-                                            }
-                                        }
-
-                                        <!-- Próxima página -->
-                                        <li class="page-item @(paginaAtual == totalPaginas ? "disabled" : "")">
-                                            <a class="page-link" href="#"
-                                               @onclick="@(() => MudarPagina(paginaAtual+1))"
-                                               @onclick:preventDefault="true">
-                                                <i class="bi bi-chevron-right"></i>
-                                            </a>
-                                        </li>
-
-                                        <!-- Última página -->
-                                        <li class="page-item @(paginaAtual == totalPaginas ? "disabled" : "")">
-                                            <a class="page-link" href="#"
-                                               @onclick="@(() => MudarPagina(totalPaginas))"
-                                               @onclick:preventDefault="true">
-                                                <i class="bi bi-chevron-double-right"></i>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </nav>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    </div>
+        </FiltrosAdicionais>
+    </TabelaGenerica>
 </div>
 
 @code {
     // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
     private ConfirmDialog? confirmDialog;
 
-
-    // ===== MODELO DE RESPOSTA DA API COM PAGINAÇÃO =====
-    private class ClientesPaginadosResponse
-    {
-        public List<ClienteResponse> Items { get; set; } = new();
-        public int Total { get; set; }
-        public int Pagina { get; set; }
-        public int TotalPaginas { get; set; }
-    }
-
-    // ===== MODELO DE FILTROS =====
-    private class FiltrosClientes
-    {
-        public string? Nome { get; set; }
-        public string? Cargo { get; set; }
-        public bool? Ativo { get; set; }
-        public int Pagina { get; set; } = 1;
-        public int ItensPorPagina { get; set; } = 10;
-    }
-
     // ===== VARIÁVEIS DE ESTADO =====
     private List<ClienteResponse> clientes = new();
-    private bool carregando = true;
-
-    // ===== VARIÁVEIS DE FILTRO =====
-    private string filtroNome = string.Empty;
-    private string filtroNumeroHabilitacao = string.Empty;
-    private string filtroAtivo = string.Empty;
-
-    //variavel de ordenação
-    private EstadoOrdenacao ordenacao = new();
-
-    // ===== VARIÁVEIS DE PAGINAÇÃO =====
+    private bool carregando;
+    private int totalItems;
     private int paginaAtual = 1;
     private int itensPorPagina = 10;
-    private int totalItems = 0;
-    private int totalPaginas = 1;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
 
-    private int primeiroItem => ((paginaAtual - 1) * itensPorPagina) + 1;
-    private int ultimoItem => Math.Min(paginaAtual * itensPorPagina, totalItems);
+    // ===== VARIÁVEIS DE FILTRO =====
+    private string _filtroCpf = string.Empty;
+    private string filtroCpf
+    {
+        get => _filtroCpf;
+        set
+        {
+            if (_filtroCpf != value)
+            {
+                _filtroCpf = value;
+                _ = AplicarFiltrosAsync();
+            }
+        }
+    }
 
-    // ===== CONTROLE DE SELEÇÃO =====
-    private Dictionary<string, bool> selecionados = new();
+    private string _filtroAtivo = string.Empty;
+    private string filtroAtivo
+    {
+        get => _filtroAtivo;
+        set
+        {
+            if (_filtroAtivo != value)
+            {
+                _filtroAtivo = value;
+                _ = AplicarFiltrosAsync();
+            }
+        }
+    }
 
-    // ===== PROPRIEDADES COMPUTADAS =====
-    private int QuantidadeSelecionados => selecionados.Count(x => x.Value);
+    private string _termoBuscaGlobal = string.Empty;
+    private string termoBuscaGlobal
+    {
+        get => _termoBuscaGlobal;
+        set
+        {
+            if (_termoBuscaGlobal != value)
+            {
+                _termoBuscaGlobal = value;
+                _ = AplicarFiltrosAsync();
+            }
+        }
+    }
 
-    private bool TodosSelecionados => clientes.Any() && 
-                                       clientes.All(f => 
-                                           selecionados.ContainsKey(f.IdCliente.ToString()) && 
-                                           selecionados[f.IdCliente.ToString()]);
+    // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
+    private List<ColunaTabela<ClienteResponse>> colunas = new()
+    {
+        new()
+        {
+            Titulo = "CPF",
+            Propriedade = "Cpf",
+            Largura = "120",
+            Formato = "000.000.000-00"
+        },
+        new()
+        {
+            Titulo = "Nome",
+            Propriedade = "Nome",
+            Largura = "200",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Email",
+            Propriedade = "Email",
+            Largura = "200"
+        },
+        new()
+        {
+            Titulo = "Nº Habilitação",
+            Propriedade = "NumeroHabilitacao",
+            Largura = "120"
+        },
+        new()
+        {
+            Titulo = "Telefone",
+            Propriedade = "Telefone",
+            Largura = "120",
+            Formato = "(00) 00000-0000"
+        },
+        new()
+        {
+            Titulo = "Status",
+            Propriedade = "Ativo",
+            Largura = "80",
+            Alinhamento = "center",
+            Template = (cliente) => @<span class="badge @(cliente.Ativo ? "bg-success" : "bg-danger")">
+@(cliente.Ativo ? "Ativo" : "Inativo")
+</span>
+        }
+    };
 
-    private bool TemFiltrosAtivos => !string.IsNullOrEmpty(filtroNome) || 
-                                      !string.IsNullOrEmpty(filtroNumeroHabilitacao) || 
-                                      !string.IsNullOrEmpty(filtroAtivo);
+    // ===== AÇÕES INDIVIDUAIS =====
+    private List<AcaoTabela<ClienteResponse>> acoes => new()
+    {
+        new()
+        {
+            Titulo = "Editar",
+            Icone = "bi-pencil",
+            Cor = "primary",
+            Acao = async (c) => Navegacao.NavigateTo($"/clientes/editar/{c.IdCliente}")
+        },
+        new()
+        {
+            Titulo = "Ativar",
+            Icone = "bi-arrow-up",
+            Cor = "success",
+            Acao = async (c) => await AtivarCliente(c.IdCliente.ToString(), c.Nome)
+        },
+        new()
+        {
+            Titulo = "Desativar",
+            Icone = "bi-arrow-down",
+            Cor = "warning",
+            Acao = async (c) => await DesativarCliente(c.IdCliente.ToString(), c.Nome)
+        },
+        new()
+        {
+            Titulo = "Visualizar",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (c) => Navegacao.NavigateTo($"/clientes/visualizar/{c.IdCliente}")
+        },
+        new()
+        {
+            Titulo = "Excluir",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (c) => await ExcluirCliente(c.IdCliente.ToString(), c.Nome)
+        }
+    };
 
+    // ===== AÇÕES EM MASSA =====
+    private List<AcaoEmMassa> acoesEmMassa => new()
+    {
+        new()
+        {
+            Titulo = "Exportar selecionados",
+            Icone = "bi-file-earmark-excel",
+            Cor = "success",
+            Acao = async (ids) => await ExportarSelecionados(ids),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Ativar selecionados",
+            Icone = "bi-check-circle-fill",
+            Cor = "success",
+            Acao = async (ids) => await AtivarSelecionados(ids),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Inativar selecionados",
+            Icone = "bi-pause-circle-fill",
+            Cor = "warning",
+            Acao = async (ids) => await InativarSelecionados(ids),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Excluir selecionados",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (ids) => await ExcluirSelecionados(ids),
+            MostrarQuantidade = true
+        }
+    };
 
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnInitializedAsync()
@@ -453,8 +268,14 @@
         await CarregarClientes();
     }
 
+    // ===== MÉTODO PARA APLICAR FILTROS =====
+    private async Task AplicarFiltrosAsync()
+    {
+        paginaAtual = 1;
+        await CarregarClientes();
+    }
 
-    // ===== MÉTODOS DE CARREGAMENTO =====
+    // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
     private async Task CarregarClientes()
     {
         carregando = true;
@@ -462,42 +283,33 @@
 
         try
         {
-           // var resultado = new PaginatedResponse<ClienteResponse>();
-            // Usar o novo método paginado
-            var resultado = await _clienteService.ObterTodos(
-                nome: string.IsNullOrWhiteSpace(filtroNome) ? null : filtroNome,
-                cargo: string.IsNullOrWhiteSpace(filtroNumeroHabilitacao) ? null : filtroNumeroHabilitacao,
-                ativos: string.IsNullOrEmpty(filtroAtivo) ? null : bool.Parse(filtroAtivo),                
+            // Converte o filtro de CPF (pode vir com máscara)
+            string? cpfLimpo = null;
+            if (!string.IsNullOrWhiteSpace(filtroCpf))
+            {
+                cpfLimpo = new string(filtroCpf.Where(char.IsDigit).ToArray());
+                if (string.IsNullOrEmpty(cpfLimpo))
+                    cpfLimpo = null;
+            }
+
+            var resultado = await ClienteService.ObterTodos(
+                nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                cargo: cpfLimpo,
+                ativos: string.IsNullOrEmpty(filtroAtivo) ? null : bool.Parse(filtroAtivo),
                 pagina: paginaAtual,
                 itensPorPagina: itensPorPagina,
-                ordenarPor: $"{ordenacao.Propriedade}",
-                ordem: $"{ordenacao.Direcao}"
+                ordenarPor: ordenacaoPropriedade,
+                ordem: ordenacaoDirecao
             );
 
             clientes = resultado.Items ?? new();
             totalItems = resultado.Total;
-            totalPaginas = resultado.TotalPaginas;
-
-            // Ajusta página atual se necessário
-            if (paginaAtual > totalPaginas && totalPaginas > 0)
-            {
-                paginaAtual = totalPaginas;
-                await CarregarClientes(); // Recarrega com página correta
-                return;
-            }
-
-            // Inicializar dicionário de seleção
-            selecionados = clientes.ToDictionary(
-                f => f.IdCliente.ToString(),
-                f => false
-            );
         }
         catch (Exception ex)
         {
-            _notificacaoService.ShowError($"Erro ao carregar funcionários: {ex.Message}","Erro");
-            clientes = new List<ClienteResponse>();
+            NotificacaoService.ShowError($"Erro ao carregar clientes: {ex.Message}", "Erro");
+            clientes = new();
             totalItems = 0;
-            totalPaginas = 1;
         }
         finally
         {
@@ -506,131 +318,7 @@
         }
     }
 
-    /// <summary>
-    /// Aplica os filtros e volta para primeira página
-    /// </summary>
-    private async Task AplicarFiltros()
-    {
-        paginaAtual = 1;
-        await CarregarClientes();
-    }
-
-    /// <summary>
-    /// Recarrega os dados manualmente (botão de refresh)
-    /// </summary>
-    private async Task RecarregarDados()
-    {
-        await CarregarClientes();
-        _notificacaoService.ShowSuccess("Lista atualizada com sucesso!", "Atualização");
-    }
-
-    /// <summary>
-    /// Limpa todos os filtros e recarrega
-    /// </summary>
-    private async Task LimparTodosFiltros()
-    {
-        filtroNome = string.Empty;
-        filtroNumeroHabilitacao = string.Empty;
-        filtroAtivo = string.Empty;
-        paginaAtual = 1;
-        await CarregarClientes();
-    }
-
-
-    // ===== MÉTODOS DE PAGINAÇÃO =====
-    private async Task MudarPagina(int pagina)
-    {
-        if (pagina >= 1 && pagina <= totalPaginas && pagina != paginaAtual)
-        {
-            paginaAtual = pagina;
-            await CarregarClientes(); // Recarrega os dados da nova página
-        }
-    }
-
-    private List<int> ObterPaginasParaExibir()
-    {
-        var paginas = new List<int>();
-
-        for (int i = 1; i <= totalPaginas; i++)
-        {
-            // Sempre mostrar primeira, última e vizinhas
-            if (i == 1 || i == totalPaginas ||
-                (i >= paginaAtual - 2 && i <= paginaAtual + 2))
-            {
-                paginas.Add(i);
-            }
-        }
-
-        return paginas;
-    }
-
-    private async Task MudarItensPorPagina()
-    {
-        paginaAtual = 1; // Volta para primeira página
-        await CarregarClientes(); // Recarrega com novo tamanho de página
-    }
-
-    // Método auxiliar para navegação (opcional)
-    private async Task IrParaPrimeiraPagina() => await MudarPagina(1);
-    private async Task IrParaUltimaPagina() => await MudarPagina(totalPaginas);
-    private async Task PaginaAnterior() => await MudarPagina(paginaAtual - 1);
-    private async Task ProximaPagina() => await MudarPagina(paginaAtual + 1);
-
-
-    // ===== MÉTODOS DE SELEÇÃO =====
-    private void AlternarSelecaoTodos()
-    {
-        var todosSelecionados = TodosSelecionados;
-
-        foreach (var f in clientes)
-        {
-            selecionados[f.IdCliente.ToString()] = !todosSelecionados;
-        }
-    }
-
-    private void AlternarSelecaoIndividual(string id)
-    {
-        if (selecionados.ContainsKey(id))
-        {
-            selecionados[id] = !selecionados[id];
-        }
-    }
-
-    private List<string> ObterIdsSelecionados()
-    {
-        return selecionados
-            .Where(x => x.Value)
-            .Select(x => x.Key)
-            .ToList();
-    }
-
-    private void LimparSelecao()
-    {
-        foreach (var id in selecionados.Keys.ToList())
-        {
-            selecionados[id] = false;
-        }
-    }
-
-    //método para ordenação
-    private async Task OrdenarPor(string propriedade)
-    {
-        ordenacao.Alternar(propriedade);
-        paginaAtual = 1; // Volta para primeira página ao ordenar
-        await CarregarClientes();
-    }
-
-    // ===== MÉTODOS DE AÇÕES INDIVIDUAIS =====
-    private void EditarCliente(string id)
-    {
-        Navegacao.NavigateTo($"/clientes/editar/{id}");
-    }
-
-    private void VisualizarCliente(string id)
-    {
-        Navegacao.NavigateTo($"/clientes/visualizar/{id}");
-    }
-
+    // ===== AÇÕES INDIVIDUAIS =====
     private async Task ExcluirCliente(string id, string nome)
     {
         var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente excluir o cliente '{nome}'?", "Confirmar Exclusão");
@@ -639,10 +327,10 @@
         {
             try
             {
-                var sucesso = await _clienteService.Excluir(id);
+                var sucesso = await ClienteService.Excluir(id);
                 if (sucesso)
                 {
-                    _notificacaoService.ShowSuccess($"Cliente {nome} excluído com sucesso!", "Exclusão");
+                    NotificacaoService.ShowSuccess($"Cliente {nome} excluído com sucesso!", "Exclusão");
 
                     // Se a página atual ficar vazia, volta uma página
                     if (clientes.Count == 1 && paginaAtual > 1)
@@ -650,203 +338,199 @@
                         paginaAtual--;
                     }
 
-                    await CarregarClientes(); // Recarrega a lista
+                    await CarregarClientes();
                 }
                 else
                 {
-                    _notificacaoService.ShowError($"Erro ao excluir cliente, contate o suporte.", "Erro");
+                    NotificacaoService.ShowError($"Erro ao excluir cliente.", "Erro");
                 }
             }
             catch (Exception ex)
             {
-                _notificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+                NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
             }
         }
     }
 
     private async Task AtivarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?","Confirmar Ativação");
+        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?", "Confirmar Ativação");
 
         if (confirmado)
         {
             try
             {
-                var sucesso = await _clienteService.Ativar(id);
+                var sucesso = await ClienteService.Ativar(id);
                 if (sucesso)
                 {
-                    _notificacaoService.ShowSuccess($"Cliente {nome} ativado com sucesso!", "Ativação");
-
-                    // Se a página atual ficar vazia, volta uma página
-                    if (clientes.Count == 1 && paginaAtual > 1)
-                    {
-                        paginaAtual--;
-                    }
-
-                    await CarregarClientes(); // Recarrega a lista
-                }               
+                    NotificacaoService.ShowSuccess($"Cliente {nome} ativado com sucesso!", "Ativação");
+                    await CarregarClientes();
+                }
             }
             catch (Exception ex)
             {
-                _notificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
+                NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
             }
         }
     }
 
     private async Task DesativarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?","Confirmar Desativação");
+        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?", "Confirmar Desativação");
 
         if (confirmado)
         {
             try
             {
-                var sucesso = await _clienteService.Desativar(id);
+                var sucesso = await ClienteService.Desativar(id);
                 if (sucesso)
                 {
-                    _notificacaoService.ShowSuccess($"Cliente {nome} desativado com sucesso!", "Desativação");
-
-                    // Se a página atual ficar vazia, volta uma página
-                    if (clientes.Count == 1 && paginaAtual > 1)
-                    {
-                        paginaAtual--;
-                    }
-
-                    await CarregarClientes(); // Recarrega a lista
+                    NotificacaoService.ShowSuccess($"Cliente {nome} desativado com sucesso!", "Desativação");
+                    await CarregarClientes();
                 }
             }
             catch (Exception ex)
             {
-                _notificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
+                NotificacaoService.ShowError($"Erro ao desativar: {ex.Message}", "Erro");
             }
         }
     }
 
-
-    // ===== MÉTODOS DE AÇÕES EM MASSA =====
-    private async Task ExportarSelecionados()
+    // ===== AÇÕES EM MASSA =====
+    private async Task ExportarSelecionados(List<string> ids)
     {
-        var idsSelecionados = ObterIdsSelecionados();
-        
-        if (!idsSelecionados.Any())
-        {
-            _notificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
-            return;
-        }
+        var nomes = clientes
+            .Where(c => ids.Contains(c.IdCliente.ToString()))
+            .Select(c => c.Nome)
+            .ToList();
 
-        var selecionados = clientes
-            .Where(f => idsSelecionados.Contains(f.IdCliente.ToString()))
-            .Select(f => f.Nome);
-            
-        _notificacaoService.ShowInfo($"Exportando {idsSelecionados.Count} funcionários", "Exportação");
+        NotificacaoService.ShowInfo($"Exportando {ids.Count} clientes: {string.Join(", ", nomes)}", "Exportação");
         // TODO: Implementar exportação real
     }
 
-    private async Task AtivarSelecionados()
+    private async Task AtivarSelecionados(List<string> ids)
     {
-        var idsSelecionados = ObterIdsSelecionados();
-        
-        if (!idsSelecionados.Any())
-        {
-            _notificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
-            return;
-        }
-
-        var sucesso = true;
-        foreach (var id in idsSelecionados)
-        {
-           // sucesso = sucesso && await FuncionarioService.Ativar(id);
-        }
-        
-        if (sucesso)
-        {
-            _notificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários ativados com sucesso!", "Sucesso");
-            LimparSelecao();
-            await CarregarClientes(); // Recarrega para mostrar status atualizado
-        }
-    }
-
-    private async Task InativarSelecionados()
-    {
-        var idsSelecionados = ObterIdsSelecionados();
-        
-        if (!idsSelecionados.Any())
-        {
-            _notificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
-            return;
-        }
-
-        var sucesso = true;
-        foreach (var id in idsSelecionados)
-        {
-           // sucesso = sucesso && await FuncionarioService.Inativar(id);
-        }
-        
-        if (sucesso)
-        {
-            _notificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários inativados com sucesso!", "Sucesso");
-            LimparSelecao();
-            await CarregarClientes(); // Recarrega para mostrar status atualizado
-        }
-    }
-
-    private async Task ExcluirSelecionados()
-    {
-        var idsSelecionados = ObterIdsSelecionados();
-        
-        if (!idsSelecionados.Any())
-        {
-            _notificacaoService.ShowWarning("Nenhum funcionário selecionado", "Atenção");
-            return;
-        }
-
-        var confirmado = await Task.Run(() => true); // Placeholder
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente ativar {ids.Count} cliente(s)?",
+            "Confirmar Ativação em Massa");
 
         if (confirmado)
         {
-            var sucesso = true;
-            foreach (var id in idsSelecionados)
+            var sucessos = 0;
+            var erros = 0;
+
+            foreach (var id in ids)
             {
-               sucesso = sucesso && await _clienteService.Excluir(id);
+                try
+                {
+                    var sucesso = await ClienteService.Ativar(id);
+                    if (sucesso)
+                        sucessos++;
+                    else
+                        erros++;
+                }
+                catch
+                {
+                    erros++;
+                }
             }
-            
-            if (sucesso)
+
+            if (erros == 0)
             {
-                _notificacaoService.ShowSuccess($"{idsSelecionados.Count} funcionários excluídos com sucesso!", "Exclusão");
-                
+                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) ativados com sucesso!", "Sucesso");
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"{sucessos} ativados, {erros} falhas", "Atenção");
+            }
+
+            await CarregarClientes();
+        }
+    }
+
+    private async Task InativarSelecionados(List<string> ids)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente inativar {ids.Count} cliente(s)?",
+            "Confirmar Inativação em Massa");
+
+        if (confirmado)
+        {
+            var sucessos = 0;
+            var erros = 0;
+
+            foreach (var id in ids)
+            {
+                try
+                {
+                    var sucesso = await ClienteService.Desativar(id);
+                    if (sucesso)
+                        sucessos++;
+                    else
+                        erros++;
+                }
+                catch
+                {
+                    erros++;
+                }
+            }
+
+            if (erros == 0)
+            {
+                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) inativados com sucesso!", "Sucesso");
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"{sucessos} inativados, {erros} falhas", "Atenção");
+            }
+
+            await CarregarClientes();
+        }
+    }
+
+    private async Task ExcluirSelecionados(List<string> ids)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir {ids.Count} cliente(s)? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão em Massa");
+
+        if (confirmado)
+        {
+            var sucessos = 0;
+            var erros = 0;
+
+            foreach (var id in ids)
+            {
+                try
+                {
+                    var sucesso = await ClienteService.Excluir(id);
+                    if (sucesso)
+                        sucessos++;
+                    else
+                        erros++;
+                }
+                catch
+                {
+                    erros++;
+                }
+            }
+
+            if (erros == 0)
+            {
+                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) excluídos com sucesso!", "Sucesso");
+
                 // Se a página atual ficar vazia, volta uma página
-                if (clientes.Count == idsSelecionados.Count && paginaAtual > 1)
+                if (clientes.Count == ids.Count && paginaAtual > 1)
                 {
                     paginaAtual--;
                 }
-                
-                await CarregarClientes(); // Recarrega a lista
             }
+            else
+            {
+                NotificacaoService.ShowWarning($"{sucessos} excluídos, {erros} falhas", "Atenção");
+            }
+
+            await CarregarClientes();
         }
-    }
-
-
-    // ===== MÉTODOS DE EXPORTAÇÃO =====
-    private async Task ExportarExcel()
-    {
-        _notificacaoService.ShowInfo($"Exportando {totalItems} funcionários para Excel", "Exportação");
-        // TODO: Implementar exportação geral
     }
 }
-<style>
-    /* Adicione no seu arquivo CSS */
-    th {
-        cursor: pointer;
-        user-select: none;
-        transition: background-color 0.2s;
-    }
-
-        th:hover {
-            background-color: #e9ecef;
-        }
-
-        th i {
-            font-size: 0.8rem;
-            margin-left: 0.3rem;
-        }
-</style>

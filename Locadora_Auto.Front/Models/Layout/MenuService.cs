@@ -1,7 +1,6 @@
-﻿using Locadora_Auto.Front.Models;
-using System;
+﻿using System;
 
-namespace Locadora_Auto.Front.Services
+namespace Locadora_Auto.Front.Models.Layout
 {
     public class MenuService
     {

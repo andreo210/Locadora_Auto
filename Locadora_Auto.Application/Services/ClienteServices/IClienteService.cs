@@ -23,7 +23,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             Task<PaginatedResult<ClienteDto>> ObterPaginadoAsync(
                 bool? ativos = null, // Mude de true para null
                 string? nome = null,
-                string? numeroHabilitacao = null,
+                string? cpf = null,
                 string? ordenarPor = "NumeroHabilitacao",
                 string? ordem = "asc",
                 int pagina = 1, // Adicionar parâmetros de paginação

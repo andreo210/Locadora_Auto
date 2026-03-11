@@ -1,7 +1,9 @@
 ﻿using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Locadora_Auto.Infra.Data
 {
@@ -151,9 +153,15 @@ namespace Locadora_Auto.Infra.Data
 
             // 4. Aplicar ordenação
             if (ordenarPor != null)
+            {
                 query = ordenarPor(query);
+            }
             else if (pagina.HasValue) // Se tem paginação, precisa de ordenação
-                query = query.OrderBy(e => EF.Property<object>(e, "Id")); // Ordenação padrão
+            {
+                // Tenta encontrar a chave primária da entidade
+                var keyName = ObterNomeChavePrimaria<TEntity>();
+                query = query.OrderBy(e => EF.Property<object>(e, keyName));
+            }
 
             // 5. Aplicar paginação se solicitado
             IReadOnlyList<TEntity> items;
@@ -186,6 +194,29 @@ namespace Locadora_Auto.Infra.Data
                 TotalPaginas = totalPaginas,
                 ItensPorPagina = itensPorPagina ?? items.Count
             };
+        }
+
+       private string ObterNomeChavePrimaria<TEntity>() where TEntity : class
+        {
+            // Tenta via Data Annotations [Key]
+            var keyProperty = typeof(TEntity).GetProperties()
+                .FirstOrDefault(p => p.GetCustomAttribute<KeyAttribute>() != null);
+
+            if (keyProperty != null)
+                return keyProperty.Name;
+
+            // Tenta nomes comuns de chave primária
+            var possibleKeys = new[] { "Id", $"{typeof(TEntity).Name}Id", "Id" + typeof(TEntity).Name };
+
+            foreach (var keyName in possibleKeys)
+            {
+                if (typeof(TEntity).GetProperty(keyName) != null)
+                    return keyName;
+            }
+
+            // Fallback para a primeira propriedade (não ideal)
+            return typeof(TEntity).GetProperties().FirstOrDefault()?.Name
+                   ?? throw new InvalidOperationException("Não foi possível determinar a chave primária da entidade");
         }
 
         public async Task<IReadOnlyList<TEntity>> ObterComFiltroAsync<TEntity>(

@@ -1,4 +1,4 @@
-﻿namespace Locadora_Auto.Front.Models
+﻿namespace Locadora_Auto.Front.Models.Layout
 {
     public class MenuItem
     {

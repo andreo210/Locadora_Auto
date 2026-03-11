@@ -68,7 +68,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 queryParams.Add($"nome={Uri.EscapeDataString(nome)}");
 
             if (!string.IsNullOrWhiteSpace(cargo))
-                queryParams.Add($"numeroHabilitacao={Uri.EscapeDataString(cargo)}");
+                queryParams.Add($"cpf={Uri.EscapeDataString(cargo)}");
 
             if (ativos.HasValue)
                 queryParams.Add($"ativos={ativos.Value.ToString().ToLower()}");

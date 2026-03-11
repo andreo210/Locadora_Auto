@@ -75,7 +75,7 @@ namespace Locadora_Auto.API.Controllers
         public async Task<ActionResult<PaginatedResult<ClienteDto>>> ObterClientesPaginados(
            [FromQuery] bool? ativos = null,
            [FromQuery] string? nome = null,
-           [FromQuery] string? numeroHabilitacao = null,
+           [FromQuery] string? cpf = null,
            [FromQuery] string? ordenarPor = "numeroHabilitacao",
            [FromQuery] string? ordem = "asc",
            [FromQuery] int pagina = 1,
@@ -90,7 +90,7 @@ namespace Locadora_Auto.API.Controllers
             var resultado = await _clienteService.ObterPaginadoAsync(
                 ativos: ativos,
                 nome: nome,
-                numeroHabilitacao: numeroHabilitacao,
+                cpf: cpf,
                 ordenarPor: ordenarPor,
                 ordem: ordem,
                 pagina: pagina,
