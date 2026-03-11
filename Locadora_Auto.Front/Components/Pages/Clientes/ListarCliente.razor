@@ -633,11 +633,7 @@
 
     private async Task ExcluirCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-            
-            $"Deseja realmente excluir o cliente '{nome}'?",
-            "Confirmar Exclusão"
-        );
+        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente excluir o cliente '{nome}'?", "Confirmar Exclusão");
 
         if (confirmado)
         {
@@ -667,13 +663,10 @@
             }
         }
     }
+
     private async Task AtivarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-
-           $"Deseja realmente ativar o cliente '{nome}'?",
-           "Confirmar Ativação"
-       );
+        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?","Confirmar Ativação");
 
         if (confirmado)
         {
@@ -702,11 +695,7 @@
 
     private async Task DesativarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-
-           $"Deseja realmente desativar o cliente '{nome}'?",
-           "Confirmar Desativação"
-       );
+        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?","Confirmar Desativação");
 
         if (confirmado)
         {
