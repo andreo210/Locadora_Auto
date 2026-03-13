@@ -5,10 +5,12 @@
 @using Locadora_Auto.Front.Models.Tabelas
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Servicos.Notificacao
+@using Locadora_Auto.Front.Components.Forms
 @inject NavigationManager Navegacao
 @inject IClienteService ClienteService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
+@inject ILogger<ClienteResponse> Logger
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -67,6 +69,10 @@
                                placeholder="CPF..."
                                @bind="filtroCpf"
                                @bind:event="oninput" />
+                        @* <InputCPF @bind-Value="filtroCpf"
+                                  ContainerClass="w-100"
+                                  Label=""
+                                  InputClass="form-control" /> *@
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -182,7 +188,7 @@
             Template = (cliente) => @<span class="badge @(cliente.Ativo ? "bg-success" : "bg-danger")">
 @(cliente.Ativo ? "Ativo" : "Inativo")
 </span>
-        }
+    }
     };
 
     // ===== AÇÕES INDIVIDUAIS =====
@@ -369,6 +375,7 @@
             }
             catch (Exception ex)
             {
+                Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id,ex);
                 NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
             }
         }
@@ -391,6 +398,7 @@
             }
             catch (Exception ex)
             {
+                Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id, ex);
                 NotificacaoService.ShowError($"Erro ao desativar: {ex.Message}", "Erro");
             }
         }
@@ -532,5 +540,31 @@
 
             await CarregarClientes();
         }
+    }
+   
+    private string AplicarMascaraCpf(ChangeEventArgs e)
+    {
+        var valor = e.Value?.ToString() ?? "";
+        var apenasNumeros = new string(valor.Where(char.IsDigit).ToArray());
+
+        if (apenasNumeros.Length <= 11)
+        {
+            if (string.IsNullOrEmpty(valor))
+                return "";
+
+            var numeros = new string(valor.Where(char.IsDigit).ToArray());
+
+            if (numeros.Length <= 3)
+                return numeros;
+
+            if (numeros.Length <= 6)
+                return $"{numeros.Substring(0, 3)}.{numeros.Substring(3)}";
+
+            if (numeros.Length <= 9)
+                return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6)}";
+
+            return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6, 3)}-{numeros.Substring(9)}";
+        }
+        return valor ?? "";
     }
 }

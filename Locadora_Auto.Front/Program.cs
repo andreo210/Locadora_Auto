@@ -1,12 +1,12 @@
 using FluentValidation;
 using Locadora_Auto.Front.Components;
 using Locadora_Auto.Front.Extensions;
+using Locadora_Auto.Front.Extensions.Logging;
 using Locadora_Auto.Front.Midlleware;
 using Locadora_Auto.Front.Models.Layout;
 using Locadora_Auto.Front.Models.OAuth;
 using Locadora_Auto.Front.Services.Extensions;
 using Locadora_Auto.Front.Services.Servicos.Login;
-using Locadora_Auto.Front.Services.Servicos.Notificacao;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +18,11 @@ var config = builder.Configuration;
 //builder.Services.AddScoped<NotificationService>();
 //builder.Services.AddScoped<INotificationService>(sp =>
 //    sp.GetRequiredService<NotificationService>());
+
+// ===== CONFIGURAÇÃO DO LOG (UMA LINHA!) =====
+builder.Host.ConfigureSerilog(config, builder.Environment);
+
+
 
 builder.Services.AddServices(config);
 //builder.Services.AddAuthorizationCore();
@@ -54,7 +59,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-
+app.UseMiddleware<ExceptionMiddleware>();
 //app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAuthentication();

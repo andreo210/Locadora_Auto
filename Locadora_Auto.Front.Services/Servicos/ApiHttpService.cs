@@ -165,14 +165,65 @@ public class ApiHttpService : IApiHttpService
             return;
 
         var content = await response.Content.ReadAsStringAsync();
-        if (response.StatusCode != HttpStatusCode.BadRequest)
+        var statusCode = response.StatusCode;
+        var requestPath = response.RequestMessage?.RequestUri?.PathAndQuery ?? "unknown";
+
+        // ===== LOGS SELETIVOS POR STATUS CODE =====
+        switch (statusCode)
         {
-            var mensagem = GetErrorMessageForStatusCode(response.StatusCode);
+            // Erros de servidor (500+) - log como erro
+            case HttpStatusCode.InternalServerError:
+            case HttpStatusCode.BadGateway:
+            case HttpStatusCode.ServiceUnavailable:
+            case HttpStatusCode.GatewayTimeout:
+                _logger?.LogError("❌ ERRO SERVIDOR: {StatusCode} - {Path} - {Content}",
+                    statusCode, requestPath, content);
+                break;
+
+            // Erros de autenticação (401, 403) - log como warning
+            case HttpStatusCode.Unauthorized:
+                _logger?.LogWarning("⚠️ NÃO AUTORIZADO: {StatusCode} - {Path}",
+                    statusCode, requestPath);
+                break;
+
+            case HttpStatusCode.Forbidden:
+                _logger?.LogWarning("⛔ ACESSO NEGADO: {StatusCode} - {Path}",
+                    statusCode, requestPath);
+                break;
+
+            // Recurso não encontrado (404) - log como info (é normal)
+            case HttpStatusCode.NotFound:
+                _logger?.LogInformation("📄 RECURSO NÃO ENCONTRADO: {StatusCode} - {Path}",
+                    statusCode, requestPath);
+                break;
+
+            // Conflito (409) - log como warning
+            case HttpStatusCode.Conflict:
+                _logger?.LogWarning("⚡ CONFLITO: {StatusCode} - {Path} - {Content}",
+                    statusCode, requestPath, content);
+                break;
+
+            // BadRequest (400) - log como debug (só em desenvolvimento)
+            case HttpStatusCode.BadRequest:
+                _logger?.LogDebug("📝 BAD REQUEST: {Path} - {Content}",
+                    requestPath, content);
+                break;
+
+            // Outros erros - log como warning
+            default:
+                _logger?.LogWarning("❓ ERRO INESPERADO: {StatusCode} - {Path} - {Content}",
+                    statusCode, requestPath, content);
+                break;
+        }
+
+        // ===== NOTIFICAÇÕES (SUA LÓGICA EXISTENTE) =====
+        if (statusCode != HttpStatusCode.BadRequest)
+        {
+            var mensagem = GetErrorMessageForStatusCode(statusCode);
             NotificationService.ShowError(mensagem);
         }
         else
         {
-
             // Tenta desserializar como ValidationProblemDetails primeiro
             var validationError = JsonSerializer.Deserialize<ValidationProblemDetails>(content, _jsonOptions);
 
@@ -180,6 +231,9 @@ public class ApiHttpService : IApiHttpService
             {
                 NotificationService.ShowValidationErrors(validationError.Errors);
 
+                // Log adicional para saber quantos erros de validação foram exibidos
+                _logger?.LogInformation("Exibidos {Count} erros de validação para o usuário",
+                    validationError.Errors.Count);
             }
 
             var simpleError = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
@@ -187,65 +241,12 @@ public class ApiHttpService : IApiHttpService
             {
                 NotificationService.ShowError(simpleError.Message);
                 await Task.Delay(2000);
+
+                // Log da mensagem de erro simples
+                _logger?.LogInformation("Exibida mensagem de erro: {Message}", simpleError.Message);
             }
-        }        
+        }
     }
-
-    //private async Task TratarErrosResponse(HttpResponseMessage response)
-    //{
-    //    if (response.IsSuccessStatusCode)
-    //        return;
-
-    //    var content = await response.Content.ReadAsStringAsync();
-
-    //    try
-    //    {
-    //        // Tenta desserializar como ValidationProblemDetails primeiro
-    //        var validationError = JsonSerializer.Deserialize<ValidationProblemDetails>(content, _jsonOptions);
-
-    //        if (validationError?.Errors != null && validationError.Errors.Any())
-    //        {
-    //            NotificationService.ShowValidationErrors(validationError.Errors);
-    //            // Cria uma exceção de validação com os detalhes
-    //            //throw new ValidationErrorException(validationError.GetErrorMessage(), response.StatusCode,validationError.Errors);
-    //        }
-
-
-    //        // Se não for ValidationProblemDetails, tenta como erro simples
-    //        var simpleError = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
-    //        if (simpleError?.Message != null)
-    //        {
-    //            NotificationService.ShowError(simpleError.Message);
-    //            throw new CustomHttpRequestException(simpleError.Message, response.StatusCode, simpleError);
-    //        }
-    //    }
-    //    catch (JsonException)
-    //    {
-    //        // Se não conseguir desserializar, usa o conteúdo bruto
-    //        _logger?.LogDebug("Resposta de erro não está em formato JSON esperado");
-    //    }
-
-    //    // Fallback para erros padrão HTTP
-    //    //throw response.StatusCode switch
-    //    //{
-    //    //    //HttpStatusCode.Unauthorized =>new CustomHttpRequestException("Token inválido ou expirado", response.StatusCode),
-
-    //    //    HttpStatusCode.Forbidden => new CustomHttpRequestException("Acesso negado", response.StatusCode),
-
-    //    //    //HttpStatusCode.BadRequest => new CustomHttpRequestException("Requisição inválida", response.StatusCode),
-
-    //    //    //HttpStatusCode.NotFound =>   new CustomHttpRequestException("Recurso não encontrado", response.StatusCode),
-
-    //    //   // HttpStatusCode.Conflict =>    new CustomHttpRequestException("Conflito de dados", response.StatusCode),
-
-    //    //    HttpStatusCode.InternalServerError =>
-    //    //        new CustomHttpRequestException("Erro interno do servidor", response.StatusCode),
-
-    //    //    _ => new CustomHttpRequestException(
-    //    //        $"Erro na requisição: {response.StatusCode}",
-    //    //        response.StatusCode)
-    //    //};
-    //}
 
     private string GetErrorMessageForStatusCode(HttpStatusCode statusCode)
     {

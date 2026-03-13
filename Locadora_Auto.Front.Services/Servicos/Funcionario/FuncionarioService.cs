@@ -1,8 +1,6 @@
 ﻿using Locadora_Auto.Front.Models.Request;
 using Locadora_Auto.Front.Models.Response;
 using System.Net;
-using System.Net.Http;
-using System.Text.Json;
 
 namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 {
@@ -60,7 +58,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
         bool? ativos = null,
         int pagina = 1,
         int itensPorPagina = 10,
-         string? ordenarPor = null,
+        string? ordenarPor = null,
         string? ordem = null,
         CancellationToken ct = default)
         {

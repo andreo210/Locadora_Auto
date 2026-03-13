@@ -10,6 +10,7 @@
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject IFuncionarioService FuncionarioService
+@inject ILogger<FuncionarioEditarRequest> Logger
 @* @attribute [Authorize(Roles = "Administrador")] *@
 @rendermode InteractiveServer
 
@@ -438,6 +439,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "ERRO ao editar funcionario:  {idCliente}, {mensagem}", id, ex);
             NotificacaoService.ShowError($"Erro ao atualizar funcionário: {ex.Message}");
         }
         finally

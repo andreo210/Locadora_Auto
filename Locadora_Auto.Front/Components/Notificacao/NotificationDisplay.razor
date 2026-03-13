@@ -152,14 +152,11 @@
 
     protected override void OnInitialized()
     {
-        Logger.LogInformation("📢 Componente Notification inicializado");
         NotificationService.OnNotification += ShowNotification;
     }
 
     private void ShowNotification(NotificationEventArgs notification)
     {
-        Logger.LogInformation($"📨 Notificação recebida: {notification.Type} - {notification.Message}");
-
         // Cancela qualquer timer anterior
         _cts?.Cancel();
 
@@ -216,7 +213,6 @@
 
     public void Dispose()
     {
-        Logger.LogInformation("🧹 Componente Notification sendo descartado");
         NotificationService.OnNotification -= ShowNotification;
         _cts?.Cancel();
         _cts?.Dispose();

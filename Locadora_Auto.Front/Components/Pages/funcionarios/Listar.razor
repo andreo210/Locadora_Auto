@@ -10,6 +10,7 @@
 @inject IFuncionarioService FuncionarioService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
+@inject ILogger<FuncionarioResponse> Logger
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -302,7 +303,9 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "ERRO ao carregar funcionários - Página: {Pagina}, Filtros: {@Filtros}",paginaAtual, new { filtroCargo, filtroAtivo, termoBuscaGlobal });
             NotificacaoService.ShowError($"Erro ao carregar funcionários: {ex.Message}", "Erro");
+
             funcionarios = new();
             totalItems = 0;
         }
