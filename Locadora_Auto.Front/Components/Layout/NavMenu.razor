@@ -10,7 +10,9 @@
         {
             @if (itemMenu.SubItens == null || !itemMenu.SubItens.Any())
             {
-                <NavLink class="@ObterClasseLink(itemMenu)" href="@itemMenu.Url" Match="NavLinkMatch.Prefix">
+                <NavLink class="@ObterClasseLink(itemMenu)"
+                         href="@itemMenu.Url"
+                         Match="NavLinkMatch.Prefix">
                     <span class="nav-icon @($"bi {itemMenu.Icone}")"></span>
                     <span class="nav-text">@itemMenu.Titulo</span>
                 </NavLink>
@@ -31,7 +33,9 @@
                         <div class="nav-group-items">
                             @foreach (var subItem in itemMenu.SubItens)
                             {
-                                <NavLink class="@ObterClasseSubLink(subItem)" href="@subItem.Url" Match="NavLinkMatch.Prefix">
+                                <NavLink class="@ObterClasseSubLink(subItem)"
+                                         href="@subItem.Url"
+                                         Match="NavLinkMatch.Prefix">
                                     <span class="nav-icon @($"bi {subItem.Icone}")"></span>
                                     <span class="nav-text">@subItem.Titulo</span>
                                 </NavLink>
@@ -54,7 +58,53 @@
     [Parameter] public EventCallback OnAlternarColapso { get; set; }
 
     private List<MenuItem> _itensMenu = new();
-    private HashSet<string> _subMenusAbertos = new();
+    private string? _subMenuAberto;
+
+    protected override void OnInitialized()
+    {
+        _itensMenu = ServicoMenu.GetMenuItems();
+
+        // Registra para receber notificações de mudança de URL
+        Navegacao.LocationChanged += OnLocationChanged;
+
+        // Inicializa com a URL atual
+        AtualizarSubMenuPelaUrl(Navegacao.Uri);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        AtualizarSubMenuPelaUrl(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void AtualizarSubMenuPelaUrl(string url)
+    {
+        var urlAtual = new Uri(url).AbsolutePath.Trim('/');
+
+        // Procura qual submenu deve estar aberto baseado na URL
+        string? novoSublMenu = null;
+
+        foreach (var item in _itensMenu)
+        {
+            if (item.SubItens == null) continue;
+
+            foreach (var subItem in item.SubItens)
+            {
+                var urlSubItem = subItem.Url.Trim('/');
+
+                // Verifica se a URL atual corresponde exatamente a este subitem
+                if (urlAtual.Equals(urlSubItem, StringComparison.OrdinalIgnoreCase))
+                {
+                    novoSublMenu = item.Titulo;
+                    break;
+                }
+            }
+
+            if (novoSublMenu != null) break;
+        }
+
+        _subMenuAberto = novoSublMenu;
+    }
 
     private async Task CliqueGrupo(MenuItem itemMenu)
     {
@@ -68,46 +118,53 @@
         AlternarSubMenu(itemMenu);
     }
 
-    protected override void OnParametersSet()
-    {
-        if (SidebarColapsada)
-            FecharTodosSubMenus();
-    }
-
-    private void FecharTodosSubMenus() => _subMenusAbertos.Clear();
-
-    protected override void OnInitialized()
-    {
-        _itensMenu = ServicoMenu.GetMenuItems();
-
-        var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
-
-        foreach (var item in _itensMenu)
-        {
-            if (item.SubItens?.Any(s => urlAtual.StartsWith(s.Url.Trim('/'), StringComparison.OrdinalIgnoreCase)) == true)
-                _subMenusAbertos.Add(item.Titulo);
-        }
-    }
-
     private void AlternarSubMenu(MenuItem itemMenu)
     {
-        if (_subMenusAbertos.Contains(itemMenu.Titulo))
-            _subMenusAbertos.Remove(itemMenu.Titulo);
+        if (_subMenuAberto == itemMenu.Titulo)
+        {
+            _subMenuAberto = null;
+        }
         else
-            _subMenusAbertos.Add(itemMenu.Titulo);
+        {
+            _subMenuAberto = itemMenu.Titulo;
+        }
+        StateHasChanged();
     }
 
-    private bool SubMenuAberto(MenuItem itemMenu) => _subMenusAbertos.Contains(itemMenu.Titulo);
+    private bool SubMenuAberto(MenuItem itemMenu) => _subMenuAberto == itemMenu.Titulo;
 
     private bool EstaAtivo(MenuItem itemMenu)
     {
         if (string.IsNullOrEmpty(itemMenu.Url)) return false;
+
         var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri).Trim('/');
         var urlItem = itemMenu.Url.Trim('/');
+
+        // COMPARAÇÃO EXATA - apenas URLs idênticas são consideradas ativas
         return urlAtual.Equals(urlItem, StringComparison.OrdinalIgnoreCase);
     }
 
-    private string ObterClasseLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
-    private string ObterClasseSubLink(MenuItem itemMenu) => EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
-    private string ObterClasseGrupo(MenuItem itemMenu) => SubMenuAberto(itemMenu) ? "nav-group-header active" : "nav-group-header";
+    private string ObterClasseLink(MenuItem itemMenu)
+    {
+        return EstaAtivo(itemMenu) ? "nav-link active" : "nav-link";
+    }
+
+    private string ObterClasseSubLink(MenuItem subItem)
+    {
+        return EstaAtivo(subItem) ? "nav-link active" : "nav-link";
+    }
+
+    private string ObterClasseGrupo(MenuItem itemMenu)
+    {
+        // Um grupo está ativo APENAS se ele mesmo estiver aberto OU se algum subitem estiver ativo
+        var grupoAtivo = SubMenuAberto(itemMenu) ||
+                        (itemMenu.SubItens?.Any(s => EstaAtivo(s)) ?? false);
+
+        return grupoAtivo ? "nav-group-header active" : "nav-group-header";
+    }
+
+    public void Dispose()
+    {
+        Navegacao.LocationChanged -= OnLocationChanged;
+    }
 }

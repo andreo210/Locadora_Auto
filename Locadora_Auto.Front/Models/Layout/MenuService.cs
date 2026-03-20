@@ -35,7 +35,7 @@ namespace Locadora_Auto.Front.Models.Layout
                 {
                     Titulo = "Dashboard",
                     Icone = "bi-speedometer2",
-                    Url = "/"
+                    Url = "/teste"
                 },
 
                 new MenuItem

@@ -47,7 +47,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 
         public async Task<ClienteResponse> ObterPorId(string id)
         {
-            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/obter-funcionario?usuarioId={id}");
+            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/{id}");
         }
 
         public async Task<PaginatedResponse<ClienteResponse>> ObterTodos(

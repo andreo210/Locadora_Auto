@@ -1,0 +1,435 @@
+﻿@page "/clientes/editar/{id:int}"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Request.Cliente
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IClienteService ClienteService
+@inject ILogger<EditarCliente> Logger
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Editar Cliente</h2>
+            </div>
+            <p class="text-muted mt-2">Altere os dados do cliente</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do cliente...</p>
+        </div>
+    }
+    else if (clienteOriginal == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Cliente não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@clienteEdit" OnValidSubmit="@ManipularEnvio" Context="formContext">
+            <FluentValidationValidator @ref="validadorFluent" />
+
+            <div class="row">
+                <!-- 1ª coluna -->
+                <div class="col-md-6">
+                    <!-- Card Dados pessoais -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Dados Pessoais</h5>
+                            <span class="badge @(clienteOriginal.Ativo ? "bg-success" : "bg-danger")">
+                                @(clienteOriginal.Ativo ? "Ativo" : "Inativo")
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <!-- Validade Habilitação -->
+                            <div class="mb-3">
+                                <label class="form-label">Validade Habilitação <span class="text-danger">*</span></label>
+                                <InputDate @bind-Value="clienteEdit.ValidadeHabilitacao" class="form-control" />
+                                <ValidationMessage For="@(() => clienteEdit.ValidadeHabilitacao)" />
+                            </div>
+
+                            <!-- Número Habilitação -->
+                            <div class="mb-3">
+                                <label class="form-label">Nº Habilitação <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="clienteEdit.NumeroHabilitacao" class="form-control" />
+                                <ValidationMessage For="@(() => clienteEdit.NumeroHabilitacao)" />
+                            </div>
+
+                            <!-- Nome -->
+                            <div class="mb-3">
+                                <label class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="clienteEdit.Nome" class="form-control" />
+                                <ValidationMessage For="@(() => clienteEdit.Nome)" />
+                            </div>
+
+                            <!-- CPF (somente leitura) -->
+                            <div class="mb-3">
+                                <label class="form-label">CPF</label>
+                                <input type="text" class="form-control" value="@clienteOriginal.Cpf" readonly disabled />
+                                <small class="text-muted">O CPF não pode ser alterado</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Contato -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Contato</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- E-mail -->
+                            <div class="mb-3">
+                                <label class="form-label">E-mail <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="clienteEdit.Email" class="form-control" type="email" />
+                                <ValidationMessage For="@(() => clienteEdit.Email)" />
+                            </div>
+
+                            <!-- Telefone com máscara -->
+                            <InputTelefone @bind-Value="clienteEdit.Telefone" Label="Telefone para Contato" />
+                            <ValidationMessage For="@(() => clienteEdit.Telefone)" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2ª coluna -->
+                <div class="col-md-6">
+                    <EnderecoForm @bind-Endereco="clienteEdit.Endereco" Titulo="Endereço do Cliente" />
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Segurança</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Opção de alterar senha -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" @bind="alterarSenha" id="alterarSenhaCheck">
+                                    <label class="form-check-label" for="alterarSenhaCheck">
+                                        Alterar senha
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    Marque esta opção se deseja definir uma nova senha
+                                </small>
+                            </div>
+
+                            @if (alterarSenha)
+                            {
+                                <!-- Nova Senha -->
+                                <div class="mb-3">
+                                    <label class="form-label">Nova Senha</label>
+                                    <InputText type="password"
+                                               @bind-Value="novaSenha"
+                                               class="form-control"
+                                               placeholder="Mínimo 6 caracteres" />
+                                    <small class="text-muted">
+                                        A senha deve conter letras maiúsculas, minúsculas e números
+                                    </small>
+                                </div>
+
+                                <!-- Confirme Nova Senha -->
+                                <div class="mb-3">
+                                    <label class="form-label">Confirme a Nova Senha</label>
+                                    <InputText type="password"
+                                               @bind-Value="confirmeNovaSenha"
+                                               class="form-control"
+                                               placeholder="Digite a senha novamente" />
+                                </div>
+
+                                <!-- Indicador de força da senha -->
+                                @if (!string.IsNullOrEmpty(novaSenha))
+                                {
+                                    <div class="mt-2">
+                                        <label class="small">Força da senha:</label>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar @ObterClasseForcaSenha()"
+                                                 style="width: @(ObterForcaSenha() * 20)%"></div>
+                                        </div>
+                                        @if (novaSenha != confirmeNovaSenha && !string.IsNullOrEmpty(confirmeNovaSenha))
+                                        {
+                                            <div class="text-danger small mt-1">
+                                                <i class="bi bi-exclamation-circle"></i> As senhas não conferem
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    A senha atual será mantida.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                            <i class="bi bi-x-circle me-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@processando">
+                            @if (processando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Salvando...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                                <span>Salvar Alterações</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private ClienteEditarRequest? clienteEdit;
+    private ClienteResponse? clienteOriginal;
+    private bool carregando = true;
+    private bool processando;
+    private bool alterarSenha = false;
+    private string novaSenha = string.Empty;
+    private string confirmeNovaSenha = string.Empty;
+    private FluentValidationValidator? validadorFluent;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarDadosCliente();
+    }
+
+    // ===== MÉTODO DE CARREGAMENTO =====
+    private async Task CarregarDadosCliente()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            Logger.LogInformation("Carregando dados do cliente ID: {ClienteId}", id);
+
+            clienteOriginal = await ClienteService.ObterPorId(id.ToString());
+
+            if (clienteOriginal == null)
+            {
+                Logger.LogWarning("Cliente não encontrado: {ClienteId}", id);
+                NotificacaoService.ShowWarning("Cliente não encontrado", "Atenção");
+                return;
+            }
+
+            // Mapeia os dados para o request de edição
+            clienteEdit = new ClienteEditarRequest
+            {
+                ValidadeHabilitacao = clienteOriginal.ValidadeHabilitacao,
+                NumeroHabilitacao = clienteOriginal.NumeroHabilitacao,
+                Nome = clienteOriginal.Nome,
+                Email = clienteOriginal.Email,
+                Telefone = clienteOriginal.Telefone ?? string.Empty,
+                Endereco = MapearEndereco(clienteOriginal.Endereco)
+            };
+
+            Logger.LogInformation("Dados do cliente {ClienteId} carregados com sucesso", id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar cliente {ClienteId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados do cliente", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODO AUXILIAR PARA MAPEAR ENDEREÇO =====
+    private static EnderecoRequest MapearEndereco(EnderecoResponse? endereco)
+    {
+        return new EnderecoRequest
+        {
+            Cep = endereco?.Cep ?? string.Empty,
+            Logradouro = endereco?.Logradouro ?? string.Empty,
+            Bairro = endereco?.Bairro ?? string.Empty,
+            Cidade = endereco?.Cidade ?? string.Empty,
+            Estado = endereco?.Estado ?? string.Empty,
+            Numero = endereco?.Numero ?? string.Empty,
+            Complemento = endereco?.Complemento ?? string.Empty
+        };
+    }
+
+    // ===== MÉTODOS DE VALIDAÇÃO DE SENHA =====
+    private int ObterForcaSenha()
+    {
+        if (string.IsNullOrEmpty(novaSenha)) return 0;
+
+        int forca = 0;
+        if (novaSenha.Length >= 6) forca++;
+        if (novaSenha.Any(char.IsUpper)) forca++;
+        if (novaSenha.Any(char.IsLower)) forca++;
+        if (novaSenha.Any(char.IsDigit)) forca++;
+        if (novaSenha.Any(c => !char.IsLetterOrDigit(c))) forca++;
+
+        return forca;
+    }
+
+    private string ObterClasseForcaSenha()
+    {
+        return ObterForcaSenha() switch
+        {
+            0 or 1 => "bg-danger",
+            2 or 3 => "bg-warning",
+            4 => "bg-info",
+            5 => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private bool ValidarSenhas()
+    {
+        if (!alterarSenha) return true;
+        if (string.IsNullOrWhiteSpace(novaSenha)) return false;
+        if (novaSenha.Length < 6) return false;
+        if (novaSenha != confirmeNovaSenha) return false;
+        return true;
+    }
+
+    // ===== MÉTODO PRINCIPAL DE ENVIO =====
+    private async Task ManipularEnvio()
+    {
+        if (clienteEdit == null || clienteOriginal == null) return;
+
+        if (alterarSenha && !ValidarSenhas())
+        {
+            NotificacaoService.ShowError("As senhas não conferem ou são inválidas.", "Erro");
+            return;
+        }
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            Logger.LogInformation("Atualizando cliente ID: {ClienteId}", id);
+
+            // Cria o request de atualização
+            var updateRequest = new ClienteEditarRequest
+            {
+                ValidadeHabilitacao = clienteEdit.ValidadeHabilitacao,
+                NumeroHabilitacao = clienteEdit.NumeroHabilitacao,
+                Nome = clienteEdit.Nome,
+                Email = clienteEdit.Email,
+                Telefone = clienteEdit.Telefone,
+                Endereco = clienteEdit.Endereco
+            };
+
+            // Se alterar senha, inclui a nova senha
+            if (alterarSenha && !string.IsNullOrEmpty(novaSenha))
+            {
+                // Adicione a propriedade NovaSenha no seu ClienteEditarRequest se necessário
+                // updateRequest.NovaSenha = novaSenha;
+            }
+
+            var resultado = await ClienteService.Atualizar(id, updateRequest);
+
+            if (resultado != null && resultado.Value)
+            {
+                Logger.LogInformation("Cliente {ClienteId} atualizado com sucesso", id);
+                NotificacaoService.ShowSuccess("Cliente atualizado com sucesso!", "Sucesso");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo($"/clientes/visualizar/{id}");
+            }
+            else
+            {
+                Logger.LogWarning("Falha ao atualizar cliente {ClienteId}", id);
+                await Task.Delay(1500);
+                NotificacaoService.ShowWarning("Não foi possível atualizar o cliente", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ERRO ao editar cliente {ClienteId}", id);
+            NotificacaoService.ShowError($"Erro ao atualizar cliente: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Voltar()
+    {
+        if (PossuiAlteracoesNaoSalvas())
+        {
+            // Aqui você pode implementar um diálogo de confirmação
+            Navegacao.NavigateTo($"/clientes/visualizar/{id}");
+        }
+        else
+        {
+            Navegacao.NavigateTo($"/clientes/visualizar/{id}");
+        }
+    }
+
+    private void Cancelar() => Voltar();
+
+    private bool PossuiAlteracoesNaoSalvas()
+    {
+        if (clienteEdit == null || clienteOriginal == null) return false;
+
+        return clienteEdit.Nome != clienteOriginal.Nome ||
+               clienteEdit.Email != clienteOriginal.Email ||
+               clienteEdit.Telefone != (clienteOriginal.Telefone ?? string.Empty) ||
+               clienteEdit.ValidadeHabilitacao != clienteOriginal.ValidadeHabilitacao ||
+               clienteEdit.NumeroHabilitacao != clienteOriginal.NumeroHabilitacao ||
+               EnderecoAlterado() ||
+               alterarSenha;
+    }
+
+    private bool EnderecoAlterado()
+    {
+        if (clienteEdit?.Endereco == null || clienteOriginal?.Endereco == null)
+            return false;
+
+        return clienteEdit.Endereco.Cep != (clienteOriginal.Endereco.Cep ?? string.Empty) ||
+               clienteEdit.Endereco.Logradouro != (clienteOriginal.Endereco.Logradouro ?? string.Empty) ||
+               clienteEdit.Endereco.Bairro != (clienteOriginal.Endereco.Bairro ?? string.Empty) ||
+               clienteEdit.Endereco.Cidade != (clienteOriginal.Endereco.Cidade ?? string.Empty) ||
+               clienteEdit.Endereco.Estado != (clienteOriginal.Endereco.Estado ?? string.Empty) ||
+               clienteEdit.Endereco.Numero != (clienteOriginal.Endereco.Numero ?? string.Empty) ||
+               clienteEdit.Endereco.Complemento != (clienteOriginal.Endereco.Complemento ?? string.Empty);
+    }
+}
