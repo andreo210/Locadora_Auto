@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Locadora_Auto.Front.Models.Validadores
 {
   
-    public class ClienteValidator : AbstractValidator<ClienteRequest>
+    public class ClienteValidator : AbstractValidator<CriarClienteRequest>
     {
         public ClienteValidator()
         {

@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Front.Services.Servicos.Notificacao;
+﻿using Locadora_Auto.Front.Services.Utils.Notificacao;
 using System.Net;
 
 namespace Locadora_Auto.Front.Midlleware

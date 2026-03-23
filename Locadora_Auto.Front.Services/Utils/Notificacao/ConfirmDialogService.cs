@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Locadora_Auto.Front.Services.Servicos.Notificacao
+namespace Locadora_Auto.Front.Services.Utils.Notificacao
 {
     public interface IConfirmDialogService
     {

@@ -65,12 +65,12 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
         #region CRUD
 
-        public async Task<bool> CriarAsync(CriarCategoriaVeiculoDto dto, CancellationToken ct = default)
+        public async Task<CategoriaVeiculoDto> CriarAsync(CriarCategoriaVeiculoDto dto, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(dto.Nome))
             {
                 _notificador.Add("Nome da categoria é obrigatório.");
-                return false;
+                return null;
             }
 
             var existe = await _repository.ExisteAsync(c => c.Nome == dto.Nome.Trim(), ct);
@@ -78,19 +78,19 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
             if (existe)
             {
                 _notificador.Add("Já existe uma categoria com esse nome.");
-                return false;
+                return null;
             }
 
             if (dto.ValorDiaria <= 0)
             {
                 _notificador.Add("Valor da diária deve ser maior que zero.");
-                return false;
+                return null;
             }
 
             var entidade = CategoriaVeiculo.Criar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
             await _repository.InserirSalvarAsync(entidade, ct);
 
-            return true;
+            return entidade.ToDto();
         }
 
         public async Task<bool> AtualizarAsync(int id, AtualizarCategoriaVeiculoDto dto, CancellationToken ct = default)

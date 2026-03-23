@@ -3,7 +3,7 @@
 namespace Locadora_Auto.Front.Models.Request.Cliente
 {
     
-    public class ClienteRequest : ClienteBaseRequest
+    public class CriarClienteRequest : ClienteBaseRequest
     {
        
         [Required(ErrorMessage = "CPF é obrigatório")]

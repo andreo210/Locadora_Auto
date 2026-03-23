@@ -1,4 +1,4 @@
-﻿using Locadora_Auto.Front.Models.Request;
+﻿using Locadora_Auto.Front.Models.Request.Funcionario;
 using Locadora_Auto.Front.Models.Response;
 
 namespace Locadora_Auto.Front.Services.Servicos.Funcionario

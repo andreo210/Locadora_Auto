@@ -1,6 +1,6 @@
 ﻿using Locadora_Auto.Front.Models.Notificacao;
 
-namespace Locadora_Auto.Front.Services.Servicos.Notificacao
+namespace Locadora_Auto.Front.Services.Utils.Notificacao
 {
     public interface INotificationService
     {

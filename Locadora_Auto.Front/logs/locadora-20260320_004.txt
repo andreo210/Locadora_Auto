@@ -1,0 +1,10 @@
+2026-03-20 17:46:03.740 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-20 17:46:03.806 -03:00 [INF] Hosting environment: Development
+2026-03-20 17:46:03.807 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-20 17:47:58.223 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-20 17:47:58.273 -03:00 [INF] Hosting environment: Development
+2026-03-20 17:47:58.275 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-20 17:52:05.206 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/categoria
+2026-03-20 17:52:07.228 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/categoria
+2026-03-20 17:52:07.603 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/categoria
+2026-03-20 17:52:07.860 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/categoria

@@ -1,0 +1,32 @@
+2026-03-20 17:39:55.818 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-20 17:39:55.901 -03:00 [INF] Hosting environment: Development
+2026-03-20 17:39:55.902 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-20 17:39:57.846 -03:00 [WRN] Unhandled exception rendering component: The following routes are ambiguous:
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Clientes.EditarCliente'
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Categorias.EditarCliente'
+
+System.InvalidOperationException: The following routes are ambiguous:
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Clientes.EditarCliente'
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Categorias.EditarCliente'
+
+   at Microsoft.AspNetCore.Components.RouteTableFactory.DetectAmbiguousRoutes(TreeRouteBuilder builder)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(Dictionary`2 templatesByHandler, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(List`1 componentTypes, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(RouteKey routeKey, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.Routing.Router.RefreshRouteTable()
+   at Microsoft.AspNetCore.Components.Routing.Router.Refresh(Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Routing.Router.RunOnNavigateAsync(String path, Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+2026-03-20 17:39:57.966 -03:00 [ERR] Unhandled exception in circuit '1HJohpp3wFlGq6IklV5_AOakxiN7XCYHgcm3QWPqv_M'.
+System.InvalidOperationException: The following routes are ambiguous:
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Clientes.EditarCliente'
+'clientes/editar/{id:int}' in 'Locadora_Auto.Front.Components.Pages.Categorias.EditarCliente'
+
+   at Microsoft.AspNetCore.Components.RouteTableFactory.DetectAmbiguousRoutes(TreeRouteBuilder builder)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(Dictionary`2 templatesByHandler, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(List`1 componentTypes, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.RouteTableFactory.Create(RouteKey routeKey, IServiceProvider serviceProvider)
+   at Microsoft.AspNetCore.Components.Routing.Router.RefreshRouteTable()
+   at Microsoft.AspNetCore.Components.Routing.Router.Refresh(Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Routing.Router.RunOnNavigateAsync(String path, Boolean isNavigationIntercepted)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)

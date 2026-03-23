@@ -7,7 +7,7 @@
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
-@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject IClienteService ClienteService
@@ -162,7 +162,7 @@
     /// <summary>
     /// Armazena os dados do formulário de cliente sendo preenchido
     /// </summary>
-    private ClienteRequest usuario = new()
+    private CriarClienteRequest usuario = new()
     {
         Endereco = new EnderecoRequest()
     };
@@ -262,7 +262,7 @@
                 NotificacaoService.ShowSuccess("Cliente cadastrado com sucesso!", "Cadastro Realizado");
 
                 // Limpa o formulário para novo cadastro
-                usuario = new ClienteRequest()
+                usuario = new CriarClienteRequest()
                 {
                     Endereco = new EnderecoRequest()
                 };

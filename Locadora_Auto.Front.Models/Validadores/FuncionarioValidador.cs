@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using Locadora_Auto.Front.Models.Request;
+using Locadora_Auto.Front.Models.Request.Funcionario;
 using System;
 using System.Collections.Generic;
 using System.Linq;
