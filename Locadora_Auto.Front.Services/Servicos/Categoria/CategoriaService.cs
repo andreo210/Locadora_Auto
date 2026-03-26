@@ -2,8 +2,6 @@
 using Locadora_Auto.Front.Models.Request.Cliente;
 using Locadora_Auto.Front.Models.Response;
 using System.Net;
-using System.Net.Http;
-using System.Text.Json;
 
 namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 {
@@ -26,29 +24,20 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             return null;
         }
 
-        public async Task<bool?> Atualizar(int id,ClienteEditarRequest request)
+        public async Task<bool?> Atualizar(int id, CriarCategoriaRequest request)
         {
-            return await _api.PutAsync<ClienteEditarRequest>($"api/v1/Clientes/{id}", request);
+            return await _api.PutAsync<CriarCategoriaRequest>($"api/v1/categorias-veiculos/{id}", request);
         }
 
 
         public async Task<bool> Excluir(string id)
         {           
-            return await _api.DeleteAsync($"api/v1/Clientes/{id}");            
+            return await _api.DeleteAsync($"api/v1/categorias-veiculos/{id}");            
         }
 
-        public async Task<bool> Ativar(string id)
+        public async Task<CategoriaResponse> ObterPorId(string id)
         {
-            return await _api.PatchAsync($"api/v1/Clientes/{id}/ativar", id);
-        }
-        public async Task<bool> Desativar(string id)
-        {
-            return await _api.PatchAsync($"api/v1/Clientes/{id}/desativar", id);
-        }
-
-        public async Task<ClienteResponse> ObterPorId(string id)
-        {
-            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/{id}");
+            return await _api.GetAsync<CategoriaResponse>($"api/v1/categorias-veiculos/{id}");
         }
 
         public async Task<PaginatedResponse<CategoriaResponse>> ObterTodos(

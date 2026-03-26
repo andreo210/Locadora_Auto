@@ -6,7 +6,7 @@
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
-@inject IClienteService _clienteService
+@inject ICategoriaService _categoriaService
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -17,9 +17,9 @@
                 <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </button>
-                <h2 class="mb-0">Detalhes do Cliente</h2>
+                <h2 class="mb-0">Detalhes da categoria</h2>
             </div>
-            <p class="text-muted mt-2">Visualize as informações completas do cliente</p>
+            <p class="text-muted mt-2">Visualize as informações completas da categoria</p>
         </div>
     </div>
 
@@ -29,14 +29,14 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Carregando...</span>
             </div>
-            <p class="mt-2">Carregando dados do cliente...</p>
+            <p class="mt-2">Carregando dados da categoria...</p>
         </div>
     }
-    else if (cliente == null)
+    else if (categoria == null)
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Cliente não encontrado ou não existe.
+            Categoria não encontrado ou não existe.
         </div>
     }
     else
@@ -47,102 +47,41 @@
                 <!--card dados pessoais-->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Dados Pessoais</h5>
-                        @if (cliente.Ativo == true)
-                        {
-                            <span class="badge @ObterBadgeStatus()">Ativo</span>
-                        }
-                        else
-                        {
-                            <span class="badge @ObterBadgeStatus()">Inativo</span>
-                        }
+                        <h5 class="mb-0">Categoria</h5>                       
 
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Validade Habilitação</label>
-                                <p class="mb-0">@cliente.ValidadeHabilitacao</p>
+                                <label class="fw-bold text-muted small">Nome</label>
+                                <p class="mb-0">@categoria.Nome</p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Numero habilitação</label>
-                                <p class="mb-0">@cliente.NumeroHabilitacao</p>
-                            </div>
-                           
-                            <div class="col-12 mb-3">
-                                <label class="fw-bold text-muted small">Nome Completo</label>
-                                <p class="mb-0 fs-5">@cliente.Nome</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">CPF</label>
-                                <p class="mb-0">@cliente.Cpf</p>
+                                <label class="fw-bold text-muted small">Valor da diaria</label>
+                                <p class="mb-0">@categoria.ValorDiaria</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!--card contatos-->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Contato</h5>
-                    </div>
-                    <div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">E-mail</label>
-                                <p class="mb-0">
-                                    <i class="bi bi-envelope me-1"></i>
-                                    <a href="mailto:@cliente.Email">@cliente.Email</a>
-                                </p>
+                                <label class="fw-bold text-muted small">Limite por Kilometro</label>
+                                <p class="mb-0">@categoria.LimiteKm</p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Telefone</label>
-                                <p class="mb-0">
-                                    <i class="bi bi-telephone me-1"></i>
-                                    @(cliente.Telefone ?? "Não informado")
-                                </p>
+                                <label class="fw-bold text-muted small">Valor do Km excedente</label>
+                                <p class="mb-0">@categoria.ValorKmExcedente</p>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Total de veicúlos</label>
+                                <p class="mb-0">@categoria.Totalveiculos</p>
+                            </div>
+                         </div>
                     </div>
                 </div>
             </div>
 
-            <!--2ª colunas-->
-            <div class="col-md-6">
-               <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Endereço do cliente</h5>                    
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">CEP</label>
-                            <p class="mb-0">@cliente.Endereco.Cep</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">Logradouro</label>
-                            <p class="mb-0">@cliente.Endereco.Logradouro</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">Numero</label>
-                            <p class="mb-0">@cliente.Endereco.Numero</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">Bairro</label>
-                            <p class="mb-0 fs-5">@cliente.Endereco.Bairro</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">Cidade</label>
-                            <p class="mb-0">@cliente.Endereco.Cidade</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="fw-bold text-muted small">Estado</label>
-                            <p class="mb-0">@cliente.Endereco.Estado</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-           </div>
+
         </div>
         
 
@@ -152,8 +91,8 @@
                     <button type="button" class="btn btn-outline-secondary" @onclick="Voltar">
                         <i class="bi bi-arrow-left me-1"></i>Voltar
                     </button>
-                    <a href="/clientes/editar/@id" class="btn btn-primary">
-                        <i class="bi bi-pencil me-1"></i>Editar Cliente
+                    <a href="/categorias/editar/@id" class="btn btn-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar Categoria
                     </a>
                 </div>
             </div>
@@ -175,7 +114,7 @@
     /// <summary>
     /// Dados do funcionário carregado da API
     /// </summary>
-    private ClienteResponse? cliente;
+    private CategoriaResponse? categoria;
 
     /// <summary>
     /// Controla o estado de carregamento (spinner)
@@ -191,7 +130,7 @@
     /// </summary>
     protected override async Task OnParametersSetAsync()
     {
-        await CarregarCliente();
+        await CarregarCategoria();
     }
 
 
@@ -200,19 +139,19 @@
     /// <summary>
     /// Busca os dados do funcionário na API usando o ID da rota
     /// </summary>
-    private async Task CarregarCliente()
+    private async Task CarregarCategoria()
     {
         try
         {
             carregando = true;
             StateHasChanged();
 
-            cliente = await _clienteService.ObterPorId(id.ToString());
+            categoria = await _categoriaService.ObterPorId(id.ToString());
         }
         catch (Exception ex)
         {
             NotificacaoService.ShowError($"Erro ao carregar clientes: {ex.Message}");
-            cliente = null;
+            categoria = null;
         }
         finally
         {
@@ -229,21 +168,6 @@
     /// </summary>
     private void Voltar()
     {
-        Navegacao.NavigateTo("/clientes");
-    }
-
-
-    // ===== MÉTODOS AUXILIARES =====
-
-    /// <summary>
-    /// Retorna a classe CSS apropriada para o badge de status
-    /// </summary>
-    private string ObterBadgeStatus()
-    {
-        string status;
-        if (cliente?.Ativo == null) return "bg-secondary";
-        if (cliente?.Ativo == true) return "bg-success";
-        if (cliente?.Ativo == false) return "bg-bg-danger";
-        return "bg-secondary";
-    }
+        Navegacao.NavigateTo("/categorias");
+    }    
 }
