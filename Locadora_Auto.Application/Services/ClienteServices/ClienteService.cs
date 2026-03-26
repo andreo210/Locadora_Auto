@@ -115,12 +115,12 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             if (tamanhoPagina < 1) tamanhoPagina = 10;
             if (tamanhoPagina > 100) tamanhoPagina = 100;
 
-            var skip = (pagina - 1) * tamanhoPagina;
+
 
             var entidades = await _clienteRepository.ObterPaginadoAsync(
                 filtro: c => c.Ativo,
-                skip: skip,
-                take: tamanhoPagina,
+                pagina: pagina,
+                ItemPorPagina: tamanhoPagina,
                 ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto),
                 ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();

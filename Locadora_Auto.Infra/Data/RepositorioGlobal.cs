@@ -108,8 +108,8 @@ namespace Locadora_Auto.Infra.Data
         }
         public virtual async Task<IReadOnlyList<TEntity>> ObterPaginadoAsync(
            Expression<Func<TEntity, bool>> filtro,
-           int skip,
-           int take,
+           int pagina,
+           int ItemPorPagina,
            Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
            CancellationToken ct = default)
         {
@@ -118,7 +118,10 @@ namespace Locadora_Auto.Infra.Data
             if (ordenarPor != null)
                 query = ordenarPor(query);
 
-            return await query.Skip(skip).Take(take).ToListAsync(ct);
+            IReadOnlyList<TEntity> items;
+            var skip = (pagina - 1) * ItemPorPagina;
+                items = await query.Skip(skip).Take(ItemPorPagina).ToListAsync(ct);  
+            return  items;
         }
 
         public async Task<PaginatedResult<TEntity>> ObterPaginadoComFiltroAsync<TEntity>(

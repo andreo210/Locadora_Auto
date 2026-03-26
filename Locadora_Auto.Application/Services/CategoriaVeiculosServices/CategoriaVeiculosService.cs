@@ -3,11 +3,13 @@ using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 {
@@ -32,11 +34,28 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
         #region Consultas
 
-        public async Task<IReadOnlyList<CategoriaVeiculoDto>> ObterTodosAsync(CancellationToken ct = default)
+        public async Task<PaginatedResult<CategoriaVeiculoDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default)
         {
-            var categorias = await _repository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
+            var categorias = await _repository.ObterPaginadoComFiltroAsync(
+                    filtro: (Expression<Func<CategoriaVeiculo, bool>>?)null,
+                    ordenarPor: (Func<IQueryable<CategoriaVeiculo>, IOrderedQueryable<CategoriaVeiculo>>?)(q => q.OrderBy(c => c.Nome)),
+                    pagina: pagina,
+                    itensPorPagina: itemPorPagina,
+                    asNoTracking: true,
+                    ct: ct);
 
-            return categorias.Select(c => c.ToDto()).ToList();
+            //return categorias.Select(c => c.ToDto()).ToList();
+
+            // Retornar resultado paginado com DTOs
+            return new PaginatedResult<CategoriaVeiculoDto>
+            {
+                Items = categorias.Items.Select(c => c.ToDto()).ToList(),
+                Total = categorias.Total,
+                Pagina = categorias.Pagina,
+                TotalPaginas = categorias.TotalPaginas,
+                ItensPorPagina = categorias.ItensPorPagina
+            };
+
         }
 
         public async Task<CategoriaVeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)

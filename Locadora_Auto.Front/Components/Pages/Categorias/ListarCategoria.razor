@@ -7,7 +7,7 @@
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
-@inject IClienteService ClienteService
+@inject ICategoriaService _categoriaService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
 @inject ILogger<ClienteResponse> Logger
@@ -21,69 +21,40 @@
     <!-- Cabeçalho da página -->
     <div class="row mb-4">
         <div class="col">
-            <h2>Clientes</h2>
-            <p class="text-muted">Gerencie os clientes do sistema</p>
+            <h2>Categorias</h2>
+            <p class="text-muted">Gerencie as categorias do sistema</p>
         </div>
     </div>
 
     <!-- Tabela genérica de clientes -->
-    <TabelaGenerica TItem="ClienteResponse"
+    <TabelaGenerica TItem="CategoriaResponse"
                     @bind-PaginaAtual="paginaAtual"
                     @bind-ItensPorPagina="itensPorPagina"
                     @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
                     @bind-OrdenacaoDirecao="ordenacaoDirecao"
                     @bind-TermoBusca="termoBuscaGlobal"
-                    Items="clientes"
+                    Items="categorias"
                     TotalItens="totalItems"
                     Colunas="colunas"
                     Carregando="carregando"
-                    OnCarregarDados="CarregarClientes"
+                    OnCarregarDados="CarregarCategoria"
                     Titulo="Clientes"
                     PlaceholderBusca="Pesquisar por nome..."
                     SelecaoHabilitada="true"
                     LarguraColunaAcoes="200"
                     Acoes="acoes"
                     AcoesEmMassa="acoesEmMassa"
-                    ObterId="@(c => c.IdCliente.ToString())"
+                    ObterId="@(c => c.Id.ToString())"
                     IconeVazio="bi-people"
-                    MensagemVazio="Nenhum cliente encontrado"
-                    MensagemVazioDetalhe="Clique em 'Novo Cliente' para começar">
+                    MensagemVazio="Nenhuma categoria encontrada"
+                    MensagemVazioDetalhe="Clique em 'Novo Categoria' para começar">
 
         <!-- Ações no cabeçalho -->
         <AcoesCabecalho>
-            <a href="/clientes/novo" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i>Novo Cliente
+            <a href="/categorias/nova" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Nova Categoria
             </a>
         </AcoesCabecalho>
-
-        <!-- Filtros adicionais -->
-        <FiltrosAdicionais>
-            <div class="row g-2">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white">
-                            <i class="bi bi-upc-scan"></i>
-                        </span>
-                        <input type="text"
-                               class="form-control"
-                               placeholder="CPF..."
-                               @bind="filtroCpf"
-                               @bind:event="oninput" />
-                        @* <InputCPF @bind-Value="filtroCpf"
-                                  ContainerClass="w-100"
-                                  Label=""
-                                  InputClass="form-control" /> *@
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <select class="form-select" @bind="filtroAtivo">
-                        <option value="">Todos os status</option>
-                        <option value="true">Ativos</option>
-                        <option value="false">Inativos</option>
-                    </select>
-                </div>
-            </div>
-        </FiltrosAdicionais>
     </TabelaGenerica>
 </div>
 
@@ -92,7 +63,7 @@
     private ConfirmDialog? confirmDialog;
 
     // ===== VARIÁVEIS DE ESTADO =====
-    private List<ClienteResponse> clientes = new();
+    private List<CategoriaResponse> categorias = new();
     private bool carregando;
     private int totalItems;
     private int paginaAtual = 1;
@@ -144,15 +115,9 @@
     }
 
     // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
-    private List<ColunaTabela<ClienteResponse>> colunas = new()
+    private List<ColunaTabela<CategoriaResponse>> colunas = new()
     {
-        new()
-        {
-            Titulo = "CPF",
-            Propriedade = "Cpf",
-            Largura = "120",
-            Formato = "000.000.000-00"
-        },
+       
         new()
         {
             Titulo = "Nome",
@@ -160,74 +125,70 @@
             Largura = "200",
             Ordenavel = true
         },
-        new()
+         new()
         {
-            Titulo = "Email",
-            Propriedade = "Email",
-            Largura = "200"
+            Titulo = "Valor Diaria",
+            Propriedade = "ValorDiaria",
+            Largura = "100",
+            Formato = "000,00"
         },
         new()
         {
-            Titulo = "Nº Habilitação",
-            Propriedade = "NumeroHabilitacao",
+            Titulo = "Limite por Km",
+            Propriedade = "LimiteKm",
+            Largura = "100"
+        },
+        new()
+        {
+            Titulo = "valor Km excedente",
+            Propriedade = "ValorKmExcedente",
             Largura = "120"
         },
         new()
         {
-            Titulo = "Telefone",
-            Propriedade = "Telefone",
-            Largura = "120",
-            Formato = "(00) 00000-0000"
-        },
-        new()
-        {
-            Titulo = "Status",
-            Propriedade = "Ativo",
-            Largura = "80",
-            Alinhamento = "center",
-            Template = (cliente) => @<span class="badge @(cliente.Ativo ? "bg-success" : "bg-danger")">
-@(cliente.Ativo ? "Ativo" : "Inativo")
-</span>
-    }
+            Titulo = "total de veiculos",
+            Propriedade = "TotalVeiculos",
+            Largura = "100",
+        }       
     };
 
     // ===== AÇÕES INDIVIDUAIS =====
-    private List<AcaoTabela<ClienteResponse>> acoes => new()
+    private List<AcaoTabela<CategoriaResponse>> acoes => new()
     {
         new()
         {
             Titulo = "Editar",
             Icone = "bi-pencil",
             Cor = "primary",
-            Acao = async (c) => Navegacao.NavigateTo($"/clientes/editar/{c.IdCliente}")
+            Acao = async (c) => Navegacao.NavigateTo($"/clientes/editar/{c.Id}")
         },
         new()
         {
             Titulo = "Ativar",
             Icone = "bi-arrow-up",
             Cor = "success",
-            Acao = async (c) => await AtivarCliente(c.IdCliente.ToString(), c.Nome)
+            Acao = async (c) => await AtivarCliente(c.Id.ToString(), c.Nome)
         },
         new()
         {
             Titulo = "Desativar",
             Icone = "bi-arrow-down",
             Cor = "warning",
-            Acao = async (c) => await DesativarCliente(c.IdCliente.ToString(), c.Nome)
+            Acao = async (c) => await DesativarCliente(c.Id.ToString(), c.Nome)
         },
         new()
         {
             Titulo = "Visualizar",
             Icone = "bi-eye",
             Cor = "info",
-            Acao = async (c) => Navegacao.NavigateTo($"/clientes/visualizar/{c.IdCliente}")
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/visualizar/{c.Id}")
         },
         new()
         {
             Titulo = "Excluir",
             Icone = "bi-trash",
             Cor = "danger",
-            Acao = async (c) => await ExcluirCliente(c.IdCliente.ToString(), c.Nome)
+            Acao = async (c) => await ExcluirCliente(c.Id.ToString(), c.Nome)
         }
     };
 
@@ -271,50 +232,34 @@
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnInitializedAsync()
     {
-        await CarregarClientes();
+        await CarregarCategoria();
     }
 
     // ===== MÉTODO PARA APLICAR FILTROS =====
     private async Task AplicarFiltrosAsync()
     {
         paginaAtual = 1;
-        await CarregarClientes();
+        await CarregarCategoria();
     }
 
     // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
-    private async Task CarregarClientes()
+    private async Task CarregarCategoria()
     {
         carregando = true;
         StateHasChanged();
 
         try
         {
-            // Converte o filtro de CPF (pode vir com máscara)
-            string? cpfLimpo = null;
-            if (!string.IsNullOrWhiteSpace(filtroCpf))
-            {
-                cpfLimpo = new string(filtroCpf.Where(char.IsDigit).ToArray());
-                if (string.IsNullOrEmpty(cpfLimpo))
-                    cpfLimpo = null;
-            }
+            
+            var resultado = await _categoriaService.ObterTodos(nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),pagina: paginaAtual, itensPorPagina: itensPorPagina);
 
-            var resultado = await ClienteService.ObterTodos(
-                nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
-                cargo: cpfLimpo,
-                ativos: string.IsNullOrEmpty(filtroAtivo) ? null : bool.Parse(filtroAtivo),
-                pagina: paginaAtual,
-                itensPorPagina: itensPorPagina,
-                ordenarPor: ordenacaoPropriedade,
-                ordem: ordenacaoDirecao
-            );
-
-            clientes = resultado.Items ?? new();
+            categorias = resultado.Items ?? new(); 
             totalItems = resultado.Total;
         }
         catch (Exception ex)
         {
             NotificacaoService.ShowError($"Erro ao carregar clientes: {ex.Message}", "Erro");
-            clientes = new();
+            categorias = new();
             totalItems = 0;
         }
         finally
@@ -331,240 +276,217 @@
 
         if (confirmado)
         {
-            try
-            {
-                var sucesso = await ClienteService.Excluir(id);
-                if (sucesso)
-                {
-                    NotificacaoService.ShowSuccess($"Cliente {nome} excluído com sucesso!", "Exclusão");
+            // try
+            // {
+            //     var sucesso = await _categoriaService.Excluir(id);
+            //     if (sucesso)
+            //     {
+            //         NotificacaoService.ShowSuccess($"Cliente {nome} excluído com sucesso!", "Exclusão");
 
-                    // Se a página atual ficar vazia, volta uma página
-                    if (clientes.Count == 1 && paginaAtual > 1)
-                    {
-                        paginaAtual--;
-                    }
+            //         // Se a página atual ficar vazia, volta uma página
+            //         if (categorias.Count == 1 && paginaAtual > 1)
+            //         {
+            //             paginaAtual--;
+            //         }
 
-                    await CarregarClientes();
-                }
-                else
-                {
-                    NotificacaoService.ShowError($"Erro ao excluir cliente.", "Erro");
-                }
-            }
-            catch (Exception ex)
-            {
-                NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
-            }
+            //         await CarregarCategoria();
+            //     }
+            //     else
+            //     {
+            //         NotificacaoService.ShowError($"Erro ao excluir cliente.", "Erro");
+            //     }
+            // }
+            // catch (Exception ex)
+            // {
+            //     NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+            // }
+
         }
     }
 
     private async Task AtivarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?", "Confirmar Ativação");
+        // var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?", "Confirmar Ativação");
 
-        if (confirmado)
-        {
-            try
-            {
-                var sucesso = await ClienteService.Ativar(id);
-                if (sucesso)
-                {
-                    NotificacaoService.ShowSuccess($"Cliente {nome} ativado com sucesso!", "Ativação");
-                    await CarregarClientes();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id,ex);
-                NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
-            }
-        }
+        // if (confirmado)
+        // {
+        //     try
+        //     {
+        //         var sucesso = await ClienteService.Ativar(id);
+        //         if (sucesso)
+        //         {
+        //             NotificacaoService.ShowSuccess($"Cliente {nome} ativado com sucesso!", "Ativação");
+        //             await CarregarClientes();
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id,ex);
+        //         NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
+        //     }
+        // }
     }
 
     private async Task DesativarCliente(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?", "Confirmar Desativação");
+        // var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?", "Confirmar Desativação");
 
-        if (confirmado)
-        {
-            try
-            {
-                var sucesso = await ClienteService.Desativar(id);
-                if (sucesso)
-                {
-                    NotificacaoService.ShowSuccess($"Cliente {nome} desativado com sucesso!", "Desativação");
-                    await CarregarClientes();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id, ex);
-                NotificacaoService.ShowError($"Erro ao desativar: {ex.Message}", "Erro");
-            }
-        }
+        // if (confirmado)
+        // {
+        //     try
+        //     {
+        //         var sucesso = await ClienteService.Desativar(id);
+        //         if (sucesso)
+        //         {
+        //             NotificacaoService.ShowSuccess($"Cliente {nome} desativado com sucesso!", "Desativação");
+        //             await CarregarClientes();
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id, ex);
+        //         NotificacaoService.ShowError($"Erro ao desativar: {ex.Message}", "Erro");
+        //     }
+        // }
     }
 
-    // ===== AÇÕES EM MASSA =====
+    // // ===== AÇÕES EM MASSA =====
     private async Task ExportarSelecionados(List<string> ids)
     {
-        var nomes = clientes
-            .Where(c => ids.Contains(c.IdCliente.ToString()))
-            .Select(c => c.Nome)
-            .ToList();
+        // var nomes = clientes
+        //     .Where(c => ids.Contains(c.IdCliente.ToString()))
+        //     .Select(c => c.Nome)
+        //     .ToList();
 
-        NotificacaoService.ShowInfo($"Exportando {ids.Count} clientes: {string.Join(", ", nomes)}", "Exportação");
+        // NotificacaoService.ShowInfo($"Exportando {ids.Count} clientes: {string.Join(", ", nomes)}", "Exportação");
         // TODO: Implementar exportação real
     }
 
     private async Task AtivarSelecionados(List<string> ids)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-            $"Deseja realmente ativar {ids.Count} cliente(s)?",
-            "Confirmar Ativação em Massa");
+        // var confirmado = await ConfirmService.ConfirmAsync(
+        //     $"Deseja realmente ativar {ids.Count} cliente(s)?",
+        //     "Confirmar Ativação em Massa");
 
-        if (confirmado)
-        {
-            var sucessos = 0;
-            var erros = 0;
+        // if (confirmado)
+        // {
+        //     var sucessos = 0;
+        //     var erros = 0;
 
-            foreach (var id in ids)
-            {
-                try
-                {
-                    var sucesso = await ClienteService.Ativar(id);
-                    if (sucesso)
-                        sucessos++;
-                    else
-                        erros++;
-                }
-                catch
-                {
-                    erros++;
-                }
-            }
+        //     foreach (var id in ids)
+        //     {
+        //         try
+        //         {
+        //             var sucesso = await ClienteService.Ativar(id);
+        //             if (sucesso)
+        //                 sucessos++;
+        //             else
+        //                 erros++;
+        //         }
+        //         catch
+        //         {
+        //             erros++;
+        //         }
+        //     }
 
-            if (erros == 0)
-            {
-                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) ativados com sucesso!", "Sucesso");
-            }
-            else
-            {
-                NotificacaoService.ShowWarning($"{sucessos} ativados, {erros} falhas", "Atenção");
-            }
+        //     if (erros == 0)
+        //     {
+        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) ativados com sucesso!", "Sucesso");
+        //     }
+        //     else
+        //     {
+        //         NotificacaoService.ShowWarning($"{sucessos} ativados, {erros} falhas", "Atenção");
+        //     }
 
-            await CarregarClientes();
-        }
+        //     await CarregarClientes();
+        //}
     }
 
     private async Task InativarSelecionados(List<string> ids)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-            $"Deseja realmente inativar {ids.Count} cliente(s)?",
-            "Confirmar Inativação em Massa");
+        // var confirmado = await ConfirmService.ConfirmAsync(
+        //     $"Deseja realmente inativar {ids.Count} cliente(s)?",
+        //     "Confirmar Inativação em Massa");
 
-        if (confirmado)
-        {
-            var sucessos = 0;
-            var erros = 0;
+        // if (confirmado)
+        // {
+        //     var sucessos = 0;
+        //     var erros = 0;
 
-            foreach (var id in ids)
-            {
-                try
-                {
-                    var sucesso = await ClienteService.Desativar(id);
-                    if (sucesso)
-                        sucessos++;
-                    else
-                        erros++;
-                }
-                catch
-                {
-                    erros++;
-                }
-            }
+        //     foreach (var id in ids)
+        //     {
+        //         try
+        //         {
+        //             var sucesso = await ClienteService.Desativar(id);
+        //             if (sucesso)
+        //                 sucessos++;
+        //             else
+        //                 erros++;
+        //         }
+        //         catch
+        //         {
+        //             erros++;
+        //         }
+        //     }
 
-            if (erros == 0)
-            {
-                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) inativados com sucesso!", "Sucesso");
-            }
-            else
-            {
-                NotificacaoService.ShowWarning($"{sucessos} inativados, {erros} falhas", "Atenção");
-            }
+        //     if (erros == 0)
+        //     {
+        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) inativados com sucesso!", "Sucesso");
+        //     }
+        //     else
+        //     {
+        //         NotificacaoService.ShowWarning($"{sucessos} inativados, {erros} falhas", "Atenção");
+        //     }
 
-            await CarregarClientes();
-        }
+        //     await CarregarClientes();
+        // }
     }
 
     private async Task ExcluirSelecionados(List<string> ids)
     {
-        var confirmado = await ConfirmService.ConfirmAsync(
-            $"Deseja realmente excluir {ids.Count} cliente(s)? Esta ação não pode ser desfeita.",
-            "Confirmar Exclusão em Massa");
+        // var confirmado = await ConfirmService.ConfirmAsync(
+        //     $"Deseja realmente excluir {ids.Count} cliente(s)? Esta ação não pode ser desfeita.",
+        //     "Confirmar Exclusão em Massa");
 
-        if (confirmado)
-        {
-            var sucessos = 0;
-            var erros = 0;
+        // if (confirmado)
+        // {
+        //     var sucessos = 0;
+        //     var erros = 0;
 
-            foreach (var id in ids)
-            {
-                try
-                {
-                    var sucesso = await ClienteService.Excluir(id);
-                    if (sucesso)
-                        sucessos++;
-                    else
-                        erros++;
-                }
-                catch
-                {
-                    erros++;
-                }
-            }
+        //     foreach (var id in ids)
+        //     {
+        //         try
+        //         {
+        //             var sucesso = await ClienteService.Excluir(id);
+        //             if (sucesso)
+        //                 sucessos++;
+        //             else
+        //                 erros++;
+        //         }
+        //         catch
+        //         {
+        //             erros++;
+        //         }
+        //     }
 
-            if (erros == 0)
-            {
-                NotificacaoService.ShowSuccess($"{sucessos} cliente(s) excluídos com sucesso!", "Sucesso");
+        //     if (erros == 0)
+        //     {
+        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) excluídos com sucesso!", "Sucesso");
 
-                // Se a página atual ficar vazia, volta uma página
-                if (clientes.Count == ids.Count && paginaAtual > 1)
-                {
-                    paginaAtual--;
-                }
-            }
-            else
-            {
-                NotificacaoService.ShowWarning($"{sucessos} excluídos, {erros} falhas", "Atenção");
-            }
+        //         // Se a página atual ficar vazia, volta uma página
+        //         if (clientes.Count == ids.Count && paginaAtual > 1)
+        //         {
+        //             paginaAtual--;
+        //         }
+        //     }
+        //     else
+        //     {
+        //         NotificacaoService.ShowWarning($"{sucessos} excluídos, {erros} falhas", "Atenção");
+        //     }
 
-            await CarregarClientes();
-        }
+        //     await CarregarClientes();
+        // }
     }
    
-    private string AplicarMascaraCpf(ChangeEventArgs e)
-    {
-        var valor = e.Value?.ToString() ?? "";
-        var apenasNumeros = new string(valor.Where(char.IsDigit).ToArray());
-
-        if (apenasNumeros.Length <= 11)
-        {
-            if (string.IsNullOrEmpty(valor))
-                return "";
-
-            var numeros = new string(valor.Where(char.IsDigit).ToArray());
-
-            if (numeros.Length <= 3)
-                return numeros;
-
-            if (numeros.Length <= 6)
-                return $"{numeros.Substring(0, 3)}.{numeros.Substring(3)}";
-
-            if (numeros.Length <= 9)
-                return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6)}";
-
-            return $"{numeros.Substring(0, 3)}.{numeros.Substring(3, 3)}.{numeros.Substring(6, 3)}-{numeros.Substring(9)}";
-        }
-        return valor ?? "";
-    }
+   
 }

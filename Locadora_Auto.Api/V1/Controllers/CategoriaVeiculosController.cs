@@ -48,10 +48,9 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         // ========================= OBTER TODAS =========================
         [HttpGet]
-        public async Task<IActionResult> ObterTodas(
-            CancellationToken ct)
+        public async Task<IActionResult> ObterTodas(CancellationToken ct = default,[FromQuery] int pagina = 1,[FromQuery] int itensPorPagina = 10)
         {
-            var result = await _service.ObterTodosAsync(ct);
+            var result = await _service.ObterTodosPaginadoAsync(pagina,itensPorPagina, ct);
 
             return CustomResponse(result);
         }
