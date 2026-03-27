@@ -2,6 +2,7 @@
 using Locadora_Auto.Front.Services.Exceptions;
 using Locadora_Auto.Front.Services.Models;
 using Locadora_Auto.Front.Services.Utils.Notificacao;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Net;
@@ -21,6 +22,7 @@ public interface IApiHttpService
 
     // Overloads para quando não espera retorno
     Task<bool> PostAsync<TRequest>(string url, TRequest data);
+    Task<bool> PostMultipartAsync(string url, List<IBrowserFile> arquivos, string campoArquivo);
     Task<bool> PutAsync<TRequest>(string url, TRequest data);
     Task<bool> PatchAsync<TRequest>(string url, TRequest data);
 }
@@ -84,6 +86,74 @@ public class ApiHttpService : IApiHttpService
         await TratarErrosResponse(response);
         return true;
     }
+
+    // Método para upload de múltiplos arquivos
+    public async Task<bool> PostMultipartAsync(string url, List<IBrowserFile> arquivos, string campoArquivo)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+
+            foreach (var arquivo in arquivos)
+            {
+                var stream = arquivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                var streamContent = new StreamContent(stream);
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(arquivo.ContentType);
+                content.Add(streamContent, campoArquivo, arquivo.Name);
+            }
+
+            var response = await _http.PostAsync(url, content);
+            await TratarErrosResponse(response);
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            // Log do erro
+            Console.WriteLine($"Erro no upload: {ex.Message}");
+            return false;
+        }
+    }
+
+    // Método para upload com dados adicionais
+    //public async Task<bool> PostMultipartWithDataAsync<TData>(
+    //    string url,
+    //    List<IBrowserFile> arquivos,
+    //    TData? dadosAdicionais = null,
+    //    string campoArquivo = "fotos")
+    //{
+    //    try
+    //    {
+    //        using var content = new MultipartFormDataContent();
+
+    //        // Adiciona os arquivos
+    //        foreach (var arquivo in arquivos)
+    //        {
+    //            var stream = arquivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+    //            var streamContent = new StreamContent(stream);
+    //            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(arquivo.ContentType);
+    //            content.Add(streamContent, campoArquivo, arquivo.Name);
+    //        }
+
+    //        // Adiciona dados adicionais se houver
+    //        if (dadosAdicionais != null)
+    //        {
+    //            var json = JsonSerializer.Serialize(dadosAdicionais, _jsonOptions);
+    //            var jsonContent = new StringContent(json, Encoding.UTF8, "application/json");
+    //            content.Add(jsonContent, "data");
+    //        }
+
+    //        var response = await _http.PostAsync(url, content);
+    //        await TratarErrosResponse(response);
+
+    //        return response.IsSuccessStatusCode;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Console.WriteLine($"Erro no upload: {ex.Message}");
+    //        return false;
+    //    }
+    //}
 
     // PUT com retorno
     public async Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest data)

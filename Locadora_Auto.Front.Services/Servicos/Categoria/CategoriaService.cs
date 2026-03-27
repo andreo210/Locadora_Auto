@@ -1,6 +1,7 @@
 ﻿using Locadora_Auto.Front.Models.Request.Categoria;
 using Locadora_Auto.Front.Models.Request.Cliente;
 using Locadora_Auto.Front.Models.Response;
+using Microsoft.AspNetCore.Components.Forms;
 using System.Net;
 
 namespace Locadora_Auto.Front.Services.Servicos.Funcionario
@@ -22,6 +23,12 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
                 return objeto;
             }
             return null;
+        }
+
+        public async Task<bool> UploadFotos(int categoriaId, List<IBrowserFile> fotos)
+        {
+            var url = $"api/v1/categorias-veiculos/{categoriaId}/registrar-foto";
+            return await _api.PostMultipartAsync(url, fotos, "fotos");
         }
 
         public async Task<bool?> Atualizar(int id, CriarCategoriaRequest request)

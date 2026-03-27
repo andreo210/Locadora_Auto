@@ -168,6 +168,14 @@
             Icone = "bi-eye",
             Cor = "info",
             Acao = async (c) => Navegacao.NavigateTo($"/categorias/visualizar/{c.Id}")
+        }
+        ,
+        new()
+        {
+            Titulo = "Upload de fotos",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/{c.Id}/fotos")
         },
         new()
         {
