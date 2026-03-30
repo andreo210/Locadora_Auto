@@ -1,13 +1,12 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
-using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
-using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
 
@@ -17,7 +16,6 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
     {
         private readonly ICategoriaVeiculosRepository _repository;
         private readonly INotificadorService _notificador;
-        private readonly ILogger<CategoriaVeiculoService> _logger;
         private readonly IUploadDownloadFileService _uploadDownloadFileService;
 
         public CategoriaVeiculoService(
@@ -28,7 +26,6 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _uploadDownloadFileService = uploadDownloadFileService ?? throw new ArgumentNullException(nameof(uploadDownloadFileService));
         }
 
@@ -42,6 +39,7 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
                     pagina: pagina,
                     itensPorPagina: itemPorPagina,
                     asNoTracking: true,
+                    incluir: q => q.Include(c => c.Fotos),
                     ct: ct);
 
             //return categorias.Select(c => c.ToDto()).ToList();
@@ -71,7 +69,7 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
         }
         private async Task<CategoriaVeiculo?> ObterPorId(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct);
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct, incluir:q => q.Include(c => c.Fotos));
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
