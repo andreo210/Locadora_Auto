@@ -31,9 +31,9 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             return await _api.PostMultipartAsync(url, fotos, "fotos");
         }
 
-        public async Task<bool?> Atualizar(int id, CriarCategoriaRequest request)
+        public async Task<bool?> Atualizar(int id, AtualizarCategoriaRequest request)
         {
-            return await _api.PutAsync<CriarCategoriaRequest>($"api/v1/categorias-veiculos/{id}", request);
+            return await _api.PutAsync<AtualizarCategoriaRequest>($"api/v1/categorias-veiculos/{id}", request);
         }
 
 
@@ -59,7 +59,6 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 
             if (!string.IsNullOrWhiteSpace(nome))
                 queryParams.Add($"nome={Uri.EscapeDataString(nome)}");
-;
 
             // Adicionar paginação
             queryParams.Add($"pagina={pagina}");

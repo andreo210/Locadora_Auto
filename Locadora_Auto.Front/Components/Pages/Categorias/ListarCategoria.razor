@@ -10,7 +10,6 @@
 @inject ICategoriaService _categoriaService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
-@inject ILogger<ClienteResponse> Logger
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -22,11 +21,11 @@
     <div class="row mb-4">
         <div class="col">
             <h2>Categorias</h2>
-            <p class="text-muted">Gerencie as categorias do sistema</p>
+            <p class="text-muted">Gerencie as categorias de veículos do sistema</p>
         </div>
     </div>
 
-    <!-- Tabela genérica de clientes -->
+    <!-- Tabela genérica de categorias -->
     <TabelaGenerica TItem="CategoriaResponse"
                     @bind-PaginaAtual="paginaAtual"
                     @bind-ItensPorPagina="itensPorPagina"
@@ -37,17 +36,17 @@
                     TotalItens="totalItems"
                     Colunas="colunas"
                     Carregando="carregando"
-                    OnCarregarDados="CarregarCategoria"
-                    Titulo="Categorias"
+                    OnCarregarDados="CarregarCategorias"
+                    Titulo="Categorias de Veículos"
                     PlaceholderBusca="Pesquisar por nome..."
                     SelecaoHabilitada="true"
                     LarguraColunaAcoes="200"
                     Acoes="acoes"
                     AcoesEmMassa="acoesEmMassa"
                     ObterId="@(c => c.Id.ToString())"
-                    IconeVazio="bi-people"
+                    IconeVazio="bi-tags"
                     MensagemVazio="Nenhuma categoria encontrada"
-                    MensagemVazioDetalhe="Clique em 'Novo Categoria' para começar">
+                    MensagemVazioDetalhe="Clique em 'Nova Categoria' para começar">
 
         <!-- Ações no cabeçalho -->
         <AcoesCabecalho>
@@ -70,86 +69,48 @@
     private int itensPorPagina = 10;
     private string? ordenacaoPropriedade;
     private string ordenacaoDirecao = "asc";
-
-    // ===== VARIÁVEIS DE FILTRO =====
-    private string _filtroCpf = string.Empty;
-    private string filtroCpf
-    {
-        get => _filtroCpf;
-        set
-        {
-            if (_filtroCpf != value)
-            {
-                _filtroCpf = value;
-                _ = AplicarFiltrosAsync();
-            }
-        }
-    }
-
-    private string _filtroAtivo = string.Empty;
-    private string filtroAtivo
-    {
-        get => _filtroAtivo;
-        set
-        {
-            if (_filtroAtivo != value)
-            {
-                _filtroAtivo = value;
-                _ = AplicarFiltrosAsync();
-            }
-        }
-    }
-
-    private string _termoBuscaGlobal = string.Empty;
-    private string termoBuscaGlobal
-    {
-        get => _termoBuscaGlobal;
-        set
-        {
-            if (_termoBuscaGlobal != value)
-            {
-                _termoBuscaGlobal = value;
-                _ = AplicarFiltrosAsync();
-            }
-        }
-    }
+    private string termoBuscaGlobal = string.Empty;
 
     // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
     private List<ColunaTabela<CategoriaResponse>> colunas = new()
     {
-       
         new()
         {
             Titulo = "Nome",
             Propriedade = "Nome",
-            Largura = "200",
+            Largura = "250",
             Ordenavel = true
         },
-         new()
+        new()
         {
-            Titulo = "Valor Diaria",
+            Titulo = "Valor Diária",
             Propriedade = "ValorDiaria",
-            Largura = "100",
-            Formato = "000,00"
+            Largura = "120",
+            Formato = "C2",
+            Ordenavel = true
         },
         new()
         {
-            Titulo = "Limite por Km",
+            Titulo = "Limite KM",
             Propriedade = "LimiteKm",
-            Largura = "100"
+            Largura = "100",
+            Ordenavel = true
         },
         new()
         {
-            Titulo = "valor Km excedente",
+            Titulo = "Valor KM Excedente",
             Propriedade = "ValorKmExcedente",
-            Largura = "120"
+            Largura = "140",
+            Formato = "C2",
+            Ordenavel = true
         },
         new()
         {
-            Titulo = "total de veiculos",
+            Titulo = "Total Veículos",
             Propriedade = "TotalVeiculos",
             Largura = "100",
-        }       
+            Ordenavel = true
+        }
     };
 
     // ===== AÇÕES INDIVIDUAIS =====
@@ -157,24 +118,23 @@
     {
         new()
         {
-            Titulo = "Editar",
-            Icone = "bi-pencil",
-            Cor = "primary",
-            Acao = async (c) => Navegacao.NavigateTo($"/categorias/editar/{c.Id}")
-        },       
-        new()
-        {
             Titulo = "Visualizar",
             Icone = "bi-eye",
             Cor = "info",
             Acao = async (c) => Navegacao.NavigateTo($"/categorias/visualizar/{c.Id}")
-        }
-        ,
+        },
         new()
         {
-            Titulo = "Upload de fotos",
-            Icone = "bi-eye",
-            Cor = "info",
+            Titulo = "Editar",
+            Icone = "bi-pencil",
+            Cor = "primary",
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/editar/{c.Id}")
+        },
+        new()
+        {
+            Titulo = "Fotos",
+            Icone = "bi-camera",
+            Cor = "success",
             Acao = async (c) => Navegacao.NavigateTo($"/categorias/{c.Id}/fotos")
         },
         new()
@@ -199,22 +159,6 @@
         },
         new()
         {
-            Titulo = "Ativar selecionados",
-            Icone = "bi-check-circle-fill",
-            Cor = "success",
-            Acao = async (ids) => await AtivarSelecionados(ids),
-            MostrarQuantidade = true
-        },
-        new()
-        {
-            Titulo = "Inativar selecionados",
-            Icone = "bi-pause-circle-fill",
-            Cor = "warning",
-            Acao = async (ids) => await InativarSelecionados(ids),
-            MostrarQuantidade = true
-        },
-        new()
-        {
             Titulo = "Excluir selecionados",
             Icone = "bi-trash",
             Cor = "danger",
@@ -226,33 +170,28 @@
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnInitializedAsync()
     {
-        await CarregarCategoria();
-    }
-
-    // ===== MÉTODO PARA APLICAR FILTROS =====
-    private async Task AplicarFiltrosAsync()
-    {
-        paginaAtual = 1;
-        await CarregarCategoria();
+        await CarregarCategorias();
     }
 
     // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
-    private async Task CarregarCategoria()
+    private async Task CarregarCategorias()
     {
         carregando = true;
         StateHasChanged();
 
         try
         {
-            
-            var resultado = await _categoriaService.ObterTodos(nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),pagina: paginaAtual, itensPorPagina: itensPorPagina);
+            var resultado = await _categoriaService.ObterTodos(
+                nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina);
 
-            categorias = resultado.Items ?? new(); 
-            totalItems = resultado.Total;
+            categorias = resultado?.Items?.ToList() ?? new();
+            totalItems = resultado?.Total ?? 0;
         }
         catch (Exception ex)
         {
-            NotificacaoService.ShowError($"Erro ao carregar clientes: {ex.Message}", "Erro");
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}", "Erro");
             categorias = new();
             totalItems = 0;
         }
@@ -266,7 +205,9 @@
     // ===== AÇÕES INDIVIDUAIS =====
     private async Task ExcluirCategoria(string id, string nome)
     {
-        var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente excluir a categoria '{nome}'?", "Confirmar Exclusão");
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir a categoria '{nome}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
 
         if (confirmado)
         {
@@ -275,15 +216,14 @@
                 var sucesso = await _categoriaService.Excluir(id);
                 if (sucesso)
                 {
-                    NotificacaoService.ShowSuccess($"Categoria {nome} excluído com sucesso!", "Exclusão");
+                    NotificacaoService.ShowSuccess($"Categoria {nome} excluída com sucesso!", "Exclusão");
 
-                    // Se a página atual ficar vazia, volta uma página
                     if (categorias.Count == 1 && paginaAtual > 1)
                     {
                         paginaAtual--;
                     }
 
-                    await CarregarCategoria();
+                    await CarregarCategorias();
                 }
                 else
                 {
@@ -294,193 +234,63 @@
             {
                 NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
             }
-
         }
     }
 
-    private async Task AtivarCliente(string id, string nome)
-    {
-        // var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente ativar o cliente '{nome}'?", "Confirmar Ativação");
-
-        // if (confirmado)
-        // {
-        //     try
-        //     {
-        //         var sucesso = await ClienteService.Ativar(id);
-        //         if (sucesso)
-        //         {
-        //             NotificacaoService.ShowSuccess($"Cliente {nome} ativado com sucesso!", "Ativação");
-        //             await CarregarClientes();
-        //         }
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id,ex);
-        //         NotificacaoService.ShowError($"Erro ao ativar: {ex.Message}", "Erro");
-        //     }
-        // }
-    }
-
-    private async Task DesativarCliente(string id, string nome)
-    {
-        // var confirmado = await ConfirmService.ConfirmAsync($"Deseja realmente desativar o cliente '{nome}'?", "Confirmar Desativação");
-
-        // if (confirmado)
-        // {
-        //     try
-        //     {
-        //         var sucesso = await ClienteService.Desativar(id);
-        //         if (sucesso)
-        //         {
-        //             NotificacaoService.ShowSuccess($"Cliente {nome} desativado com sucesso!", "Desativação");
-        //             await CarregarClientes();
-        //         }
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Logger.LogError(ex, "ERRO ao ativar cliente:  {idCliente}, {mensagem}", id, ex);
-        //         NotificacaoService.ShowError($"Erro ao desativar: {ex.Message}", "Erro");
-        //     }
-        // }
-    }
-
-    // // ===== AÇÕES EM MASSA =====
+    // ===== AÇÕES EM MASSA =====
     private async Task ExportarSelecionados(List<string> ids)
     {
-        // var nomes = clientes
-        //     .Where(c => ids.Contains(c.IdCliente.ToString()))
-        //     .Select(c => c.Nome)
-        //     .ToList();
+        var nomes = categorias
+            .Where(c => ids.Contains(c.Id.ToString()))
+            .Select(c => c.Nome)
+            .ToList();
 
-        // NotificacaoService.ShowInfo($"Exportando {ids.Count} clientes: {string.Join(", ", nomes)}", "Exportação");
-        // TODO: Implementar exportação real
-    }
-
-    private async Task AtivarSelecionados(List<string> ids)
-    {
-        // var confirmado = await ConfirmService.ConfirmAsync(
-        //     $"Deseja realmente ativar {ids.Count} cliente(s)?",
-        //     "Confirmar Ativação em Massa");
-
-        // if (confirmado)
-        // {
-        //     var sucessos = 0;
-        //     var erros = 0;
-
-        //     foreach (var id in ids)
-        //     {
-        //         try
-        //         {
-        //             var sucesso = await ClienteService.Ativar(id);
-        //             if (sucesso)
-        //                 sucessos++;
-        //             else
-        //                 erros++;
-        //         }
-        //         catch
-        //         {
-        //             erros++;
-        //         }
-        //     }
-
-        //     if (erros == 0)
-        //     {
-        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) ativados com sucesso!", "Sucesso");
-        //     }
-        //     else
-        //     {
-        //         NotificacaoService.ShowWarning($"{sucessos} ativados, {erros} falhas", "Atenção");
-        //     }
-
-        //     await CarregarClientes();
-        //}
-    }
-
-    private async Task InativarSelecionados(List<string> ids)
-    {
-        // var confirmado = await ConfirmService.ConfirmAsync(
-        //     $"Deseja realmente inativar {ids.Count} cliente(s)?",
-        //     "Confirmar Inativação em Massa");
-
-        // if (confirmado)
-        // {
-        //     var sucessos = 0;
-        //     var erros = 0;
-
-        //     foreach (var id in ids)
-        //     {
-        //         try
-        //         {
-        //             var sucesso = await ClienteService.Desativar(id);
-        //             if (sucesso)
-        //                 sucessos++;
-        //             else
-        //                 erros++;
-        //         }
-        //         catch
-        //         {
-        //             erros++;
-        //         }
-        //     }
-
-        //     if (erros == 0)
-        //     {
-        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) inativados com sucesso!", "Sucesso");
-        //     }
-        //     else
-        //     {
-        //         NotificacaoService.ShowWarning($"{sucessos} inativados, {erros} falhas", "Atenção");
-        //     }
-
-        //     await CarregarClientes();
-        // }
+        NotificacaoService.ShowInfo($"Exportando {ids.Count} categorias: {string.Join(", ", nomes)}", "Exportação");
+        // TODO: Implementar exportação real (Excel, CSV, etc)
     }
 
     private async Task ExcluirSelecionados(List<string> ids)
     {
-        // var confirmado = await ConfirmService.ConfirmAsync(
-        //     $"Deseja realmente excluir {ids.Count} cliente(s)? Esta ação não pode ser desfeita.",
-        //     "Confirmar Exclusão em Massa");
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir {ids.Count} categoria(s)? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão em Massa");
 
-        // if (confirmado)
-        // {
-        //     var sucessos = 0;
-        //     var erros = 0;
+        if (confirmado)
+        {
+            var sucessos = 0;
+            var erros = 0;
 
-        //     foreach (var id in ids)
-        //     {
-        //         try
-        //         {
-        //             var sucesso = await ClienteService.Excluir(id);
-        //             if (sucesso)
-        //                 sucessos++;
-        //             else
-        //                 erros++;
-        //         }
-        //         catch
-        //         {
-        //             erros++;
-        //         }
-        //     }
+            foreach (var id in ids)
+            {
+                try
+                {
+                    var sucesso = await _categoriaService.Excluir(id);
+                    if (sucesso)
+                        sucessos++;
+                    else
+                        erros++;
+                }
+                catch
+                {
+                    erros++;
+                }
+            }
 
-        //     if (erros == 0)
-        //     {
-        //         NotificacaoService.ShowSuccess($"{sucessos} cliente(s) excluídos com sucesso!", "Sucesso");
+            if (erros == 0)
+            {
+                NotificacaoService.ShowSuccess($"{sucessos} categoria(s) excluída(s) com sucesso!", "Sucesso");
 
-        //         // Se a página atual ficar vazia, volta uma página
-        //         if (clientes.Count == ids.Count && paginaAtual > 1)
-        //         {
-        //             paginaAtual--;
-        //         }
-        //     }
-        //     else
-        //     {
-        //         NotificacaoService.ShowWarning($"{sucessos} excluídos, {erros} falhas", "Atenção");
-        //     }
+                if (categorias.Count == ids.Count && paginaAtual > 1)
+                {
+                    paginaAtual--;
+                }
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"{sucessos} excluídas, {erros} falhas", "Atenção");
+            }
 
-        //     await CarregarClientes();
-        // }
+            await CarregarCategorias();
+        }
     }
-   
-   
 }

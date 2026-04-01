@@ -8,8 +8,8 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
     public interface ICategoriaService
     {
         Task<CategoriaResponse?> Inserir(CriarCategoriaRequest request);
-        Task<bool> UploadFotos(int categoriaId, List<IBrowserFile> fotos);        
-        Task<bool?> Atualizar(int id, CriarCategoriaRequest request);
+        Task<bool> UploadFotos(int categoriaId, List<IBrowserFile> fotos);
+        Task<bool?> Atualizar(int id, AtualizarCategoriaRequest request);
         Task<bool> Excluir(string id);
         Task<PaginatedResponse<CategoriaResponse>> ObterTodos(
         string? nome = null,

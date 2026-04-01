@@ -1,11 +1,7 @@
 ﻿@page "/categorias/editar/{id:int}"
 @using Blazored.FluentValidation
 @using Locadora_Auto.Front.Components.Forms
-@using Locadora_Auto.Front.Components.Pages.Clientes
-@using Locadora_Auto.Front.Models.Enum
-@using Locadora_Auto.Front.Models.Request
 @using Locadora_Auto.Front.Models.Request.Categoria
-@using Locadora_Auto.Front.Models.Request.Cliente
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
@@ -13,7 +9,7 @@
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject ICategoriaService _categoriaService
-@inject ILogger<EditarCliente> Logger
+@inject ILogger<EditarCategoria> Logger
 @* @attribute [Authorize(Roles = "Administrador")] *@
 @rendermode InteractiveServer
 
@@ -36,28 +32,26 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Carregando...</span>
             </div>
-            <p class="mt-2">Carregando dados do categoria...</p>
+            <p class="mt-2">Carregando dados da categoria...</p>
         </div>
     }
     else if (categoriaOriginal == null)
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Categoria não encontrado ou não existe.
+            Categoria não encontrada ou não existe.
         </div>
     }
     else
     {
-        <EditForm Model="@categoriaEdit" OnValidSubmit="@ManipularEnvio" Context="formContext">
+        <EditForm Model="@categoriaEdit" OnValidSubmit="@ManipularEnvio">
             <FluentValidationValidator @ref="validadorFluent" />
 
             <div class="row">
-                <!-- 1ª coluna -->
-                <div class="col-md-6">
-                    <!-- Card Dados pessoais -->
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Categoria</h5>
+                <div class="col-md-8 mx-auto">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Dados da Categoria</h5>
                         </div>
                         <div class="card-body">
                             <!-- Nome -->
@@ -67,32 +61,37 @@
                                 <ValidationMessage For="@(() => categoriaEdit.Nome)" />
                             </div>
 
-                            <!-- Valor da diaria -->
+                            <!-- Valor da diária - usando InputMoeda -->
                             <div class="mb-3">
                                 <label class="form-label">Valor da diária <span class="text-danger">*</span></label>
-                                <InputNumber @bind-Value="categoriaEdit.ValorDiaria" class="form-control" placeholder="Digite o valor da diaria" />
+                                <!-- Usando InputMoeda com double -->
+                                <InputMoeda @bind-Value="categoriaEdit.ValorDiaria"
+                                            placeholder="R$ 0,00" />
                                 <ValidationMessage For="@(() => categoriaEdit.ValorDiaria)" />
                             </div>
 
-                            <!-- Nome -->
+                            <!-- Limite de Km -->
                             <div class="mb-3">
                                 <label class="form-label">Limite de Km <span class="text-danger">*</span></label>
-                                <InputNumber @bind-Value="categoriaEdit.LimiteKm" class="form-control" placeholder="Digite o nome completo" />
+                                <InputMoeda @bind-Value="categoriaEdit.ValorDiaria"
+                                            placeholder="R$ 0,00" />
                                 <ValidationMessage For="@(() => categoriaEdit.LimiteKm)" />
                             </div>
 
-                            <!-- CPF com máscara -->
+                            <!-- Valor do km excedente - usando InputMoeda -->
                             <div class="mb-3">
                                 <label class="form-label">Valor do km excedente <span class="text-danger">*</span></label>
-                                <InputNumber @bind-Value="categoriaEdit.ValorKmExcedente" class="form-control" placeholder="Digite o valor do km excedente" />
+                                <!-- Usando InputMoeda com double -->
+                                <InputMoeda @bind-Value="categoriaEdit.ValorDiaria"
+                                            placeholder="R$ 0,00" />
                                 <ValidationMessage For="@(() => categoriaEdit.ValorKmExcedente)" />
                             </div>
                         </div>
-                    </div>                   
-                </div>                
+                    </div>
+                </div>
             </div>
 
-            <div class="row mt-3">
+            <div class="row mt-4">
                 <div class="col">
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-secondary" @onclick="Cancelar">
@@ -122,13 +121,10 @@
     [Parameter] public int id { get; set; }
 
     // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
-    private CriarCategoriaRequest? categoriaEdit;
+    private AtualizarCategoriaRequest? categoriaEdit;
     private CategoriaResponse? categoriaOriginal;
     private bool carregando = true;
     private bool processando;
-    private bool alterarSenha = false;
-    private string novaSenha = string.Empty;
-    private string confirmeNovaSenha = string.Empty;
     private FluentValidationValidator? validadorFluent;
 
     // ===== MÉTODOS DO CICLO DE VIDA =====
@@ -149,26 +145,26 @@
 
             if (categoriaOriginal == null)
             {
-                Logger.LogWarning("Cliente não encontrado: {ClienteId}", id);
-                NotificacaoService.ShowWarning("Cliente não encontrado", "Atenção");
+                Logger.LogWarning("Categoria não encontrada: {CategoriaId}", id);
+                NotificacaoService.ShowWarning("Categoria não encontrada", "Atenção");
                 return;
             }
 
             // Mapeia os dados para o request de edição
-            categoriaEdit = new CriarCategoriaRequest
+            categoriaEdit = new AtualizarCategoriaRequest
             {
-                LimiteKm = categoriaOriginal.LimiteKm.Value,
-                ValorKmExcedente = categoriaOriginal.ValorKmExcedente.Value,
-                ValorDiaria = categoriaOriginal.ValorDiaria.Value,
-                Nome = categoriaOriginal.Nome
+                Nome = categoriaOriginal.Nome,
+                ValorDiaria = categoriaOriginal.ValorDiaria ?? 0,
+                LimiteKm = categoriaOriginal.LimiteKm ?? 0,
+                ValorKmExcedente = categoriaOriginal.ValorKmExcedente ?? 0
             };
 
-            Logger.LogInformation("Dados do cliente {ClienteId} carregados com sucesso", id);
+            Logger.LogInformation("Dados da categoria {CategoriaId} carregados com sucesso", id);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Erro ao carregar cliente {ClienteId}", id);
-            NotificacaoService.ShowError("Erro ao carregar dados do cliente", "Erro");
+            Logger.LogError(ex, "Erro ao carregar categoria {CategoriaId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados da categoria", "Erro");
         }
         finally
         {
@@ -177,48 +173,39 @@
         }
     }
 
-
-
     // ===== MÉTODO PRINCIPAL DE ENVIO =====
     private async Task ManipularEnvio()
     {
         if (categoriaEdit == null || categoriaOriginal == null) return;
+
+        // Validação adicional
+        if (!ValidarDados())
+            return;
 
         processando = true;
         StateHasChanged();
 
         try
         {
-            Logger.LogInformation("Atualizando cliente ID: {ClienteId}", id);
+            Logger.LogInformation("Atualizando categoria ID: {CategoriaId}", id);
 
-            // Cria o request de atualização
-            var updateRequest = new CriarCategoriaRequest
+            var sucesso = await _categoriaService.Atualizar(id, categoriaEdit);
+
+            if (sucesso.Value)
             {
-                LimiteKm = categoriaEdit.LimiteKm,
-                ValorKmExcedente = categoriaEdit.ValorKmExcedente,
-                ValorDiaria = categoriaEdit.ValorDiaria,
-                Nome = categoriaEdit.Nome
-            };
-
-
-            var resultado = await _categoriaService.Atualizar(id, updateRequest);
-
-            if (resultado != null && resultado.Value)
-            {
-                NotificacaoService.ShowSuccess("Categoria atualizado com sucesso!", "Sucesso");
+                NotificacaoService.ShowSuccess("Categoria atualizada com sucesso!", "Sucesso");
                 await Task.Delay(1500);
                 Navegacao.NavigateTo($"/categorias/visualizar/{id}");
             }
             else
             {
-                Logger.LogWarning("Falha ao atualizar categoria {Id}", id);
-                await Task.Delay(1500);
-                NotificacaoService.ShowWarning("Não foi possível atualizar o cliente", "Atenção");
+                Logger.LogWarning("Falha ao atualizar categoria {CategoriaId}", id);
+                NotificacaoService.ShowWarning("Não foi possível atualizar a categoria", "Atenção");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "ERRO ao editar categoria {Id}", id);
+            Logger.LogError(ex, "ERRO ao editar categoria {CategoriaId}", id);
             NotificacaoService.ShowError($"Erro ao atualizar categoria: {ex.Message}", "Erro");
         }
         finally
@@ -228,12 +215,44 @@
         }
     }
 
+    // ===== VALIDAÇÃO ADICIONAL =====
+    private bool ValidarDados()
+    {
+        if (categoriaEdit == null) return false;
+
+        if (string.IsNullOrWhiteSpace(categoriaEdit.Nome))
+        {
+            NotificacaoService.ShowWarning("O nome da categoria é obrigatório", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.ValorDiaria <= 0)
+        {
+            NotificacaoService.ShowWarning("O valor da diária deve ser maior que zero", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.LimiteKm < 0)
+        {
+            NotificacaoService.ShowWarning("O limite de KM não pode ser negativo", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.ValorKmExcedente < 0)
+        {
+            NotificacaoService.ShowWarning("O valor do KM excedente não pode ser negativo", "Validação");
+            return false;
+        }
+
+        return true;
+    }
+
     // ===== MÉTODOS DE NAVEGAÇÃO =====
     private void Voltar()
     {
         if (PossuiAlteracoesNaoSalvas())
         {
-            // Aqui você pode implementar um diálogo de confirmação
+            // TODO: Implementar diálogo de confirmação
             Navegacao.NavigateTo($"/categorias/visualizar/{id}");
         }
         else
@@ -249,10 +268,8 @@
         if (categoriaEdit == null || categoriaOriginal == null) return false;
 
         return categoriaEdit.Nome != categoriaOriginal.Nome ||
-               categoriaEdit.LimiteKm != categoriaOriginal.LimiteKm ||
-               categoriaEdit.ValorKmExcedente != categoriaOriginal.ValorKmExcedente ||
-               categoriaEdit.ValorDiaria != categoriaOriginal.ValorDiaria;
+               Math.Abs(categoriaEdit.LimiteKm - (categoriaOriginal.LimiteKm ?? 0)) > 0 ||
+               Math.Abs(categoriaEdit.ValorKmExcedente - (categoriaOriginal.ValorKmExcedente ?? 0)) > 0.01 ||
+               Math.Abs(categoriaEdit.ValorDiaria - (categoriaOriginal.ValorDiaria ?? 0)) > 0.01;
     }
-
-    
 }

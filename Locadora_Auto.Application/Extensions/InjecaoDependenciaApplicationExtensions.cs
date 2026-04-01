@@ -8,6 +8,7 @@ using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Application.Services.ClienteServices;
 using Locadora_Auto.Application.Services.FilialServices;
 using Locadora_Auto.Application.Services.FuncionarioServices;
+using Locadora_Auto.Application.Services.ImageService;
 using Locadora_Auto.Application.Services.LocacaoServices;
 using Locadora_Auto.Application.Services.MultaServices;
 using Locadora_Auto.Application.Services.OAuth.Roles;
@@ -55,6 +56,9 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
             services.AddScoped<IAdicionalService, AdicionalService>();
+
+            //redimensionamento de imagens
+            services.AddScoped<IImageService, ImageService>();
 
             //notificador e validadors
             services.AddScoped<INotificadorService, NotificadorService>();

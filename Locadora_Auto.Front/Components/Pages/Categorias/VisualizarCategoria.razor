@@ -1,12 +1,12 @@
 ﻿@page "/categorias/visualizar/{id:int}"
-@using Locadora_Auto.Front.Components.Forms
-@using Locadora_Auto.Front.Models.Enum
+@using Microsoft.AspNetCore.Components
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject ICategoriaService _categoriaService
+@inject IJSRuntime JSRuntime
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -17,7 +17,7 @@
                 <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </button>
-                <h2 class="mb-0">Detalhes da categoria</h2>
+                <h2 class="mb-0">Detalhes da Categoria</h2>
             </div>
             <p class="text-muted mt-2">Visualize as informações completas da categoria</p>
         </div>
@@ -36,109 +36,235 @@
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Categoria não encontrado ou não existe.
+            Categoria não encontrada ou não existe.
         </div>
     }
     else
     {
         <div class="row">
-            <!--1ª colunas-->
+            <!-- Coluna dos dados da categoria -->
             <div class="col-md-6">
-                <!--card dados pessoais-->
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Categoria</h5>                       
-
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-tag me-2"></i>
+                            Informações da Categoria
+                        </h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="fw-bold text-muted small">Nome</label>
-                                <p class="mb-0">@categoria.Nome</p>
+                                <p class="mb-0 fs-5">@categoria.Nome</p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Valor da diaria</label>
-                                <p class="mb-0">@categoria.ValorDiaria</p>
+                                <label class="fw-bold text-muted small">Valor da Diária</label>
+                                <p class="mb-0 fs-5 text-success">
+                                    @(categoria.ValorDiaria?.ToString("C2") ?? "R$ 0,00")
+                                </p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="fw-bold text-muted small">Limite por Kilometro</label>
-                                <p class="mb-0">@categoria.LimiteKm</p>
+                                <p class="mb-0">
+                                    @(categoria.LimiteKm?.ToString("N0") ?? "0") km
+                                </p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Valor do Km excedente</label>
-                                <p class="mb-0">@categoria.ValorKmExcedente</p>
+                                <label class="fw-bold text-muted small">Valor do Km Excedente</label>
+                                <p class="mb-0 text-warning">
+                                    @(categoria.ValorKmExcedente?.ToString("C2") ?? "R$ 0,00")
+                                </p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Total de veicúlos</label>
-                                <p class="mb-0">@categoria.Totalveiculos</p>
+                                <label class="fw-bold text-muted small">Total de Veículos</label>
+                                <p class="mb-0">
+                                    <i class="bi bi-car-front me-1"></i>
+                                    @(categoria.Totalveiculos?.ToString("N0") ?? "0")
+                                </p>
                             </div>
-                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-
+            <!-- Coluna de estatísticas -->
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-images me-2"></i>
+                            Fotos da Categoria
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center">
+                            <div class="display-1 text-info">
+                                <i class="bi bi-camera"></i>
+                            </div>
+                            <h3 class="mt-2">@(categoria.Fotos?.Count ?? 0)</h3>
+                            <p class="text-muted">foto(s) cadastrada(s)</p>
+                            <hr />
+                            <div class="mt-3">
+                                <i class="bi bi-calendar me-2"></i>
+                                <strong>Último upload:</strong>
+                                @(categoria.Fotos?.Any() == true? categoria.Fotos.Max(f => f.DataUpload).ToString("dd/MM/yyyy HH:mm"): "Nenhuma foto cadastrada")
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
+    </div>
 
-        <div class="row mt-3">
+        <!-- Galeria de Fotos -->
+    @if (categoria.Fotos != null && categoria.Fotos.Any())
+        {
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-images me-2"></i>
+                                Galeria de Fotos (@categoria.Fotos.Count)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="gallery-grid">
+                                @foreach (var foto in categoria.Fotos)
+                                {
+                                    <div class="gallery-item">
+                                        <div class="gallery-image-container">
+                                            @* <img src="@ObterUrlImagem(foto, tamanho: "medium")"
+                                                 alt="@foto.NomeArquivo"
+                                                 class="gallery-image"
+                                                 @onclick="() => AbrirModal(foto)" /> *@
+                                            <img src="@ObterUrlImagem(foto, width: 300, height: 200)"
+                                                 alt="@foto.NomeArquivo"
+                                                 class="gallery-image"
+                                                 @onclick="() => AbrirModal(foto)" />
+                                        </div>
+                                        <div class="gallery-info">
+                                            <span class="gallery-filename" title="@foto.NomeArquivo">
+                                                @foto.NomeArquivo
+                                            </span>
+                                            <span class="gallery-size">@foto.TamanhoFormatado</span>
+                                            <span class="gallery-date">
+                                                <i class="bi bi-clock me-1"></i>
+                                                @foto.DataUpload.ToString("dd/MM/yyyy HH:mm")
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-images me-2"></i>
+                                Galeria de Fotos
+                            </h5>
+                        </div>
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-camera fs-1 text-muted"></i>
+                            <h5 class="mt-3">Nenhuma foto cadastrada</h5>
+                            <p class="text-muted">Esta categoria ainda não possui fotos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Botão Voltar -->
+        <div class="row mt-4">
             <div class="col">
                 <div class="d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary" @onclick="Voltar">
+                    <button type="button" class="btn btn-secondary" @onclick="Voltar">
                         <i class="bi bi-arrow-left me-1"></i>Voltar
                     </button>
-                    <a href="/categorias/editar/@id" class="btn btn-primary">
-                        <i class="bi bi-pencil me-1"></i>Editar Categoria
-                    </a>
                 </div>
             </div>
         </div>
     }
 </div>
 
+<!-- Modal para visualizar imagem em tamanho grande -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-image me-2"></i>
+                    Visualizar Imagem
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                @if (fotoSelecionada != null)
+                {
+                    <img src="@ObterUrlImagem(fotoSelecionada)"
+                         alt="@fotoSelecionada.NomeArquivo"
+                         class="img-fluid rounded" />
+
+                    <div class="mt-4 text-start">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Nome do arquivo:</small>
+                                <p class="mb-2"><strong>@fotoSelecionada.NomeArquivo</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Tamanho:</small>
+                                <p class="mb-2"><strong>@fotoSelecionada.TamanhoFormatado</strong></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Tipo:</small>
+                                <p class="mb-2"><strong>@fotoSelecionada.Extensao?.ToUpper()</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Data do Upload:</small>
+                                <p class="mb-2"><strong>@fotoSelecionada.DataUpload.ToString("dd/MM/yyyy HH:mm:ss")</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @code {
     // ===== PARÂMETROS DA ROTA =====
-
-    /// <summary>
-    /// ID do funcionário obtido da URL
-    /// </summary>
     [Parameter] public int id { get; set; }
 
-
     // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
-
-    /// <summary>
-    /// Dados do funcionário carregado da API
-    /// </summary>
     private CategoriaResponse? categoria;
-
-    /// <summary>
-    /// Controla o estado de carregamento (spinner)
-    /// </summary>
     private bool carregando = true;
-
+    private FotoResponse? fotoSelecionada;
 
     // ===== MÉTODOS DO CICLO DE VIDA =====
-
-    /// <summary>
-    /// Executado quando o parâmetro da rota muda
-    /// Permite recarregar os dados se o ID for alterado
-    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
         await CarregarCategoria();
     }
 
-
     // ===== MÉTODOS DE CARREGAMENTO =====
-
-    /// <summary>
-    /// Busca os dados do funcionário na API usando o ID da rota
-    /// </summary>
     private async Task CarregarCategoria()
     {
         try
@@ -150,7 +276,7 @@
         }
         catch (Exception ex)
         {
-            NotificacaoService.ShowError($"Erro ao carregar clientes: {ex.Message}");
+            NotificacaoService.ShowError($"Erro ao carregar categoria: {ex.Message}");
             categoria = null;
         }
         finally
@@ -160,14 +286,42 @@
         }
     }
 
+    // ===== MÉTODOS DE IMAGEM =====
+    private string ObterUrlImagem(FotoResponse foto, int? width = null, int? height = null, string? tamanho = null)
+    {
+        var url = $"https://localhost:44310/api/v1/categorias-veiculos/{id}/fotos/{foto.IdFoto}";
+
+        var parametros = new List<string>();
+
+        if (tamanho != null)
+            parametros.Add($"tamanho={tamanho}");
+        else
+        {
+            if (width.HasValue)
+                parametros.Add($"width={width}");
+            if (height.HasValue)
+                parametros.Add($"height={height}");
+        }
+
+        if (parametros.Any())
+            url += "?" + string.Join("&", parametros);
+
+        return url;
+    }
+
+    private async Task AbrirModal(FotoResponse foto)
+    {
+        fotoSelecionada = foto;
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            var modal = new bootstrap.Modal(document.getElementById('imageModal'));
+            modal.show();
+        ");
+        StateHasChanged();
+    }
 
     // ===== MÉTODOS DE NAVEGAÇÃO =====
-
-    /// <summary>
-    /// Retorna para a lista de funcionários
-    /// </summary>
     private void Voltar()
     {
         Navegacao.NavigateTo("/categorias");
-    }    
+    }
 }

@@ -58,7 +58,7 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
         public async Task<CategoriaVeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id,rastreado:true, ct: ct);
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct, incluir: q => q.Include(x => x.Fotos));
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -67,6 +67,7 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
             return categoria.ToDto();
         }
+        
         private async Task<CategoriaVeiculo?> ObterPorId(int id, CancellationToken ct = default)
         {
             var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct, incluir:q => q.Include(c => c.Fotos));

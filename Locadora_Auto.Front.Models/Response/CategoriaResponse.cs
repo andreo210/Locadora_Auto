@@ -8,7 +8,7 @@
         public int? LimiteKm { get; set; }
         public double? ValorKmExcedente { get; set; }
         public int? Totalveiculos { get; set; }
-        public FotoResponse? Fotos { get; set; }
+        public List<FotoResponse>? Fotos { get; set; }
 
     }    
 }
