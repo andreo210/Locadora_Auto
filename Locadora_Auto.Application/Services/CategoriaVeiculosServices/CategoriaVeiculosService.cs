@@ -182,6 +182,25 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
             return await _repository.AtualizarSalvarAsync(categoria, ct);
         }
 
+        public async Task<bool> ExluirFotoCategoriaAsync(int id, int idFoto, CancellationToken ct = default)
+        {
+            var categoria = await ObterPorId(id, ct);
+            if (categoria == null)
+            {
+                _notificador.Add($"Categoria com ID {id} não encontrada.");
+                return false;
+            };
+            var fotosEntity = categoria.Fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (fotosEntity == null)
+            {
+                _notificador.Add("Nenhuma foto foi encontrada.");
+                return false;
+            }
+            categoria.RemoverFoto(fotosEntity.IdFoto.Value);
+
+            return await _repository.AtualizarSalvarAsync(categoria, ct);
+        }
+
         private async Task<List<FotoCategoriaVeiculo>> EnviarFoto(List<IFormFile> dto)
         {
             var documentosAnexos = new List<FotoCategoriaVeiculo>();

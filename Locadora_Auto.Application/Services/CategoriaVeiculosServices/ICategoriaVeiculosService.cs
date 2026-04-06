@@ -12,6 +12,7 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
         Task<bool> AtualizarAsync(int id, AtualizarCategoriaVeiculoDto dto, CancellationToken ct = default);
         Task<bool> ExcluirAsync(int id, CancellationToken ct = default);
         Task<bool> RegistarFotoCategoriaAsync(int id, List<IFormFile> fotos, CancellationToken ct = default);
+        Task<bool> ExluirFotoCategoriaAsync(int id, int idFoto, CancellationToken ct = default);
     }
 
 

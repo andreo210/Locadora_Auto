@@ -1,0 +1,114 @@
+﻿.fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.fotos-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fotos-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.fotos-grid::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.foto-item {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #dee2e6;
+}
+
+    .foto-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+.foto-imagem-container {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background-color: #e9ecef;
+    cursor: pointer;
+}
+
+.foto-imagem {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.foto-item:hover .foto-imagem {
+    transform: scale(1.05);
+}
+
+.foto-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.foto-item:hover .foto-overlay {
+    opacity: 1;
+}
+
+.btn-excluir-foto {
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.foto-info {
+    padding: 0.75rem;
+    background: white;
+}
+
+.foto-nome {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.foto-tamanho {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+.foto-data {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: #adb5bd;
+}
+

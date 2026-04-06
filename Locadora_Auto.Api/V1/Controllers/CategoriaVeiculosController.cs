@@ -15,7 +15,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         private readonly ICategoriaVeiculoService _service;
         private readonly IImageService _imageService;
 
-        public CategoriaVeiculosController(ICategoriaVeiculoService service, INotificadorService notificador, IImageService imageService): base(notificador)
+        public CategoriaVeiculosController(ICategoriaVeiculoService service, INotificadorService notificador, IImageService imageService) : base(notificador)
         {
             _service = service;
             _imageService = imageService;
@@ -43,7 +43,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         }
 
         [HttpGet("{id:int}/fotos/{idFoto:int}")]
-        public async Task<IActionResult> GetFoto(CancellationToken ct, int idFoto,int id, int? width = null, int? height = null)
+        public async Task<IActionResult> GetFoto(CancellationToken ct, int idFoto, int id, int? width = null, int? height = null)
         {
             var categoria = await _service.ObterPorIdAsync(id, ct);
             if (categoria == null)
@@ -74,19 +74,16 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         // ========================= OBTER TODAS =========================
         [HttpGet]
-        public async Task<IActionResult> ObterTodas(CancellationToken ct = default,[FromQuery] int pagina = 1,[FromQuery] int itensPorPagina = 10)
+        public async Task<IActionResult> ObterTodas(CancellationToken ct = default, [FromQuery] int pagina = 1, [FromQuery] int itensPorPagina = 10)
         {
-            var result = await _service.ObterTodosPaginadoAsync(pagina,itensPorPagina, ct);
+            var result = await _service.ObterTodosPaginadoAsync(pagina, itensPorPagina, ct);
 
             return CustomResponse(result);
         }
 
         // ========================= ATUALIZAR =========================
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Atualizar(
-            int id,
-            [FromBody] AtualizarCategoriaVeiculoDto dto,
-            CancellationToken ct)
+        public async Task<IActionResult> Atualizar(int id, [FromBody] AtualizarCategoriaVeiculoDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return ValidationResponse(ModelState);
@@ -98,9 +95,7 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         // ========================= EXCLUIR =========================
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Excluir(
-            int id,
-            CancellationToken ct)
+        public async Task<IActionResult> Excluir(int id, CancellationToken ct)
         {
             await _service.ExcluirAsync(id, ct);
 
@@ -115,6 +110,14 @@ namespace Locadora_Auto.Api.V1.Controllers
                 return ValidationResponse(ModelState);
 
             var filial = await _service.RegistarFotoCategoriaAsync(id, fotos, ct);
+            return CustomResponse(filial, HttpStatusCode.Created);
+        }
+
+        [HttpDelete("{id:int}/excluir-foto/{idFoto:int}")]
+        public async Task<IActionResult> ExcluirFoto(int id, int idFoto, CancellationToken ct)
+        {
+
+            var filial = await _service.ExluirFotoCategoriaAsync(id, idFoto, ct);
             return CustomResponse(filial, HttpStatusCode.Created);
         }
     }

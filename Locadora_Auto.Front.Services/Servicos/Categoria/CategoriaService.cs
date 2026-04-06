@@ -36,6 +36,12 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             return await _api.PutAsync<AtualizarCategoriaRequest>($"api/v1/categorias-veiculos/{id}", request);
         }
 
+        public async Task<bool> ExcluirFoto(int categoriaId, int idFoto)
+        {
+            var url = $"api/v1/categorias-veiculos/{categoriaId}/excluir-foto/{idFoto}";
+            return await _api.DeleteAsync(url);
+        }
+
 
         public async Task<bool> Excluir(string id)
         {           

@@ -9,6 +9,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
     {
         Task<CategoriaResponse?> Inserir(CriarCategoriaRequest request);
         Task<bool> UploadFotos(int categoriaId, List<IBrowserFile> fotos);
+        Task<bool> ExcluirFoto(int categoriaId, int idFoto);
         Task<bool?> Atualizar(int id, AtualizarCategoriaRequest request);
         Task<bool> Excluir(string id);
         Task<PaginatedResponse<CategoriaResponse>> ObterTodos(
