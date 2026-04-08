@@ -1,0 +1,145 @@
+﻿@page "/filial/nova"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request.Categoria
+@using Locadora_Auto.Front.Models.Request.Filial
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IFilialService _filialService
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Nova Filial</h2>
+            <p class="text-muted">Preencha os dados para cadastrar uma nova filial</p>
+        </div>
+    </div>
+
+    <EditForm Model="@filial" OnValidSubmit="@ManipularEnvio">
+        <FluentValidationValidator @ref="validadorFluent" />
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados da Filial</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="filial.Nome" class="form-control" placeholder="Digite o nome da filial" />
+                            <ValidationMessage For="@(() => filial.Nome)" />
+                        </div>
+
+                        <!-- Endereco -->
+                        <div class="col-md-6">
+                            <EnderecoForm @bind-Endereco="filial.Endereco" Titulo="Endereço do Cliente" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Salvar Categoria</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private CriarFilialRequest filial = new();
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Valida o modelo usando FluentValidation
+            var validador = new FilialValidator();
+            var resultado = await validador.ValidateAsync(filial);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                processando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Chama o serviço para inserir a categoria
+            var categoriaCriada = await _filialService.Inserir(filial);
+
+            if (categoriaCriada != null)
+            {
+                NotificacaoService.ShowSuccess("Filial cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(4000);
+                Navegacao.NavigateTo("/Filiais");
+            }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao cadastrar filial.", "Erro no Cadastro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar filial: {ex.Message}", "Erro no Cadastro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar()
+    {
+        if (PossuiAlteracoesNaoSalvas())
+        {
+            // TODO: Implementar diálogo de confirmação
+            Navegacao.NavigateTo("/filiais");
+        }
+        else
+        {
+            Navegacao.NavigateTo("/filiais");
+        }
+    }
+
+    private bool PossuiAlteracoesNaoSalvas()
+    {
+        bool nomePreenchido = !string.IsNullOrEmpty(filial.Nome);
+        return nomePreenchido;
+    }
+}

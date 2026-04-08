@@ -1,5 +1,6 @@
 ﻿using Blazored.LocalStorage;
 using Locadora_Auto.Front.Services.Configuration;
+using Locadora_Auto.Front.Services.Servicos.Filial;
 using Locadora_Auto.Front.Services.Servicos.Funcionario;
 using Locadora_Auto.Front.Services.Servicos.Login;
 using Locadora_Auto.Front.Services.Usuarios;
@@ -14,7 +15,7 @@ namespace Locadora_Auto.Front.Services.Extensions
     {
         public static IServiceCollection AddServices(this IServiceCollection services,IConfiguration configuration)
         {
-            // Primeiro, registre os serviços de notificação
+            //serviços de notificação
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IConfirmDialogService, ConfirmDialogService>();
 
@@ -35,11 +36,13 @@ namespace Locadora_Auto.Front.Services.Extensions
             })
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+            //serviços
             services.AddScoped<IUsuarioAsp, UsuarioAsp>();
             services.AddScoped<ILoginService, LoginService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IClienteService, ClienteService>();
             services.AddScoped<ICategoriaService, CategoriaService>();
+            services.AddScoped<IFilialService, FilialService>();
 
             return services;
         }

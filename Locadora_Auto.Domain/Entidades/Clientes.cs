@@ -1,6 +1,5 @@
 ﻿using Locadora_Auto.Domain.Auditoria;
 using Locadora_Auto.Domain.Entidades.Indentity;
-using System.Data;
 
 namespace Locadora_Auto.Domain.Entidades
 {

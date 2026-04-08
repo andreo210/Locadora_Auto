@@ -1,0 +1,541 @@
+﻿@page "/Filial/editar/{id:int}"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request.Categoria
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject ICategoriaService _categoriaService
+@inject IConfirmDialogService _confirmService
+@inject ILogger<EditarCategoria> Logger
+@inject IJSRuntime JS
+
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Editar Categoria</h2>
+            </div>
+            <p class="text-muted mt-2">Altere os dados da categoria e gerencie as fotos</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados da categoria...</p>
+        </div>
+    }
+    else if (categoriaOriginal == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Categoria não encontrada ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Coluna do formulário de edição -->
+            <div class="col-md-6">
+                <EditForm Model="@categoriaEdit" OnValidSubmit="@ManipularEnvio">
+                    <FluentValidationValidator @ref="validadorFluent" />
+
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Dados da Categoria</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Nome -->
+                            <div class="mb-3">
+                                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="categoriaEdit.Nome" class="form-control" placeholder="Digite o nome da categoria" />
+                                <ValidationMessage For="@(() => categoriaEdit.Nome)" />
+                            </div>
+
+                            <!-- Valor da diária -->
+                            <div class="mb-3">
+                                <label class="form-label">Valor da diária <span class="text-danger">*</span></label>
+                                <InputMoeda @bind-Value="categoriaEdit.ValorDiaria"
+                                            placeholder="R$ 0,00" />
+                                <ValidationMessage For="@(() => categoriaEdit.ValorDiaria)" />
+                            </div>
+
+                            <!-- Limite de Km -->
+                            <div class="mb-3">
+                                <label class="form-label">Limite de Km <span class="text-danger">*</span></label>
+                                <InputNumber @bind-Value="categoriaEdit.LimiteKm"
+                                             class="form-control"
+                                             placeholder="Digite o limite de quilômetros" />
+                                <ValidationMessage For="@(() => categoriaEdit.LimiteKm)" />
+                            </div>
+
+                            <!-- Valor do km excedente -->
+                            <div class="mb-3">
+                                <label class="form-label">Valor do km excedente <span class="text-danger">*</span></label>
+                                <InputMoeda @bind-Value="categoriaEdit.ValorKmExcedente"
+                                            placeholder="R$ 0,00" />
+                                <ValidationMessage For="@(() => categoriaEdit.ValorKmExcedente)" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@processando">
+                                    @if (processando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        <span>Salvando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        <span>Salvar Alterações</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Coluna de gerenciamento de fotos -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-images me-2"></i>
+                            Fotos da Categoria
+                        </h5>
+                        <a href="/categorias/@id/fotos" class="btn btn-sm btn-light">
+                            <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (categoriaOriginal.Fotos == null || !categoriaOriginal.Fotos.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-camera fs-1 text-muted"></i>
+                                <p class="mt-2 text-muted">Nenhuma foto cadastrada</p>
+                                <a href="/categorias/@id/fotos" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fotos-grid">
+                                @foreach (var foto in categoriaOriginal.Fotos)
+                                {
+                                    <div class="foto-item">
+                                        <div class="foto-imagem-container">
+                                            <img src="@ObterUrlImagem(foto)"
+                                                 alt="@foto.NomeArquivo"
+                                                 class="foto-imagem"
+                                                 @onclick="() => VisualizarFoto(foto)" />
+                                            <div class="foto-overlay">
+                                                <button class="btn btn-sm btn-danger btn-excluir-foto" @onclick="() => ExcluirFoto(foto.IdFoto, foto.NomeArquivo)" title="Excluir foto">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="foto-info">
+                                            <span class="foto-nome" title="@foto.NomeArquivo">@foto.NomeArquivo</span>
+                                            <span class="foto-tamanho">@foto.TamanhoFormatado</span>
+                                            <span class="foto-data">@foto.DataUpload.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal para visualizar imagem em tamanho grande -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-image me-2"></i>
+                    Visualizar Imagem
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                @if (fotoSelecionada != null)
+                {
+                    <img src="@ObterUrlImagem(fotoSelecionada)"
+                         alt="@fotoSelecionada.NomeArquivo"
+                         class="img-fluid rounded" style="max-height: 60vh;" />
+
+                    <div class="mt-3 text-start">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Nome do arquivo:</small>
+                                <p><strong>@fotoSelecionada.NomeArquivo</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Tamanho:</small>
+                                <p><strong>@fotoSelecionada.TamanhoFormatado</strong></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Data do Upload:</small>
+                                <p><strong>@fotoSelecionada.DataUpload.ToString("dd/MM/yyyy HH:mm")</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Extensão:</small>
+                                <p><strong>@fotoSelecionada.Extensao?.ToUpper()</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .fotos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+        max-height: 500px;
+        overflow-y: auto;
+        padding: 0.5rem;
+    }
+
+    .fotos-grid::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .fotos-grid::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .fotos-grid::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+
+    .foto-item {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #dee2e6;
+    }
+
+    .foto-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .foto-imagem-container {
+        position: relative;
+        aspect-ratio: 1;
+        overflow: hidden;
+        background-color: #e9ecef;
+        cursor: pointer;
+    }
+
+    .foto-imagem {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s;
+    }
+
+    .foto-item:hover .foto-imagem {
+        transform: scale(1.05);
+    }
+
+    .foto-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .foto-item:hover .foto-overlay {
+        opacity: 1;
+    }
+
+    .btn-excluir-foto {
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .foto-info {
+        padding: 0.75rem;
+        background: white;
+    }
+
+    .foto-nome {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .foto-tamanho {
+        display: inline-block;
+        font-size: 0.7rem;
+        color: #6c757d;
+        background: #e9ecef;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        margin-right: 0.5rem;
+    }
+
+    .foto-data {
+        display: inline-block;
+        font-size: 0.7rem;
+        color: #adb5bd;
+    }
+</style>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private AtualizarCategoriaRequest? categoriaEdit;
+    private CategoriaResponse? categoriaOriginal;
+    private bool carregando = true;
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+    private FotoResponse? fotoSelecionada;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarDadosCategoria();
+    }
+
+    // ===== MÉTODO DE CARREGAMENTO =====
+    private async Task CarregarDadosCategoria()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            categoriaOriginal = await _categoriaService.ObterPorId(id.ToString());
+
+            if (categoriaOriginal == null)
+            {
+                Logger.LogWarning("Categoria não encontrada: {CategoriaId}", id);
+                NotificacaoService.ShowWarning("Categoria não encontrada", "Atenção");
+                return;
+            }
+
+            categoriaEdit = new AtualizarCategoriaRequest
+            {
+                Nome = categoriaOriginal.Nome,
+                ValorDiaria = categoriaOriginal.ValorDiaria ?? 0,
+                LimiteKm = categoriaOriginal.LimiteKm ?? 0,
+                ValorKmExcedente = categoriaOriginal.ValorKmExcedente ?? 0
+            };
+
+            Logger.LogInformation("Dados da categoria {CategoriaId} carregados com sucesso", id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar categoria {CategoriaId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados da categoria", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODO PARA OBTER URL DA IMAGEM =====
+    private string ObterUrlImagem(FotoResponse foto)
+    {
+        return $"https://localhost:44310/api/v1/categorias-veiculos/{id}/fotos/{foto.IdFoto}";
+    }
+
+    // ===== MÉTODO PARA VISUALIZAR FOTO =====
+    private async Task VisualizarFoto(FotoResponse foto)
+    {
+        fotoSelecionada = foto;
+        await JS.InvokeVoidAsync("eval", @"var modal = new bootstrap.Modal(document.getElementById('imageModal')); modal.show();");
+        StateHasChanged();
+    }
+
+    // ===== MÉTODO PARA EXCLUIR FOTO =====
+    private async Task ExcluirFoto(int fotoId, string nomeArquivo)
+    {
+        var confirmado = true;/* await _confirmService.ConfirmAsync($"Deseja realmente excluir a foto '{nomeArquivo}'? Esta ação não pode ser desfeita.", "Confirmar Exclusão"); */
+
+        if (confirmado)
+        {
+            try
+            {
+                var sucesso = await _categoriaService.ExcluirFoto(id, fotoId);
+
+                if (sucesso)
+                {
+                    NotificacaoService.ShowSuccess($"Foto '{nomeArquivo}' excluída com sucesso!", "Exclusão");
+
+                    // Recarrega os dados para atualizar a lista de fotos
+                    await CarregarDadosCategoria();
+                }
+                else
+                {
+                    NotificacaoService.ShowError("Erro ao excluir a foto.", "Erro");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Erro ao excluir foto {FotoId} da categoria {CategoriaId}", fotoId, id);
+                NotificacaoService.ShowError($"Erro ao excluir foto: {ex.Message}", "Erro");
+            }
+        }
+    }
+
+    // ===== MÉTODO PRINCIPAL DE ENVIO =====
+    private async Task ManipularEnvio()
+    {
+        if (categoriaEdit == null || categoriaOriginal == null) return;
+
+        if (!ValidarDados())
+            return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            Logger.LogInformation("Atualizando categoria ID: {CategoriaId}", id);
+
+            var sucesso = await _categoriaService.Atualizar(id, categoriaEdit);
+
+            if (sucesso.Value)
+            {
+                NotificacaoService.ShowSuccess("Categoria atualizada com sucesso!", "Sucesso");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo($"/categorias/visualizar/{id}");
+            }
+            else
+            {
+                Logger.LogWarning("Falha ao atualizar categoria {CategoriaId}", id);
+                NotificacaoService.ShowWarning("Não foi possível atualizar a categoria", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ERRO ao editar categoria {CategoriaId}", id);
+            NotificacaoService.ShowError($"Erro ao atualizar categoria: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== VALIDAÇÃO ADICIONAL =====
+    private bool ValidarDados()
+    {
+        if (categoriaEdit == null) return false;
+
+        if (string.IsNullOrWhiteSpace(categoriaEdit.Nome))
+        {
+            NotificacaoService.ShowWarning("O nome da categoria é obrigatório", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.ValorDiaria <= 0)
+        {
+            NotificacaoService.ShowWarning("O valor da diária deve ser maior que zero", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.LimiteKm < 0)
+        {
+            NotificacaoService.ShowWarning("O limite de KM não pode ser negativo", "Validação");
+            return false;
+        }
+
+        if (categoriaEdit.ValorKmExcedente < 0)
+        {
+            NotificacaoService.ShowWarning("O valor do KM excedente não pode ser negativo", "Validação");
+            return false;
+        }
+
+        return true;
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Voltar()
+    {
+        if (PossuiAlteracoesNaoSalvas())
+        {
+            Navegacao.NavigateTo($"/categorias/visualizar/{id}");
+        }
+        else
+        {
+            Navegacao.NavigateTo($"/categorias/visualizar/{id}");
+        }
+    }
+
+    private void Cancelar() => Voltar();
+
+    private bool PossuiAlteracoesNaoSalvas()
+    {
+        if (categoriaEdit == null || categoriaOriginal == null) return false;
+
+        return categoriaEdit.Nome != categoriaOriginal.Nome ||
+               Math.Abs(categoriaEdit.LimiteKm - (categoriaOriginal.LimiteKm ?? 0)) > 0 ||
+               Math.Abs(categoriaEdit.ValorKmExcedente - (categoriaOriginal.ValorKmExcedente ?? 0)) > 0.01 ||
+               Math.Abs(categoriaEdit.ValorDiaria - (categoriaOriginal.ValorDiaria ?? 0)) > 0.01;
+    }
+}

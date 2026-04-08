@@ -1,0 +1,296 @@
+﻿@page "/filiais"
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Components.Notificacao
+@using Locadora_Auto.Front.Components.UI
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Tabelas
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject ICategoriaService _categoriaService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
+
+<div class="container-fluid py-4">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Categorias</h2>
+            <p class="text-muted">Gerencie as categorias de veículos do sistema</p>
+        </div>
+    </div>
+
+    <!-- Tabela genérica de categorias -->
+    <TabelaGenerica TItem="CategoriaResponse"
+                    @bind-PaginaAtual="paginaAtual"
+                    @bind-ItensPorPagina="itensPorPagina"
+                    @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                    @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                    @bind-TermoBusca="termoBuscaGlobal"
+                    Items="categorias"
+                    TotalItens="totalItems"
+                    Colunas="colunas"
+                    Carregando="carregando"
+                    OnCarregarDados="CarregarCategorias"
+                    Titulo="Categorias de Veículos"
+                    PlaceholderBusca="Pesquisar por nome..."
+                    SelecaoHabilitada="true"
+                    LarguraColunaAcoes="200"
+                    Acoes="acoes"
+                    AcoesEmMassa="acoesEmMassa"
+                    ObterId="@(c => c.Id.ToString())"
+                    IconeVazio="bi-tags"
+                    MensagemVazio="Nenhuma categoria encontrada"
+                    MensagemVazioDetalhe="Clique em 'Nova Categoria' para começar">
+
+        <!-- Ações no cabeçalho -->
+        <AcoesCabecalho>
+            <a href="/categorias/nova" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Nova Categoria
+            </a>
+        </AcoesCabecalho>
+    </TabelaGenerica>
+</div>
+
+@code {
+    // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
+    private ConfirmDialog? confirmDialog;
+
+    // ===== VARIÁVEIS DE ESTADO =====
+    private List<CategoriaResponse> categorias = new();
+    private bool carregando;
+    private int totalItems;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
+    private List<ColunaTabela<CategoriaResponse>> colunas = new()
+    {
+        new()
+        {
+            Titulo = "Nome",
+            Propriedade = "Nome",
+            Largura = "250",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Valor Diária",
+            Propriedade = "ValorDiaria",
+            Largura = "120",
+            Formato = "C2",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Limite KM",
+            Propriedade = "LimiteKm",
+            Largura = "100",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Valor KM Excedente",
+            Propriedade = "ValorKmExcedente",
+            Largura = "140",
+            Formato = "C2",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Total Veículos",
+            Propriedade = "TotalVeiculos",
+            Largura = "100",
+            Ordenavel = true
+        }
+    };
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private List<AcaoTabela<CategoriaResponse>> acoes => new()
+    {
+        new()
+        {
+            Titulo = "Visualizar",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/visualizar/{c.Id}")
+        },
+        new()
+        {
+            Titulo = "Editar",
+            Icone = "bi-pencil",
+            Cor = "primary",
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/editar/{c.Id}")
+        },
+        new()
+        {
+            Titulo = "Fotos",
+            Icone = "bi-camera",
+            Cor = "success",
+            Acao = async (c) => Navegacao.NavigateTo($"/categorias/{c.Id}/fotos")
+        },
+        new()
+        {
+            Titulo = "Excluir",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (c) => await ExcluirCategoria(c.Id.ToString(), c.Nome)
+        }
+    };
+
+    // ===== AÇÕES EM MASSA =====
+    private List<AcaoEmMassa> acoesEmMassa => new()
+    {
+        new()
+        {
+            Titulo = "Exportar selecionados",
+            Icone = "bi-file-earmark-excel",
+            Cor = "success",
+            Acao = async (ids) => await ExportarSelecionados(ids),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Excluir selecionados",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (ids) => await ExcluirSelecionados(ids),
+            MostrarQuantidade = true
+        }
+    };
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarCategorias();
+    }
+
+    // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
+    private async Task CarregarCategorias()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await _categoriaService.ObterTodos(
+                nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina);
+
+            categorias = resultado?.Items?.ToList() ?? new();
+            totalItems = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}", "Erro");
+            categorias = new();
+            totalItems = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private async Task ExcluirCategoria(string id, string nome)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir a categoria '{nome}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
+
+        if (confirmado)
+        {
+            try
+            {
+                var sucesso = await _categoriaService.Excluir(id);
+                if (sucesso)
+                {
+                    NotificacaoService.ShowSuccess($"Categoria {nome} excluída com sucesso!", "Exclusão");
+
+                    if (categorias.Count == 1 && paginaAtual > 1)
+                    {
+                        paginaAtual--;
+                    }
+
+                    await CarregarCategorias();
+                }
+                else
+                {
+                    NotificacaoService.ShowError($"Erro ao excluir categoria.", "Erro");
+                }
+            }
+            catch (Exception ex)
+            {
+                NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+            }
+        }
+    }
+
+    // ===== AÇÕES EM MASSA =====
+    private async Task ExportarSelecionados(List<string> ids)
+    {
+        var nomes = categorias
+            .Where(c => ids.Contains(c.Id.ToString()))
+            .Select(c => c.Nome)
+            .ToList();
+
+        NotificacaoService.ShowInfo($"Exportando {ids.Count} categorias: {string.Join(", ", nomes)}", "Exportação");
+        // TODO: Implementar exportação real (Excel, CSV, etc)
+    }
+
+    private async Task ExcluirSelecionados(List<string> ids)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir {ids.Count} categoria(s)? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão em Massa");
+
+        if (confirmado)
+        {
+            var sucessos = 0;
+            var erros = 0;
+
+            foreach (var id in ids)
+            {
+                try
+                {
+                    var sucesso = await _categoriaService.Excluir(id);
+                    if (sucesso)
+                        sucessos++;
+                    else
+                        erros++;
+                }
+                catch
+                {
+                    erros++;
+                }
+            }
+
+            if (erros == 0)
+            {
+                NotificacaoService.ShowSuccess($"{sucessos} categoria(s) excluída(s) com sucesso!", "Sucesso");
+
+                if (categorias.Count == ids.Count && paginaAtual > 1)
+                {
+                    paginaAtual--;
+                }
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"{sucessos} excluídas, {erros} falhas", "Atenção");
+            }
+
+            await CarregarCategorias();
+        }
+    }
+}
