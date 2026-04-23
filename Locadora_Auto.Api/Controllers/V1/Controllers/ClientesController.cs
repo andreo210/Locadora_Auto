@@ -6,7 +6,7 @@ using Locadora_Auto.Domain;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
-namespace Locadora_Auto.API.Controllers
+namespace Locadora_Auto.Api.Controllers.V1.Controllers
 {
     /// <summary>
     /// Controller para gerenciamento de clientes

@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <Folder Include="Exceptions\" />
-    <Folder Include="V2\Controllers\" />
+    <Folder Include="Controllers\V2\Controllers\" />
   </ItemGroup>
 
   <ItemGroup>

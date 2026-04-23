@@ -1,11 +1,12 @@
 ﻿@page "/filial/visualizar/{id:int}"
+@using Locadora_Auto.Front.Services.Servicos.Filial
 @using Microsoft.AspNetCore.Components
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
-@inject ICategoriaService _categoriaService
+@inject IFilialService _filialService
 @inject IJSRuntime JSRuntime
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
@@ -17,9 +18,9 @@
                 <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </button>
-                <h2 class="mb-0">Detalhes da Categoria</h2>
+                <h2 class="mb-0">Detalhes da Filial</h2>
             </div>
-            <p class="text-muted mt-2">Visualize as informações completas da categoria</p>
+            <p class="text-muted mt-2">Visualize as informações completas da filial</p>
         </div>
     </div>
 
@@ -29,10 +30,10 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Carregando...</span>
             </div>
-            <p class="mt-2">Carregando dados da categoria...</p>
+            <p class="mt-2">Carregando dados da filial...</p>
         </div>
     }
-    else if (categoria == null)
+    else if (filial == null)
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -48,56 +49,65 @@
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
                             <i class="bi bi-tag me-2"></i>
-                            Informações da Categoria
+                            Informações da Filial
+                            @if (filial.Ativo == true)
+                            {
+                                <span class="badge @ObterBadgeStatus()">Ativo</span>
+                            }
+                            else
+                            {
+                                <span class="badge @ObterBadgeStatus()">Inativo</span>
+                            }
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="fw-bold text-muted small">Nome</label>
-                                <p class="mb-0 fs-5">@categoria.Nome</p>
+                                <p class="mb-0 fs-5">@filial.Nome</p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Valor da Diária</label>
+                                <label class="fw-bold text-muted small">Cidade</label>
+                                <p class="mb-0 fs-5">@filial.Cidade</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Total de veiculos</label>
                                 <p class="mb-0 fs-5 text-success">
-                                    @(categoria.ValorDiaria?.ToString("C2") ?? "R$ 0,00")
+                                    @(filial.TotalVeiculos.ToString("N0") ?? "0")
+                                </p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Total de veiculos</label>
+                                <p class="mb-0 fs-5 text-success">
+                                    @(filial.TotalVeiculos.ToString("N0") ?? "0")
                                 </p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Limite por Kilometro</label>
+                                <label class="fw-bold text-muted small">Total de locações no mês</label>
                                 <p class="mb-0">
-                                    @(categoria.LimiteKm?.ToString("N0") ?? "0") km
+                                    @(filial.TotalLocacoesMes.ToString("N0") ?? "0") 
                                 </p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Valor do Km Excedente</label>
-                                <p class="mb-0 text-warning">
-                                    @(categoria.ValorKmExcedente?.ToString("C2") ?? "R$ 0,00")
-                                </p>
+                                <label class="fw-bold text-muted small">Veiculo disponível</label>
+                                <p class="mb-0 fs-5">@filial.VeiculosDisponivel</p>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Total de Veículos</label>
-                                <p class="mb-0">
-                                    <i class="bi bi-car-front me-1"></i>
-                                    @(categoria.Totalveiculos?.ToString("N0") ?? "0")
-                                </p>
-                            </div>
-                        </div>
+                        </div>                        
                     </div>
                 </div>
             </div>
 
             <!-- Coluna de estatísticas -->
-            <div class="col-md-6">
+             <div class="col-md-6">
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-info text-white">
                         <h5 class="mb-0">
                             <i class="bi bi-images me-2"></i>
-                            Fotos da Categoria
+                            Fotos da Filial
                         </h5>
                     </div>
                     <div class="card-body">
@@ -105,22 +115,22 @@
                             <div class="display-1 text-info">
                                 <i class="bi bi-camera"></i>
                             </div>
-                            <h3 class="mt-2">@(categoria.Fotos?.Count ?? 0)</h3>
+                            <h3 class="mt-2">@(filial.Fotos?.Count ?? 0)</h3>
                             <p class="text-muted">foto(s) cadastrada(s)</p>
                             <hr />
                             <div class="mt-3">
                                 <i class="bi bi-calendar me-2"></i>
                                 <strong>Último upload:</strong>
-                                @(categoria.Fotos?.Any() == true? categoria.Fotos.Max(f => f.DataUpload).ToString("dd/MM/yyyy HH:mm"): "Nenhuma foto cadastrada")
+                                @(filial.Fotos?.Any() == true? filial.Fotos.Max(f => f.DataUpload).ToString("dd/MM/yyyy HH:mm"): "Nenhuma foto cadastrada")
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </div> 
     </div>
 
         <!-- Galeria de Fotos -->
-    @if (categoria.Fotos != null && categoria.Fotos.Any())
+        @if (filial.Fotos != null && filial.Fotos.Any())
         {
             <div class="row mt-3">
                 <div class="col-12">
@@ -128,12 +138,12 @@
                         <div class="card-header bg-secondary text-white">
                             <h5 class="mb-0">
                                 <i class="bi bi-images me-2"></i>
-                                Galeria de Fotos (@categoria.Fotos.Count)
+                                Galeria de Fotos (@filial.Fotos.Count)
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="gallery-grid">
-                                @foreach (var foto in categoria.Fotos)
+                                @foreach (var foto in filial.Fotos)
                                 {
                                     <div class="gallery-item">
                                         <div class="gallery-image-container">
@@ -178,7 +188,7 @@
                         <div class="card-body text-center py-5">
                             <i class="bi bi-camera fs-1 text-muted"></i>
                             <h5 class="mt-3">Nenhuma foto cadastrada</h5>
-                            <p class="text-muted">Esta categoria ainda não possui fotos.</p>
+                            <p class="text-muted">Esta filial ainda não possui fotos.</p>
                         </div>
                     </div>
                 </div>
@@ -254,7 +264,7 @@
     [Parameter] public int id { get; set; }
 
     // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
-    private CategoriaResponse? categoria;
+    private FilialResponse? filial;
     private bool carregando = true;
     private FotoResponse? fotoSelecionada;
 
@@ -272,12 +282,12 @@
             carregando = true;
             StateHasChanged();
 
-            categoria = await _categoriaService.ObterPorId(id.ToString());
+            filial = await _filialService.ObterPorId(id.ToString());
         }
         catch (Exception ex)
         {
             NotificacaoService.ShowError($"Erro ao carregar categoria: {ex.Message}");
-            categoria = null;
+            filial = null;
         }
         finally
         {
@@ -323,5 +333,14 @@
     private void Voltar()
     {
         Navegacao.NavigateTo("/categorias");
+    }
+
+    private string ObterBadgeStatus()
+    {
+        string status;
+        if (filial?.Ativo == null) return "bg-secondary";
+        if (filial?.Ativo == true) return "bg-success";
+        if (filial?.Ativo == false) return "bg-bg-danger";
+        return "bg-secondary";
     }
 }

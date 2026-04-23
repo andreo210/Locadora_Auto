@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel;
 using System.Net;
 
-namespace Locadora_Auto.Api.Controllers
+namespace Locadora_Auto.Api.Controllers.V1.Controllers
 {
     [ApiController]
     [Route("api/locacoes")]

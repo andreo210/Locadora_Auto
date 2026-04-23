@@ -1,6 +1,7 @@
 ﻿@page "/filial/nova"
 @using Blazored.FluentValidation
 @using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request
 @using Locadora_Auto.Front.Models.Request.Categoria
 @using Locadora_Auto.Front.Models.Request.Filial
 @using Locadora_Auto.Front.Models.Validadores
@@ -37,10 +38,12 @@
                             <InputText @bind-Value="filial.Nome" class="form-control" placeholder="Digite o nome da filial" />
                             <ValidationMessage For="@(() => filial.Nome)" />
                         </div>
-
+                    </div>
+                    <!-- Endereco-->
+                    <div class="card-body">
                         <!-- Endereco -->
-                        <div class="col-md-6">
-                            <EnderecoForm @bind-Endereco="filial.Endereco" Titulo="Endereço do Cliente" />
+                        <div class="mb-3">
+                            <EnderecoForm @bind-Endereco="filial.Endereco" Titulo="Endereço da Filial" />
                         </div>
                     </div>
                 </div>
@@ -75,6 +78,17 @@
     private CriarFilialRequest filial = new();
     private bool processando;
     private FluentValidationValidator? validadorFluent;
+    
+    protected override void OnInitialized()
+    {
+        // Inicializa o objeto Endereco se for necessário
+        if (filial.Endereco == null)
+        {
+            filial.Endereco = new EnderecoRequest();
+        }
+    }
+
+
 
     private async Task ManipularEnvio()
     {

@@ -3,7 +3,7 @@ using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Services.MultaServices;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Locadora_Auto.Api.V1.Controllers
+namespace Locadora_Auto.Api.Controllers.V1.Controllers
 {
     [ApiController]
     [Route("api/v1/multas")]

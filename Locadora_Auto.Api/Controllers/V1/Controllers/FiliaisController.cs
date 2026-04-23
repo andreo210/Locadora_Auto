@@ -1,11 +1,12 @@
-﻿using Locadora_Auto.Api.Controllers;
+﻿using k8s.Models;
+using Locadora_Auto.Api.Controllers;
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.FilialServices;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
-namespace Locadora_Auto.Api.V1.Controllers
+namespace Locadora_Auto.Api.Controllers.V1.Controllers
 {
     [ApiController]
     [Route("api/v1/filiais")]
@@ -23,11 +24,13 @@ namespace Locadora_Auto.Api.V1.Controllers
 
         // ========================= CONSULTAS =========================
 
+
+
         [HttpGet]
-        public async Task<IActionResult> ObterTodas(CancellationToken ct)
+        public async Task<IActionResult> ObterTodas(CancellationToken ct = default, [FromQuery] int pagina = 1, [FromQuery] int itensPorPagina = 10)
         {
-            var filiais = await _filialService.ObterTodasAsync(ct);
-            return CustomResponse(filiais);
+            var result = await _filialService.ObterTodosPaginadoAsync(pagina, itensPorPagina, ct);
+            return CustomResponse(result);
         }
 
         [HttpGet("{id:int}")]

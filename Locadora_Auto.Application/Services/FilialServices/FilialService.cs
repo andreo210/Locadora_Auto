@@ -1,12 +1,10 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
-using Locadora_Auto.Application.Models;
-using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
-using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -82,6 +80,30 @@ public class FilialService : IFilialService
     //        throw;
     //    }
     //}
+
+    public async Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default)
+    {
+        var categorias = await _filialRepository.ObterPaginadoComFiltroAsync(
+                filtro: (Expression<Func<Filial, bool>>?)null,
+                ordenarPor: (Func<IQueryable<Filial>, IOrderedQueryable<Filial>>?)(q => q.OrderBy(c => c.Nome)),
+                pagina: pagina,
+                itensPorPagina: itemPorPagina,
+                asNoTracking: true,
+                incluir: q => q.Include(c => c.Fotos),
+                ct: ct);
+
+        // Retornar resultado paginado com DTOs
+        return new PaginatedResult<FilialDto>
+        {
+            Items = categorias.Items.Select(c => c.ToDto()).ToList(),
+            Total = categorias.Total,
+            Pagina = categorias.Pagina,
+            TotalPaginas = categorias.TotalPaginas,
+            ItensPorPagina = categorias.ItensPorPagina
+        };
+
+    }
+
 
     public async Task<IReadOnlyList<FilialDto>> ObterTodasAsync(CancellationToken ct = default)
     {        

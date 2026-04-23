@@ -1,7 +1,7 @@
 ﻿using Locadora_Auto.Application.Services.OAuth.Token;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Locadora_Auto.Api.V1.Controllers
+namespace Locadora_Auto.Api.Controllers.V1.Controllers
 {
     [ApiController]
     [Route(".well-known")]

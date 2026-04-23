@@ -1,5 +1,6 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Microsoft.AspNetCore.Http;
 using System.Linq.Expressions;
@@ -12,6 +13,7 @@ namespace Locadora_Auto.Application.Services.FilialServices
         Task<FilialDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         //Task<FilialDto?> ObterPorIdComVeiculosAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<FilialDto>> ObterTodasAsync(CancellationToken ct = default);
+        Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterAtivasAsync(CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterPorCidadeAsync(string cidade, CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterPorEstadoAsync(string estado, CancellationToken ct = default);

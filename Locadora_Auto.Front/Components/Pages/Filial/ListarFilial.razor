@@ -4,10 +4,11 @@
 @using Locadora_Auto.Front.Components.UI
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Tabelas
+@using Locadora_Auto.Front.Services.Servicos.Filial
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
-@inject ICategoriaService _categoriaService
+@inject IFilialService _filialService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
@@ -20,38 +21,38 @@
     <!-- Cabeçalho da página -->
     <div class="row mb-4">
         <div class="col">
-            <h2>Categorias</h2>
-            <p class="text-muted">Gerencie as categorias de veículos do sistema</p>
+            <h2>Filiais</h2>
+            <p class="text-muted">Gerencie as filiais do sistema</p>
         </div>
     </div>
 
     <!-- Tabela genérica de categorias -->
-    <TabelaGenerica TItem="CategoriaResponse"
+    <TabelaGenerica TItem="FilialResponse"
                     @bind-PaginaAtual="paginaAtual"
                     @bind-ItensPorPagina="itensPorPagina"
                     @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
                     @bind-OrdenacaoDirecao="ordenacaoDirecao"
                     @bind-TermoBusca="termoBuscaGlobal"
-                    Items="categorias"
+                    Items="filiais"
                     TotalItens="totalItems"
                     Colunas="colunas"
                     Carregando="carregando"
-                    OnCarregarDados="CarregarCategorias"
-                    Titulo="Categorias de Veículos"
+                    OnCarregarDados="CarregarFiliais"
+                    Titulo="Filiais"
                     PlaceholderBusca="Pesquisar por nome..."
                     SelecaoHabilitada="true"
                     LarguraColunaAcoes="200"
                     Acoes="acoes"
                     AcoesEmMassa="acoesEmMassa"
-                    ObterId="@(c => c.Id.ToString())"
+                    ObterId="@(c => c.IdFilial.ToString())"
                     IconeVazio="bi-tags"
-                    MensagemVazio="Nenhuma categoria encontrada"
-                    MensagemVazioDetalhe="Clique em 'Nova Categoria' para começar">
+                    MensagemVazio="Nenhuma filial encontrada"
+                    MensagemVazioDetalhe="Clique em 'Nova Filial' para começar">
 
         <!-- Ações no cabeçalho -->
         <AcoesCabecalho>
-            <a href="/categorias/nova" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i>Nova Categoria
+            <a href="/filial/nova" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Nova Filial
             </a>
         </AcoesCabecalho>
     </TabelaGenerica>
@@ -62,7 +63,7 @@
     private ConfirmDialog? confirmDialog;
 
     // ===== VARIÁVEIS DE ESTADO =====
-    private List<CategoriaResponse> categorias = new();
+    private List<FilialResponse> filiais = new();
     private bool carregando;
     private int totalItems;
     private int paginaAtual = 1;
@@ -72,77 +73,54 @@
     private string termoBuscaGlobal = string.Empty;
 
     // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
-    private List<ColunaTabela<CategoriaResponse>> colunas = new()
+    private List<ColunaTabela<FilialResponse>> colunas = new()
     {
         new()
         {
             Titulo = "Nome",
             Propriedade = "Nome",
-            Largura = "250",
+            Largura = "350",
             Ordenavel = true
         },
         new()
         {
-            Titulo = "Valor Diária",
-            Propriedade = "ValorDiaria",
-            Largura = "120",
-            Formato = "C2",
-            Ordenavel = true
-        },
-        new()
-        {
-            Titulo = "Limite KM",
-            Propriedade = "LimiteKm",
-            Largura = "100",
-            Ordenavel = true
-        },
-        new()
-        {
-            Titulo = "Valor KM Excedente",
-            Propriedade = "ValorKmExcedente",
-            Largura = "140",
-            Formato = "C2",
-            Ordenavel = true
-        },
-        new()
-        {
-            Titulo = "Total Veículos",
-            Propriedade = "TotalVeiculos",
-            Largura = "100",
+            Titulo = "Cidade",
+            Propriedade = "Cidade",
+             Largura = "350",
             Ordenavel = true
         }
     };
 
     // ===== AÇÕES INDIVIDUAIS =====
-    private List<AcaoTabela<CategoriaResponse>> acoes => new()
+    private List<AcaoTabela<FilialResponse>> acoes => new()
     {
         new()
         {
             Titulo = "Visualizar",
             Icone = "bi-eye",
             Cor = "info",
-            Acao = async (c) => Navegacao.NavigateTo($"/categorias/visualizar/{c.Id}")
+            Acao = async (c) => Navegacao.NavigateTo($"/filial/visualizar/{c.IdFilial}")
         },
         new()
         {
             Titulo = "Editar",
             Icone = "bi-pencil",
             Cor = "primary",
-            Acao = async (c) => Navegacao.NavigateTo($"/categorias/editar/{c.Id}")
+            Acao = async (c) => Navegacao.NavigateTo($"/filial/editar/{c.IdFilial}")
         },
         new()
         {
             Titulo = "Fotos",
             Icone = "bi-camera",
             Cor = "success",
-            Acao = async (c) => Navegacao.NavigateTo($"/categorias/{c.Id}/fotos")
+            Acao = async (c) => Navegacao.NavigateTo($"/filial/{c.IdFilial}/fotos")
         },
         new()
         {
             Titulo = "Excluir",
             Icone = "bi-trash",
             Cor = "danger",
-            Acao = async (c) => await ExcluirCategoria(c.Id.ToString(), c.Nome)
+            Acao = async (c) => await ExcluirFiliais(c.IdFilial.ToString(), c.Nome)
         }
     };
 
@@ -170,29 +148,29 @@
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnInitializedAsync()
     {
-        await CarregarCategorias();
+        await CarregarFiliais();
     }
 
     // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
-    private async Task CarregarCategorias()
+    private async Task CarregarFiliais()
     {
         carregando = true;
         StateHasChanged();
 
         try
         {
-            var resultado = await _categoriaService.ObterTodos(
+            var resultado = await _filialService.ObterTodos(
                 nome: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
                 pagina: paginaAtual,
                 itensPorPagina: itensPorPagina);
 
-            categorias = resultado?.Items?.ToList() ?? new();
+            filiais = resultado?.Items?.ToList() ?? new();
             totalItems = resultado?.Total ?? 0;
         }
         catch (Exception ex)
         {
-            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}", "Erro");
-            categorias = new();
+            NotificacaoService.ShowError($"Erro ao carregar filiais: {ex.Message}", "Erro");
+            filiais = new();
             totalItems = 0;
         }
         finally
@@ -203,31 +181,31 @@
     }
 
     // ===== AÇÕES INDIVIDUAIS =====
-    private async Task ExcluirCategoria(string id, string nome)
+    private async Task ExcluirFiliais(string id, string nome)
     {
         var confirmado = await ConfirmService.ConfirmAsync(
-            $"Deseja realmente excluir a categoria '{nome}'? Esta ação não pode ser desfeita.",
+            $"Deseja realmente excluir a filial '{nome}'? Esta ação não pode ser desfeita.",
             "Confirmar Exclusão");
 
         if (confirmado)
         {
             try
             {
-                var sucesso = await _categoriaService.Excluir(id);
+                var sucesso = await _filialService.Excluir(id);
                 if (sucesso)
                 {
-                    NotificacaoService.ShowSuccess($"Categoria {nome} excluída com sucesso!", "Exclusão");
+                    NotificacaoService.ShowSuccess($"Filial {nome} excluída com sucesso!", "Exclusão");
 
-                    if (categorias.Count == 1 && paginaAtual > 1)
+                    if (filiais.Count == 1 && paginaAtual > 1)
                     {
                         paginaAtual--;
                     }
 
-                    await CarregarCategorias();
+                    await CarregarFiliais();
                 }
                 else
                 {
-                    NotificacaoService.ShowError($"Erro ao excluir categoria.", "Erro");
+                    NotificacaoService.ShowError($"Erro ao excluir filial.", "Erro");
                 }
             }
             catch (Exception ex)
@@ -240,19 +218,19 @@
     // ===== AÇÕES EM MASSA =====
     private async Task ExportarSelecionados(List<string> ids)
     {
-        var nomes = categorias
-            .Where(c => ids.Contains(c.Id.ToString()))
+        var nomes = filiais
+            .Where(c => ids.Contains(c.IdFilial.ToString()))
             .Select(c => c.Nome)
             .ToList();
 
-        NotificacaoService.ShowInfo($"Exportando {ids.Count} categorias: {string.Join(", ", nomes)}", "Exportação");
+        NotificacaoService.ShowInfo($"Exportando {ids.Count} filiais: {string.Join(", ", nomes)}", "Exportação");
         // TODO: Implementar exportação real (Excel, CSV, etc)
     }
 
     private async Task ExcluirSelecionados(List<string> ids)
     {
         var confirmado = await ConfirmService.ConfirmAsync(
-            $"Deseja realmente excluir {ids.Count} categoria(s)? Esta ação não pode ser desfeita.",
+            $"Deseja realmente excluir {ids.Count} Filial(s)? Esta ação não pode ser desfeita.",
             "Confirmar Exclusão em Massa");
 
         if (confirmado)
@@ -264,7 +242,7 @@
             {
                 try
                 {
-                    var sucesso = await _categoriaService.Excluir(id);
+                    var sucesso = await _filialService.Excluir(id);
                     if (sucesso)
                         sucessos++;
                     else
@@ -278,9 +256,9 @@
 
             if (erros == 0)
             {
-                NotificacaoService.ShowSuccess($"{sucessos} categoria(s) excluída(s) com sucesso!", "Sucesso");
+                NotificacaoService.ShowSuccess($"{sucessos} filial(s) excluída(s) com sucesso!", "Sucesso");
 
-                if (categorias.Count == ids.Count && paginaAtual > 1)
+                if (filiais.Count == ids.Count && paginaAtual > 1)
                 {
                     paginaAtual--;
                 }
@@ -290,7 +268,7 @@
                 NotificacaoService.ShowWarning($"{sucessos} excluídas, {erros} falhas", "Atenção");
             }
 
-            await CarregarCategorias();
+            await CarregarFiliais();
         }
     }
 }

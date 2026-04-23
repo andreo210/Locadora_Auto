@@ -1,14 +1,8 @@
-﻿using Locadora_Auto.Front.Models.Request;
-using Locadora_Auto.Front.Models.Request.Categoria;
+﻿using Locadora_Auto.Front.Models.Request.Categoria;
 using Locadora_Auto.Front.Models.Request.Filial;
 using Locadora_Auto.Front.Models.Response;
 using Microsoft.AspNetCore.Components.Forms;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Locadora_Auto.Front.Services.Servicos.Filial
 {
@@ -55,12 +49,12 @@ namespace Locadora_Auto.Front.Services.Servicos.Filial
             return await _api.DeleteAsync($"api/v1/categorias-veiculos/{id}");
         }
 
-        public async Task<CategoriaResponse> ObterPorId(string id)
+        public async Task<FilialResponse> ObterPorId(string id)
         {
-            return await _api.GetAsync<CategoriaResponse>($"api/v1/categorias-veiculos/{id}");
+            return await _api.GetAsync<FilialResponse>($"api/v1/filiais/{id}");
         }
 
-        public async Task<PaginatedResponse<CategoriaResponse>> ObterTodos(
+        public async Task<PaginatedResponse<FilialResponse>> ObterTodos(
         string? nome = null,
         int pagina = 1,
         int itensPorPagina = 10,
@@ -79,9 +73,9 @@ namespace Locadora_Auto.Front.Services.Servicos.Filial
 
 
             var queryString = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
-            var url = $"api/v1/categorias-veiculos{queryString}";
+            var url = $"api/v1/filiais{queryString}";
 
-            return await _api.GetAsync<PaginatedResponse<CategoriaResponse>>(url);
+            return await _api.GetAsync<PaginatedResponse<FilialResponse>>(url);
         }
     }
 }

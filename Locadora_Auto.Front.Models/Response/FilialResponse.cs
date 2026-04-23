@@ -12,5 +12,7 @@
         public int TotalLocacoesMes { get; set; }
         public DateTime DataCriacao { get; set; }
         public DateTime? DataModificacao { get; set; }
+
+        public List<FotoResponse>? Fotos { get; set; }
     }
 }
