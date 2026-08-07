@@ -1,0 +1,6 @@
+2026-03-26 09:03:45.324 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-26 09:03:45.406 -03:00 [INF] Hosting environment: Development
+2026-03-26 09:03:45.408 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-26 09:05:35.940 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/Categorias/obter-clientes-paginado/?pagina=1&itensPorPagina=10
+2026-03-26 09:05:48.903 -03:00 [INF] ❌ Fechando notificação manualmente
+2026-03-26 09:06:21.741 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/Categorias/obter-clientes-paginado/?pagina=1&itensPorPagina=10

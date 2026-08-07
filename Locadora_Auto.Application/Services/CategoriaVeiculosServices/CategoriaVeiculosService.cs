@@ -1,13 +1,14 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
-using Locadora_Auto.Application.Models;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
-using Locadora_Auto.Infra.Data.Repositorio;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 {
@@ -15,7 +16,6 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
     {
         private readonly ICategoriaVeiculosRepository _repository;
         private readonly INotificadorService _notificador;
-        private readonly ILogger<CategoriaVeiculoService> _logger;
         private readonly IUploadDownloadFileService _uploadDownloadFileService;
 
         public CategoriaVeiculoService(
@@ -26,22 +26,39 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _notificador = notificador ?? throw new ArgumentNullException(nameof(notificador));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _uploadDownloadFileService = uploadDownloadFileService ?? throw new ArgumentNullException(nameof(uploadDownloadFileService));
         }
 
         #region Consultas
 
-        public async Task<IReadOnlyList<CategoriaVeiculoDto>> ObterTodosAsync(CancellationToken ct = default)
+        public async Task<PaginatedResult<CategoriaVeiculoDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default)
         {
-            var categorias = await _repository.ObterAsync(ordenarPor: q => q.OrderBy(c => c.Nome), ct: ct);
+            var categorias = await _repository.ObterPaginadoComFiltroAsync(
+                    filtro: (Expression<Func<CategoriaVeiculo, bool>>?)null,
+                    ordenarPor: (Func<IQueryable<CategoriaVeiculo>, IOrderedQueryable<CategoriaVeiculo>>?)(q => q.OrderBy(c => c.Nome)),
+                    pagina: pagina,
+                    itensPorPagina: itemPorPagina,
+                    asNoTracking: true,
+                    incluir: q => q.Include(c => c.Fotos),
+                    ct: ct);
 
-            return categorias.Select(c => c.ToDto()).ToList();
+            //return categorias.Select(c => c.ToDto()).ToList();
+
+            // Retornar resultado paginado com DTOs
+            return new PaginatedResult<CategoriaVeiculoDto>
+            {
+                Items = categorias.Items.Select(c => c.ToDto()).ToList(),
+                Total = categorias.Total,
+                Pagina = categorias.Pagina,
+                TotalPaginas = categorias.TotalPaginas,
+                ItensPorPagina = categorias.ItensPorPagina
+            };
+
         }
 
         public async Task<CategoriaVeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id,rastreado:true, ct: ct);
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct, incluir: q => q.Include(x => x.Fotos));
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -50,9 +67,10 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
             return categoria.ToDto();
         }
+        
         private async Task<CategoriaVeiculo?> ObterPorId(int id, CancellationToken ct = default)
         {
-            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct);
+            var categoria = await _repository.ObterPrimeiroAsync(c => c.Id == id, rastreado: true, ct: ct, incluir:q => q.Include(c => c.Fotos));
             if (categoria == null)
             {
                 _notificador.Add("Categoria não encontrada.");
@@ -65,12 +83,12 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
 
         #region CRUD
 
-        public async Task<bool> CriarAsync(CriarCategoriaVeiculoDto dto, CancellationToken ct = default)
+        public async Task<CategoriaVeiculoDto> CriarAsync(CriarCategoriaVeiculoDto dto, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(dto.Nome))
             {
                 _notificador.Add("Nome da categoria é obrigatório.");
-                return false;
+                return null;
             }
 
             var existe = await _repository.ExisteAsync(c => c.Nome == dto.Nome.Trim(), ct);
@@ -78,19 +96,19 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
             if (existe)
             {
                 _notificador.Add("Já existe uma categoria com esse nome.");
-                return false;
+                return null;
             }
 
             if (dto.ValorDiaria <= 0)
             {
                 _notificador.Add("Valor da diária deve ser maior que zero.");
-                return false;
+                return null;
             }
 
             var entidade = CategoriaVeiculo.Criar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
             await _repository.InserirSalvarAsync(entidade, ct);
 
-            return true;
+            return entidade.ToDto();
         }
 
         public async Task<bool> AtualizarAsync(int id, AtualizarCategoriaVeiculoDto dto, CancellationToken ct = default)
@@ -160,6 +178,25 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
                 return false;
             }
             categoria.AdicionarFoto(lista);
+
+            return await _repository.AtualizarSalvarAsync(categoria, ct);
+        }
+
+        public async Task<bool> ExluirFotoCategoriaAsync(int id, int idFoto, CancellationToken ct = default)
+        {
+            var categoria = await ObterPorId(id, ct);
+            if (categoria == null)
+            {
+                _notificador.Add($"Categoria com ID {id} não encontrada.");
+                return false;
+            };
+            var fotosEntity = categoria.Fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (fotosEntity == null)
+            {
+                _notificador.Add("Nenhuma foto foi encontrada.");
+                return false;
+            }
+            categoria.RemoverFoto(fotosEntity.IdFoto.Value);
 
             return await _repository.AtualizarSalvarAsync(categoria, ct);
         }

@@ -1,0 +1,7 @@
+2026-03-23 09:29:07.619 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-23 09:29:07.680 -03:00 [INF] Hosting environment: Development
+2026-03-23 09:29:07.681 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-23 09:30:27.783 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-03-23 09:46:53.074 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-23 09:46:53.161 -03:00 [INF] Hosting environment: Development
+2026-03-23 09:46:53.163 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front

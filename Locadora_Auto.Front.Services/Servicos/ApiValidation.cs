@@ -1,6 +1,6 @@
 ﻿using Locadora_Auto.Front.Models.Error;
 using Locadora_Auto.Front.Services.Models;
-using Locadora_Auto.Front.Services.Servicos.Notificacao;
+using Locadora_Auto.Front.Services.Utils.Notificacao;
 using System;
 using System.Collections.Generic;
 using System.Linq;

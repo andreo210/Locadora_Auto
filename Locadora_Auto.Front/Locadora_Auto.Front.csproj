@@ -11,6 +11,11 @@
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.24" />
+	  <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+	  <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+	  <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+	  <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+	  <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +27,7 @@
     <Folder Include="Components\Shared\" />
     <Folder Include="Components\Pages\Dashboard\" />
     <Folder Include="Components\Pages\Shared\" />
+    <Folder Include="logs\" />
   </ItemGroup>
 
 </Project>

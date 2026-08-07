@@ -1,15 +1,16 @@
 ﻿@page "/funcionarios"
-@using Locadora_Auto.Front.Components.UI
 @using Locadora_Auto.Front.Components.Notificacao
-@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Components.UI
 @using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Tabelas
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
-@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject IFuncionarioService FuncionarioService
 @inject INotificationService NotificacaoService
 @inject IConfirmDialogService ConfirmService
+@inject ILogger<FuncionarioResponse> Logger
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
 
@@ -302,7 +303,9 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "ERRO ao carregar funcionários - Página: {Pagina}, Filtros: {@Filtros}",paginaAtual, new { filtroCargo, filtroAtivo, termoBuscaGlobal });
             NotificacaoService.ShowError($"Erro ao carregar funcionários: {ex.Message}", "Erro");
+
             funcionarios = new();
             totalItems = 0;
         }

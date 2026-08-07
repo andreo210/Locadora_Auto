@@ -117,12 +117,12 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             if (tamanhoPagina < 1) tamanhoPagina = 10;
             if (tamanhoPagina > 100) tamanhoPagina = 100;
 
-            var skip = (pagina - 1) * tamanhoPagina;
+
 
             var entidades = await _clienteRepository.ObterPaginadoAsync(
                 filtro: c => c.Ativo,
-                skip: skip,
-                take: tamanhoPagina,
+                pagina: pagina,
+                ItemPorPagina: tamanhoPagina,
                 ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto),
                 ct: ct);
             return entidades.Select(d => d.ToDto()).ToList();
@@ -340,7 +340,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             }
 
             // Validações de campos únicos
-            if (!await ValidarAtualizacaoClienteAsync(clienteDto,ct)) return false;
+            if (!await ValidarAtualizacaoClienteAsync(clienteDto,cliente,ct)) return false;
            
             // Atualizar campos
             cliente.Atualizar(clienteDto!.NumeroHabilitacao,clienteDto.ValidadeHabilitacao!.Value,clienteDto.Endereco.ToEntity());
@@ -639,10 +639,13 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         
 
-        private async Task<bool> ValidarAtualizacaoClienteAsync(AtualizarClienteDto clienteDto, CancellationToken ct)
+        private async Task<bool> ValidarAtualizacaoClienteAsync(AtualizarClienteDto clienteDto,Clientes clientes, CancellationToken ct)
         {
             // Verificar se email já existe
-            if (!await VerificarDisponibilidadeEmailAsync(clienteDto.Email, ct)) _notificador.Add($"Email {clienteDto.Email} já cadastrado.");
+            if (!await VerificarDisponibilidadeEmailAsync(clienteDto.Email, ct))
+            {
+                if(clientes.Usuario.Email != clienteDto.Email) _notificador.Add($"Email {clienteDto.Email} já cadastrado.");
+            }
 
             // Validar email
             if (!ValidarEmail(clienteDto.Email)) _notificador.Add("Email inválido.");

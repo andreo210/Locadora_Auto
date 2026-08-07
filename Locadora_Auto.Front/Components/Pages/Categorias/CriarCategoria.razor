@@ -1,0 +1,174 @@
+﻿@page "/categorias/nova"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request.Categoria
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject ICategoriaService _categoriaService
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Nova Categoria</h2>
+            <p class="text-muted">Preencha os dados para cadastrar uma nova categoria</p>
+        </div>
+    </div>
+
+    <EditForm Model="@categoria" OnValidSubmit="@ManipularEnvio">
+        <FluentValidationValidator @ref="validadorFluent" />
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados da Categoria</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="categoria.Nome" class="form-control" placeholder="Digite o nome da categoria" />
+                            <ValidationMessage For="@(() => categoria.Nome)" />
+                        </div>
+
+                        <!-- Valor da diária - usando InputMoeda -->
+                        <div class="mb-3">
+                            <label class="form-label">Valor da diária <span class="text-danger">*</span></label>
+                            <InputMoeda @bind-Value="categoria.ValorDiaria"
+                                        class="form-control"
+                                        placeholder="R$ 0,00" />
+                            <ValidationMessage For="@(() => categoria.ValorDiaria)" />
+                            <small class="form-text text-muted">Digite apenas números. Ex: 15090 = R$ 150,90</small>
+                        </div>
+
+                        <!-- Limite de Km -->
+                        <div class="mb-3">
+                            <label class="form-label">Limite de Km <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="categoria.LimiteKm"
+                                         class="form-control"
+                                         placeholder="Digite o limite de quilômetros" />
+                            <ValidationMessage For="@(() => categoria.LimiteKm)" />
+                        </div>
+
+                        <!-- Valor do km excedente - usando InputMoeda -->
+                        <div class="mb-3">
+                            <label class="form-label">Valor do km excedente <span class="text-danger">*</span></label>
+                            <InputMoeda @bind-Value="categoria.ValorKmExcedente"
+                                        class="form-control"
+                                        placeholder="R$ 0,00" />
+                            <ValidationMessage For="@(() => categoria.ValorKmExcedente)" />
+                            <small class="form-text text-muted">Digite apenas números. Ex: 250 = R$ 2,50</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Salvar Categoria</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private CriarCategoriaRequest categoria = new();
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Valida o modelo usando FluentValidation
+            var validador = new CategoriaValidator();
+            var resultado = await validador.ValidateAsync(categoria);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                processando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Chama o serviço para inserir a categoria
+            var categoriaCriada = await _categoriaService.Inserir(categoria);
+
+            if (categoriaCriada != null)
+            {
+                NotificacaoService.ShowSuccess("Categoria cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(2000);
+                Navegacao.NavigateTo("/categorias");
+            }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao cadastrar categoria.", "Erro no Cadastro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar categoria: {ex.Message}", "Erro no Cadastro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar()
+    {
+        if (PossuiAlteracoesNaoSalvas())
+        {
+            // TODO: Implementar diálogo de confirmação
+            Navegacao.NavigateTo("/categorias");
+        }
+        else
+        {
+            Navegacao.NavigateTo("/categorias");
+        }
+    }
+
+    private bool PossuiAlteracoesNaoSalvas()
+    {
+        bool nomePreenchido = !string.IsNullOrEmpty(categoria.Nome);
+        bool valorDiariaPreenchido = categoria.ValorDiaria > 0;
+        bool limiteKmPreenchido = categoria.LimiteKm > 0;
+        bool valorKmExcedentePreenchido = categoria.ValorKmExcedente > 0;
+
+        return nomePreenchido ||
+               valorDiariaPreenchido ||
+               limiteKmPreenchido ||
+               valorKmExcedentePreenchido;
+    }
+}

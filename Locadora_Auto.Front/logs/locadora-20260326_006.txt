@@ -1,0 +1,6 @@
+2026-03-26 10:03:06.500 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-26 10:03:06.576 -03:00 [INF] Hosting environment: Development
+2026-03-26 10:03:06.578 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
+2026-03-26 10:09:34.504 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-03-26 10:09:34.569 -03:00 [INF] Hosting environment: Development
+2026-03-26 10:09:34.571 -03:00 [INF] Content root path: C:\Users\andreoa\source\repos\Locadora_auto-Api\Locadora_Auto\Locadora_Auto.Front
