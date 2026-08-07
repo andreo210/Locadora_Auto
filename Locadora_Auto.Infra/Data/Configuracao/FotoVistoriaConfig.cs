@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<FotoVistoria> builder)
         {
-            builder.ToTable("tbFotoVistoria");
+            builder.ToTable("tb_foto_vistoria");
 
             builder.HasKey(e => e.IdFoto);
 
@@ -22,7 +22,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                .HasColumnName("raiz");
 
             builder.Property(e => e.QuantidadeBytes)
-              .HasColumnName("quantidadeBytes");
+              .HasColumnName("quantidade_bytes");
 
             builder.Property(e => e.DataUpload)
                .HasColumnName("data_upload");

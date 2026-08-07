@@ -192,7 +192,7 @@ namespace Locadora_Auto.Api.V1.Controllers
         public async Task<IActionResult> Renovar([FromBody] string refreshToken)
         {
             var (idRefreshToken, validade) = ObterIdToken(refreshToken);
-            if (validade<DateTime.Now) return ValidationResponse("Token", "token expirado");
+            if (validade<DateTime.UtcNow) return ValidationResponse("Token", "token expirado");
 
             var user = await _userService.DesativarToken(idRefreshToken);
             if (user != null)

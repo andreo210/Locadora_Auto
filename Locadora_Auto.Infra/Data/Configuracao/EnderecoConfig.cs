@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Endereco> builder)
         {
-            builder.ToTable("tbEndereco");
+            builder.ToTable("tb_endereco");
 
             builder.HasKey(e => e.IdEndereco);
 

@@ -6,7 +6,7 @@ public class PagamentoConfig : IEntityTypeConfiguration<Pagamento>
 {
     public void Configure(EntityTypeBuilder<Pagamento> builder)
     {
-        builder.ToTable("tbPagamento");
+        builder.ToTable("tb_pagamento");
 
         builder.HasKey(p => p.IdPagamento);
 

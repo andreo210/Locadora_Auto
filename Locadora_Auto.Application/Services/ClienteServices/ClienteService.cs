@@ -83,7 +83,9 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         public async Task<IReadOnlyList<ClienteDto>> ObterPorNomeAsync(string nome, CancellationToken ct = default)
         {
             
-            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.NomeCompleto.Contains(nome) && c.Ativo, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
+            //ToLower nos dois lados: no Postgres o LIKE é sensível a maiúsculas, diferente do MySQL
+            var nomeBusca = nome.ToLower();
+            var entidades = await _clienteRepository.ObterAsync(filtro: c => c.Usuario.NomeCompleto.ToLower().Contains(nomeBusca) && c.Ativo, ordenarPor: q => q.OrderBy(c => c.Usuario.NomeCompleto), ct: ct);
             return entidades.Select(d=>d.ToDto()).ToList();
 
         }
@@ -149,7 +151,9 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
             if (!string.IsNullOrWhiteSpace(nome))
             {
-                condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
+                //ToLower nos dois lados: no Postgres o LIKE é sensível a maiúsculas, diferente do MySQL
+                var nomeBusca = nome.ToLower();
+                condicoes.Add(f => f.Usuario.NomeCompleto.ToLower().Contains(nomeBusca));
             }
 
             if (!string.IsNullOrWhiteSpace(cpf))

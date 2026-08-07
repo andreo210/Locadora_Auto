@@ -27,7 +27,7 @@
                 Raiz = raiz,
                 Diretorio = diretorio,
                 Extensao = extensao,
-                DataUpload = DateTime.Now,
+                DataUpload = DateTime.UtcNow,
                 QuantidadeBytes = quantidadeBytes
             };
         }

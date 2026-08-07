@@ -43,7 +43,7 @@ namespace Locadora_Auto.Domain.Entidades.Indentity
                 PhoneNumber = LimparTelefone(phoneNumber),
                 Email = email,
                 Ativo = true,
-                DataCriacao = DateTime.Now,
+                DataCriacao = DateTime.UtcNow,
                 NormalizedUserName = cpf,
             };
             

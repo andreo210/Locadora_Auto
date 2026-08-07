@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Multa> builder)
         {
-            builder.ToTable("tbMulta");
+            builder.ToTable("tb_multa");
 
             builder.HasKey(e => e.IdMulta);
 

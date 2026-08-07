@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<RefreshToken> builder)
         {
-            builder.ToTable("refreshTokens");
+            builder.ToTable("refresh_tokens");
 
             builder.HasKey(e => e.Id);
 

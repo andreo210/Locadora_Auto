@@ -26,7 +26,7 @@ namespace Locadora_Auto.Front.Midlleware
                     var jwt = handler.ReadJwtToken(accessToken);
 
                     // Se expirou
-                    if (jwt.ValidTo <= DateTime.Now)
+                    if (jwt.ValidTo <= DateTime.UtcNow)
                     {
                         if (!string.IsNullOrEmpty(refreshToken))
                         {
