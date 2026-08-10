@@ -1,0 +1,50 @@
+2026-08-10 09:27:08.240 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-10 09:27:08.309 -03:00 [INF] Hosting environment: Development
+2026-08-10 09:27:08.310 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-10 09:27:32.903 -03:00 [ERR] ERRO NÃO TRATADO NO FRONTEND: Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente. (localhost:44310)
+System.Net.Http.HttpRequestException: Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente. (localhost:44310)
+ ---> System.Net.Sockets.SocketException (10061): Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente.
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
+   at System.Net.Sockets.Socket.<ConnectAsync>g__WaitForConnectWithCancellation|285_0(AwaitableSocketAsyncEventArgs saea, ValueTask connectTask, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.ConnectToTcpHostAsync(String host, Int32 port, HttpRequestMessage initialRequest, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnectionPool.ConnectToTcpHostAsync(String host, Int32 port, HttpRequestMessage initialRequest, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.ConnectAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.CreateHttp11ConnectionAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.AddHttp11ConnectionAsync(QueueItem queueItem)
+   at System.Threading.Tasks.TaskCompletionSourceWithCancellation`1.WaitWithCancellationAsync(CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.DiagnosticsHandler.SendAsyncCore(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at Microsoft.Extensions.Http.Logging.LoggingHttpMessageHandler.<SendCoreAsync>g__Core|5_0(HttpRequestMessage request, Boolean useAsync, CancellationToken cancellationToken)
+   at Microsoft.Extensions.Http.Logging.LoggingScopeHttpMessageHandler.<SendCoreAsync>g__Core|5_0(HttpRequestMessage request, Boolean useAsync, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   at ApiHttpService.PostAsync[TResponse,TRequest](String url, TRequest data) in C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front.Services\Servicos\ApiHttpService.cs:line 69
+   at Locadora_Auto.Front.Services.Servicos.Login.LoginService.Login(LoginRequest request) in C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front.Services\Servicos\Login\LoginService.cs:line 27
+   at Program.<>c.<<<Main>$>b__0_1>d.MoveNext() in C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front\Program.cs:line 73
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)
+   at Microsoft.AspNetCore.Http.RequestDelegateFactory.<>c__DisplayClass104_2.<<HandleRequestBodyAndCompileRequestDelegateForForm>b__2>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Locadora_Auto.Front.Midlleware.TokenRefreshMiddleware.InvokeAsync(HttpContext context) in C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front\Midlleware\TokenRefreshMiddleware.cs:line 62
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Locadora_Auto.Front.Midlleware.ExceptionMiddleware.InvokeAsync(HttpContext context, INotificationService notificacaoService) in C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front\Midlleware\ExceptionMiddleware.cs:line 21
+2026-08-10 09:29:21.932 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-10 09:29:22.006 -03:00 [INF] Hosting environment: Development
+2026-08-10 09:29:22.008 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-10 19:04:22.657 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:04:24.329 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:04:26.861 -03:00 [INF] ❌ Fechando notificação manualmente
+2026-08-10 19:06:12.547 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:06:12.548 -03:00 [WRN] Categoria não encontrada: 1
+2026-08-10 19:07:10.955 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:07:10.955 -03:00 [WRN] Categoria não encontrada: 1
+2026-08-10 19:07:15.972 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:07:30.228 -03:00 [INF] ❌ Fechando notificação manualmente
+2026-08-10 19:07:37.500 -03:00 [INF] Carregando dados do cliente ID: 1
+2026-08-10 19:07:37.546 -03:00 [INF] Dados do cliente 1 carregados com sucesso
+2026-08-10 19:39:20.209 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:39:28.886 -03:00 [ERR] ❌ ERRO SERVIDOR: "InternalServerError" - /api/v1/Funcionarios/1 - {"Type":null,"Title":"InternalServerError","Status":500,"Detail":"Falha ao atualizar funcionário.","Instance":"/api/v1/Funcionarios/1","Extensions":{"traceId":"4000008c-000a-fa00-b63f-84710c7967bb"}}
+2026-08-10 19:39:35.577 -03:00 [ERR] ❌ ERRO SERVIDOR: "InternalServerError" - /api/v1/Funcionarios/1 - {"Type":null,"Title":"InternalServerError","Status":500,"Detail":"Falha ao atualizar funcionário.","Instance":"/api/v1/Funcionarios/1","Extensions":{"traceId":"4000008d-000a-fa00-b63f-84710c7967bb"}}

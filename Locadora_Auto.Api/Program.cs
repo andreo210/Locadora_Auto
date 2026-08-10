@@ -27,7 +27,7 @@ services.AddInjecaoDependenciaApplicationsConfig();
 //injetar servi�o do Infra.service
 services.AddHttpServices(config);
 
-//inje��o de dependencia do Infra
+//injeçãoo de dependencia do Infra
 services.AddPostgresDbContext<LocadoraDbContext>(config["ConnectionStrings:dbModelo"] ?? "");
 services.AddSqlServerRepositories();
 
