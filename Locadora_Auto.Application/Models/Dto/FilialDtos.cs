@@ -27,6 +27,8 @@
 
             public DateTime DataCriacao { get; set; }
             public DateTime? DataModificacao { get; set; }
+
+            public List<FotoDto>? Fotos { get; set; }
         }
 
         public class CriarFilialDto

@@ -1,16 +1,16 @@
-﻿@page "/filial/{categoriaId:int}/fotos"
+﻿@page "/filial/{filialId:int}/fotos"
 @using Locadora_Auto.Front.Models.Response
-@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Filial
 @using Locadora_Auto.Front.Services.Utils.Notificacao
-@inject ICategoriaService _categoriaService
+@inject IFilialService _filialService
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col">
-            <h2>Upload de Fotos - Categoria</h2>
-            <p class="text-muted">Adicione fotos para esta categoria</p>
+            <h2>Upload de Fotos - Filial</h2>
+            <p class="text-muted">Adicione fotos para esta filial</p>
         </div>
     </div>
 
@@ -24,12 +24,12 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Informações da categoria -->
-                    @if (categoria != null)
+                    <!-- Informações da filial -->
+                    @if (filial != null)
                     {
                         <div class="alert alert-info mb-4">
                             <i class="bi bi-info-circle me-2"></i>
-                            <strong>@categoria.Nome</strong> - Envie fotos para esta categoria
+                            <strong>@filial.Nome</strong> - Envie fotos para esta filial
                         </div>
                     }
 
@@ -146,29 +146,29 @@
 
 <style>
     .upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 1rem;
+        border: 2px dashed var(--borda-forte);
+        border-radius: var(--raio-3);
         padding: 2rem;
         text-align: center;
-        background-color: #f8f9fa;
+        background-color: var(--superficie-2);
         transition: all 0.3s;
         cursor: pointer;
     }
 
         .upload-area.drag-over {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
+            border-color: var(--marca-ui);
+            background-color: var(--marca-veu);
         }
 
     .upload-icon {
-        color: #6c757d;
+        color: var(--texto-suave);
     }
 
     .file-list {
         max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-2);
     }
 
     .file-item {
@@ -176,7 +176,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--borda);
     }
 
         .file-item:last-child {
@@ -191,7 +191,7 @@
 
         .file-info .bi {
             font-size: 1.25rem;
-            color: #0d6efd;
+            color: var(--marca-ui);
         }
 
     .file-name {
@@ -212,9 +212,9 @@
     .preview-item {
         position: relative;
         aspect-ratio: 1;
-        border-radius: 0.5rem;
+        border-radius: var(--raio-2);
         overflow: hidden;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--borda);
     }
 
         .preview-item img {
@@ -227,10 +227,10 @@
         position: absolute;
         top: 0.25rem;
         right: 0.25rem;
-        background: rgba(0, 0, 0, 0.6);
+        background: var(--scrim);
         border: none;
         border-radius: 50%;
-        color: white;
+        color: var(--branco);
         cursor: pointer;
         padding: 0.25rem;
         line-height: 1;
@@ -243,7 +243,7 @@
     }
 
         .btn-remove-preview:hover {
-            background: rgba(220, 53, 69, 0.9);
+            background: var(--perigo);
         }
 
         .btn-remove-preview .bi {
@@ -252,9 +252,9 @@
 </style>
 
 @code {
-    [Parameter] public int categoriaId { get; set; }
+    [Parameter] public int filialId { get; set; }
 
-    private CategoriaResponse? categoria;
+    private FilialResponse? filial;
     private List<IBrowserFile> arquivosSelecionados = new();
     private List<(IBrowserFile Arquivo, string Url)> previewUrls = new();
     private bool enviando;
@@ -262,18 +262,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await CarregarCategoria();
+        await CarregarFilial();
     }
 
-    private async Task CarregarCategoria()
+    private async Task CarregarFilial()
     {
         try
         {
-            categoria = await _categoriaService.ObterPorId(categoriaId.ToString());
+            filial = await _filialService.ObterPorId(filialId.ToString());
         }
         catch (Exception ex)
         {
-            NotificacaoService.ShowError($"Erro ao carregar categoria: {ex.Message}", "Erro");
+            NotificacaoService.ShowError($"Erro ao carregar filial: {ex.Message}", "Erro");
         }
     }
 
@@ -389,7 +389,7 @@
 
         try
         {
-            var sucesso = await _categoriaService.UploadFotos(categoriaId, arquivosSelecionados);
+            var sucesso = await _filialService.UploadFotos(filialId, arquivosSelecionados);
 
             if (sucesso)
             {
@@ -401,7 +401,7 @@
 
                 // Aguardar 2 segundos e voltar
                 await Task.Delay(2000);
-                Navegacao.NavigateTo($"/categorias/visualizar/{categoriaId}");
+                Navegacao.NavigateTo($"/filial/visualizar/{filialId}");
             }
             else
             {
@@ -421,7 +421,7 @@
 
     private void Cancelar()
     {
-        Navegacao.NavigateTo($"/categorias/visualizar/{categoriaId}");
+        Navegacao.NavigateTo($"/filial/visualizar/{filialId}");
     }
 
     private string FormatarTamanho(long bytes)

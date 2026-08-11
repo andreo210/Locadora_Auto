@@ -37,7 +37,7 @@ public class FilialService : IFilialService
     {
         var filial = await _filialRepository.ObterPrimeiroAsync(
             f => f.IdFilial == id,
-            incluir: e => e.Include(c => c.Endereco),
+            incluir: e => e.Include(c => c.Endereco).Include(f => f.Fotos),
             rastreado: false,
             ct: ct);
 
@@ -59,47 +59,35 @@ public class FilialService : IFilialService
         return filial;
     }
 
-    //public async Task<FilialDto?> ObterPorIdComVeiculosAsync(int id, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        _logger.LogInformation("Buscando filial com veículos por ID: {Id}", id);
-
-    //        var filial = await _filialRepository.ObterPorIdCompletoAsync(id, ct);
-    //        if (filial == null)
-    //            return null;
-
-    //        var totalVeiculos = filial.Veiculos?.Count ?? 0;
-    //        var veiculosDisponiveis = filial.Veiculos?.Count(v => v.Disponivel) ?? 0;
-
-    //        return filial.ToDto(totalVeiculos, veiculosDisponiveis);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar filial com veículos por ID: {Id}", id);
-    //        throw;
-    //    }
-    //}
-
-    public async Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default)
+    
+    public async Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, string? nome = null, CancellationToken ct = default)
     {
-        var categorias = await _filialRepository.ObterPaginadoComFiltroAsync(
-                filtro: (Expression<Func<Filial, bool>>?)null,
+        Expression<Func<Filial, bool>>? filtro = null;
+
+        // No Postgres o LIKE é sensível a maiúsculas: comparar em minúsculas dos dois lados
+        if (!string.IsNullOrWhiteSpace(nome))
+        {
+            var termo = nome.Trim().ToLower();
+            filtro = f => f.Nome.ToLower().Contains(termo) || f.Cidade.ToLower().Contains(termo);
+        }
+
+        var filiais = await _filialRepository.ObterPaginadoComFiltroAsync(
+                filtro: filtro,
                 ordenarPor: (Func<IQueryable<Filial>, IOrderedQueryable<Filial>>?)(q => q.OrderBy(c => c.Nome)),
                 pagina: pagina,
                 itensPorPagina: itemPorPagina,
                 asNoTracking: true,
-                incluir: q => q.Include(c => c.Fotos),
+                incluir: q => q.Include(c => c.Endereco).Include(c => c.Fotos),
                 ct: ct);
 
         // Retornar resultado paginado com DTOs
         return new PaginatedResult<FilialDto>
         {
-            Items = categorias.Items.Select(c => c.ToDto()).ToList(),
-            Total = categorias.Total,
-            Pagina = categorias.Pagina,
-            TotalPaginas = categorias.TotalPaginas,
-            ItensPorPagina = categorias.ItensPorPagina
+            Items = filiais.Items.Select(c => c.ToDto()).ToList(),
+            Total = filiais.Total,
+            Pagina = filiais.Pagina,
+            TotalPaginas = filiais.TotalPaginas,
+            ItensPorPagina = filiais.ItensPorPagina
         };
 
     }
@@ -123,123 +111,6 @@ public class FilialService : IFilialService
         }
         return resultado;        
     }
-
-    //public async Task<IReadOnlyList<FilialDto>> ObterAtivasAsync(CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        _logger.LogInformation("Buscando filiais ativas");
-
-    //        var filiais = await _filialRepository.ObterAtivasAsync(ct);
-
-    //        var resultado = new List<FilialDto>();
-
-    //        foreach (var filial in filiais)
-    //        {
-    //            var totalVeiculos = await _filialRepository.ContarVeiculosNaFilialAsync(filial.IdFilial, ct);
-    //            var veiculosDisponiveis = await _filialRepository.ContarVeiculosDisponiveisNaFilialAsync(filial.IdFilial, ct);
-
-    //            resultado.Add(filial.ToDto(totalVeiculos, veiculosDisponiveis));
-    //        }
-
-    //        return resultado;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar filiais ativas");
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<IReadOnlyList<FilialResumoDto>> ObterResumoAsync(CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        _logger.LogInformation("Buscando resumo das filiais");
-
-    //        var filiais = await _filialRepository.ObterAtivasAsync(ct);
-
-    //        var resultado = new List<FilialResumoDto>();
-
-    //        foreach (var filial in filiais)
-    //        {
-    //            var totalVeiculos = await _filialRepository.ContarVeiculosNaFilialAsync(filial.IdFilial, ct);
-    //            var veiculosDisponiveis = await _filialRepository.ContarVeiculosDisponiveisNaFilialAsync(filial.IdFilial, ct);
-
-    //            resultado.Add(filial.ToResumoDto(totalVeiculos, veiculosDisponiveis));
-    //        }
-
-    //        return resultado;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar resumo das filiais");
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<bool> ExisteFilialAsync(int id, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        return await _filialRepository.ExisteAsync(f => f.IdFilial == id, ct);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao verificar existência da filial: {Id}", id);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<int> ContarAtivasAsync(CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        return await _filialRepository.ContarAsync(f => f.Ativo, ct);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao contar filiais ativas");
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<IReadOnlyList<FilialDto>> ObterComFiltroAsync(
-    //    Expression<Func<Filial, bool>>? filtro = null,
-    //    Func<IQueryable<Filial>, IOrderedQueryable<Filial>>? ordenarPor = null,
-    //    CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        var filiais = await _repositorioGlobal.ObterComFiltroAsync<Filial>(
-    //            filtro: filtro,
-    //            incluir: q => q.Include(f => f.Endereco),
-    //            ordenarPor: ordenarPor,
-    //            asNoTracking: true,
-    //            ct: ct);
-
-    //        var resultado = new List<FilialDto>();
-
-    //        foreach (var filial in filiais)
-    //        {
-    //            var totalVeiculos = await _filialRepository.ContarVeiculosNaFilialAsync(filial.IdFilial, ct);
-    //            var veiculosDisponiveis = await _filialRepository.ContarVeiculosDisponiveisNaFilialAsync(filial.IdFilial, ct);
-
-    //            resultado.Add(filial.ToDto(totalVeiculos, veiculosDisponiveis));
-    //        }
-
-    //        return resultado;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar filiais com filtro");
-    //        throw;
-    //    }
-    //}
-
-    //#endregion
-
-    //#region Operações de CRUD
 
     public async Task<FilialDto> CriarFilialAsync(CriarFilialDto filialDto, CancellationToken ct = default)
     {
@@ -342,6 +213,27 @@ public class FilialService : IFilialService
         return atualizado;
     }
 
+    public async Task<bool> ExluirFotoFilialAsync(int id, int idFoto, CancellationToken ct = default)
+    {
+        var filial = await ObterPorId(id, ct);
+        if (filial == null)
+        {
+            _notificador.Add($"Filial com ID {id} não encontrada.");
+            return false;
+        }
+
+        var foto = filial.Fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+        if (foto == null)
+        {
+            _notificador.Add("Nenhuma foto foi encontrada.");
+            return false;
+        }
+
+        filial.RemoverFoto(foto.IdFoto.Value);
+
+        return await _filialRepository.AtualizarSalvarAsync(filial, ct);
+    }
+
     private async Task<List<FotoFilial>> EnviarFoto(List<IFormFile> dto)
     {
         var documentosAnexos = new List<FotoFilial>();
@@ -387,201 +279,17 @@ public class FilialService : IFilialService
 
     //#endregion
 
-    //#region Operações Específicas
-
-    //public async Task<bool> TransferirVeiculoAsync(int veiculoId, int filialOrigemId, int filialDestinoId, CancellationToken ct = default)
-    //{
-    //    await _unitOfWork.BeginTransactionAsync(ct);
-
-    //    try
-    //    {
-    //        _logger.LogInformation("Transferindo veículo {VeiculoId} da filial {Origem} para {Destino}",
-    //            veiculoId, filialOrigemId, filialDestinoId);
-
-    //        // Verificar se filiais existem e estão ativas
-    //        var filialOrigem = await _filialRepository.ObterPorIdAsync(filialOrigemId, ct);
-    //        var filialDestino = await _filialRepository.ObterPorIdAsync(filialDestinoId, ct);
-
-    //        if (filialOrigem == null || !filialOrigem.Ativo)
-    //            throw new InvalidOperationException("Filial de origem não encontrada ou inativa.");
-
-    //        if (filialDestino == null || !filialDestino.Ativo)
-    //            throw new InvalidOperationException("Filial de destino não encontrada ou inativa.");
-
-    //        // Buscar veículo
-    //        var veiculo = await _repositorioGlobal.ObterPrimeiroOuDefaultAsync<Veiculo>(
-    //            filtro: v => v.IdVeiculo == veiculoId && v.FilialId == filialOrigemId,
-    //            ct: ct);
-
-    //        if (veiculo == null)
-    //            throw new KeyNotFoundException($"Veículo {veiculoId} não encontrado na filial {filialOrigemId}.");
-
-    //        if (!veiculo.Disponivel)
-    //            throw new InvalidOperationException("Não é possível transferir veículo alugado.");
-
-    //        // Transferir veículo
-    //        veiculo.FilialId = filialDestinoId;
-
-    //        await _repositorioGlobal.AtualizarAsync(veiculo, ct);
-    //        await _unitOfWork.CommitAsync(ct);
-
-    //        _logger.LogInformation("Veículo {VeiculoId} transferido com sucesso", veiculoId);
-    //        return true;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        await _unitOfWork.RollbackAsync(ct);
-    //        _logger.LogError(ex, "Erro ao transferir veículo {VeiculoId}", veiculoId);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<IReadOnlyList<VeiculoDto>> ObterVeiculosDaFilialAsync(int filialId, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        _logger.LogInformation("Buscando veículos da filial {FilialId}", filialId);
-
-    //        var veiculos = await _repositorioGlobal.ObterComFiltroAsync<Veiculo>(
-    //            filtro: v => v.FilialId == filialId,
-    //            ordenarPor: q => q.OrderBy(v => v.Modelo),
-    //            asNoTracking: true,
-    //            ct: ct);
-
-    //        // Converter para DTO (ajuste conforme seu VeiculoDto)
-    //        return veiculos.Select(v => new VeiculoDto
-    //        {
-    //            IdVeiculo = v.IdVeiculo,
-    //            Modelo = v.Modelo,
-    //            Marca = v.Marca,
-    //            Placa = v.Placa,
-    //            Disponivel = v.Disponivel
-    //            // ... outros campos
-    //        }).ToList();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar veículos da filial {FilialId}", filialId);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<EstatisticasFilialDto> ObterEstatisticasFilialAsync(int filialId, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        _logger.LogInformation("Buscando estatísticas da filial {FilialId}", filialId);
-
-    //        // Verificar se filial existe
-    //        if (!await ExisteFilialAsync(filialId, ct))
-    //            throw new KeyNotFoundException($"Filial com ID {filialId} não encontrada.");
-
-    //        // Buscar dados agregados
-    //        var veiculos = await _repositorioGlobal.ObterComFiltroAsync<Veiculo>(
-    //            filtro: v => v.FilialId == filialId,
-    //            asNoTracking: true,
-    //            ct: ct);
-
-    //        var totalVeiculos = veiculos.Count;
-    //        var veiculosDisponiveis = veiculos.Count(v => v.Disponivel);
-    //        var veiculosAlugados = veiculos.Count(v => !v.Disponivel);
-
-    //        // Buscar locações do mês (exemplo)
-    //        var inicioMes = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-    //        var fimMes = inicioMes.AddMonths(1).AddDays(-1);
-
-    //        var locacoesMes = await _repositorioGlobal.ObterComFiltroAsync<Locacao>(
-    //            filtro: l => l.FilialRetiradaId == filialId &&
-    //                        l.DataLocacao >= inicioMes &&
-    //                        l.DataLocacao <= fimMes,
-    //            asNoTracking: true,
-    //            ct: ct);
-
-    //        var totalLocacoesMes = locacoesMes.Count;
-    //        var faturamentoMes = locacoesMes.Sum(l => l.ValorTotal);
-
-    //        // Calcular taxa de ocupação
-    //        var taxaOcupacao = totalVeiculos > 0
-    //            ? (decimal)veiculosAlugados / totalVeiculos * 100
-    //            : 0;
-
-    //        return new EstatisticasFilialDto
-    //        {
-    //            TotalVeiculos = totalVeiculos,
-    //            VeiculosDisponiveis = veiculosDisponiveis,
-    //            VeiculosAlugados = veiculosAlugados,
-    //            TotalLocacoesMes = totalLocacoesMes,
-    //            FaturamentoMes = faturamentoMes,
-    //            TaxaOcupacao = taxaOcupacao
-    //        };
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao buscar estatísticas da filial {FilialId}", filialId);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<bool> ValidarFilialParaLocacaoAsync(int filialId, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        var filial = await _filialRepository.ObterPorIdAsync(filialId, ct);
-
-    //        // Filial deve existir e estar ativa
-    //        if (filial == null || !filial.Ativo)
-    //            return false;
-
-    //        // Filial deve ter veículos disponíveis
-    //        var veiculosDisponiveis = await _filialRepository.ContarVeiculosDisponiveisNaFilialAsync(filialId, ct);
-    //        return veiculosDisponiveis > 0;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao validar filial para locação: {FilialId}", filialId);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<bool> FilialPossuiVeiculosAsync(int filialId, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        var totalVeiculos = await _filialRepository.ContarVeiculosNaFilialAsync(filialId, ct);
-    //        return totalVeiculos > 0;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao verificar se filial possui veículos: {FilialId}", filialId);
-    //        throw;
-    //    }
-    //}
-
-    //public async Task<bool> FilialPossuiLocacoesAtivasAsync(int filialId, CancellationToken ct = default)
-    //{
-    //    try
-    //    {
-    //        // Buscar locações ativas ou atrasadas na filial
-    //        var locacoesAtivas = await _repositorioGlobal.ExisteAsync<Locacao>(
-    //            l => (l.FilialRetiradaId == filialId || l.FilialDevolucaoId == filialId) &&
-    //                (l.Status == StatusLocacao.Ativa || l.Status == StatusLocacao.Atrasada),
-    //            ct);
-
-    //        return locacoesAtivas;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Erro ao verificar se filial possui locações ativas: {FilialId}", filialId);
-    //        throw;
-    //    }
-    //}
-
-    //#endregion
 
     //#region Validações
 
     public async Task<bool> ValidarCriacaoFilialAsync(CriarFilialDto filialDto, CancellationToken ct = default)
     {
+        if (filialDto.Endereco == null)
+        {
+            _notificador.Add("Endereço é obrigatório.");
+            return false;
+        }
+
         var existe = await _filialRepository.ExisteAsync(f => f.Nome == filialDto.Nome, ct);
 
         if (existe)
@@ -595,15 +303,32 @@ public class FilialService : IFilialService
 
     public async Task<bool> ValidarAtualizacaoFilialAsync(int id, AtualizarFilialDto filialDto, CancellationToken ct = default)
     {
-        if (!string.IsNullOrWhiteSpace(filialDto.Nome))
+        if (string.IsNullOrWhiteSpace(filialDto.Nome))
         {
-            var nomeExiste = await _filialRepository.ExisteAsync(filtro:s=>s.Nome == filialDto.Nome, ct);
-            if (nomeExiste)
-            {
-                _notificador.Add("Já existe uma filial com este nome.");
-                return false;
-            }
+            _notificador.Add("Nome é obrigatório.");
+            return false;
         }
+
+        if (string.IsNullOrWhiteSpace(filialDto.Cidade))
+        {
+            _notificador.Add("Cidade é obrigatória.");
+            return false;
+        }
+
+        if (filialDto.Endereco == null)
+        {
+            _notificador.Add("Endereço é obrigatório.");
+            return false;
+        }
+
+        // A própria filial não conta como duplicidade de nome
+        var nomeExiste = await _filialRepository.ExisteAsync(filtro: s => s.Nome == filialDto.Nome && s.IdFilial != id, ct);
+        if (nomeExiste)
+        {
+            _notificador.Add("Já existe uma filial com este nome.");
+            return false;
+        }
+
         return true;
     }
 

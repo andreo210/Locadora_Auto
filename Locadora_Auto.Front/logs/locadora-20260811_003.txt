@@ -1,0 +1,11 @@
+2026-08-11 12:12:15.638 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-11 12:12:15.705 -03:00 [INF] Hosting environment: Development
+2026-08-11 12:12:15.707 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-11 15:30:32.378 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-11 15:30:32.481 -03:00 [INF] Hosting environment: Development
+2026-08-11 15:30:32.483 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-11 15:31:09.716 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-11 15:31:25.793 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-11 15:32:22.238 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-11 15:32:22.239 -03:00 [WRN] Categoria não encontrada: 1
+2026-08-11 15:33:11.263 -03:00 [INF] Dados da categoria 1 carregados com sucesso

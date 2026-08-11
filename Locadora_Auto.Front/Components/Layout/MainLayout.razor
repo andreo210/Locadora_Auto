@@ -17,8 +17,9 @@
 
         <!-- BOTÃO DE COLAPSO (DESKTOP) -->
         <div class="sidebar-collapse">
-            <img src="/img/logo.png" alt="Logo" class="sidebar-logo" /> 
-            <button @onclick="AlternarColapso">
+            <img src="/img/logo.png" alt="Locadora Auto" class="sidebar-logo" />
+            <span class="marca-mini" aria-hidden="true"><i class="bi bi-car-front-fill"></i></span>
+            <button @onclick="AlternarColapso" title="@(SidebarColapsada ? "Expandir menu" : "Recolher menu")">
                 <i class="bi @(SidebarColapsada ? "bi-chevron-right" : "bi-chevron-left")"></i>
             </button>
         </div>
@@ -34,14 +35,17 @@
     <div class="main-area">
         <!-- CABEÇALHO -->
         <header class="topbar">
-            <button class="menu-toggle" @onclick="AlternarSidebar">
+            <button class="menu-toggle" @onclick="AlternarSidebar" title="Abrir menu">
                 <span class="bi bi-list"></span>
             </button>
 
-            <div class="page-title">@ObterTituloPaginaAtual()</div>
+            <div class="topbar-titulo">
+                <span class="trilha">@ObterTrilhaAtual()</span>
+                <h1 class="page-title">@ObterTituloPaginaAtual()</h1>
+            </div>
 
             <div class="topbar-actions">
-                <button class="theme-btn" @onclick="AlternarTema">
+                <button class="theme-btn" @onclick="AlternarTema" title="@(TemaEscuro ? "Usar tema claro" : "Usar tema escuro")">
                     <span class="bi @(TemaEscuro ? "bi-sun" : "bi-moon")"></span>
                 </button>
 
@@ -133,6 +137,22 @@
     {
         var urlAtual = Navegacao.ToBaseRelativePath(Navegacao.Uri);
         return ServicoMenu.GetMenuTitleByUrl(urlAtual) ?? "Dashboard";
+    }
+
+    // Trilha lida da própria URL: mostra onde o operador está sem depender do menu.
+    private string ObterTrilhaAtual()
+    {
+        var caminho = Navegacao.ToBaseRelativePath(Navegacao.Uri).Split('?')[0].Trim('/');
+
+        if (string.IsNullOrEmpty(caminho))
+            return "Início";
+
+        var partes = caminho
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Where(parte => !int.TryParse(parte, out _)) // ignora ids: /clientes/12/editar
+            .Select(parte => parte.Replace('-', ' '));
+
+        return string.Join(" · ", partes);
     }
 
     //construtor

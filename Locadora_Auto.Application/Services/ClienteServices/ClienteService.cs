@@ -296,7 +296,8 @@ namespace Locadora_Auto.Application.Services.ClienteServices
         #region Operações de gravação Cliente
 
         public async Task<ClienteDto> CriarClienteAsync(CriarClienteDto clienteDto, CancellationToken ct = default)
-        {            
+        {
+            clienteDto.Cpf = clienteDto.Cpf.Replace("-", "").Replace(".", "");
             // Validações
             if(!await ValidarCriacaoClienteAsync(clienteDto, ct)) return null;
 

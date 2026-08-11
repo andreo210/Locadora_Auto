@@ -1,16 +1,19 @@
-﻿@page "/categorias/editar/{id:int}"
+﻿@page "/filial/editar/{id:int}"
 @using Blazored.FluentValidation
 @using Locadora_Auto.Front.Components.Forms
-@using Locadora_Auto.Front.Models.Request.Categoria
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Request.Filial
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
 @using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
-@inject ICategoriaService _categoriaService
+@inject IFilialService _filialService
 @inject IConfirmDialogService _confirmService
-@inject ILogger<EditarCategoria> Logger
+@inject IConfiguration Configuracao
+@inject ILogger<EditarFilial> Logger
 @inject IJSRuntime JS
 
 @* @attribute [Authorize(Roles = "Administrador")] *@
@@ -23,9 +26,9 @@
                 <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </button>
-                <h2 class="mb-0">Editar Categoria</h2>
+                <h2 class="mb-0">Editar Filial</h2>
             </div>
-            <p class="text-muted mt-2">Altere os dados da categoria e gerencie as fotos</p>
+            <p class="text-muted mt-2">Altere os dados da filial e gerencie as fotos</p>
         </div>
     </div>
 
@@ -35,14 +38,14 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Carregando...</span>
             </div>
-            <p class="mt-2">Carregando dados da categoria...</p>
+            <p class="mt-2">Carregando dados da filial...</p>
         </div>
     }
-    else if (categoriaOriginal == null)
+    else if (filialOriginal == null || filialEdit == null)
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Categoria não encontrada ou não existe.
+            Filial não encontrada ou não existe.
         </div>
     }
     else
@@ -50,47 +53,45 @@
         <div class="row">
             <!-- Coluna do formulário de edição -->
             <div class="col-md-6">
-                <EditForm Model="@categoriaEdit" OnValidSubmit="@ManipularEnvio">
+                <EditForm Model="@filialEdit" OnValidSubmit="@ManipularEnvio">
                     <FluentValidationValidator @ref="validadorFluent" />
 
-                    <div class="card shadow-sm">
+                    <div class="card shadow-sm mb-4">
                         <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">Dados da Categoria</h5>
+                            <h5 class="mb-0">Dados da Filial</h5>
                         </div>
                         <div class="card-body">
                             <!-- Nome -->
                             <div class="mb-3">
                                 <label class="form-label">Nome <span class="text-danger">*</span></label>
-                                <InputText @bind-Value="categoriaEdit.Nome" class="form-control" placeholder="Digite o nome da categoria" />
-                                <ValidationMessage For="@(() => categoriaEdit.Nome)" />
+                                <InputText @bind-Value="filialEdit.Nome" class="form-control" placeholder="Digite o nome da filial" />
+                                <ValidationMessage For="@(() => filialEdit.Nome)" />
                             </div>
 
-                            <!-- Valor da diária -->
-                            <div class="mb-3">
-                                <label class="form-label">Valor da diária <span class="text-danger">*</span></label>
-                                <InputMoeda @bind-Value="categoriaEdit.ValorDiaria"
-                                            placeholder="R$ 0,00" />
-                                <ValidationMessage For="@(() => categoriaEdit.ValorDiaria)" />
-                            </div>
-
-                            <!-- Limite de Km -->
-                            <div class="mb-3">
-                                <label class="form-label">Limite de Km <span class="text-danger">*</span></label>
-                                <InputNumber @bind-Value="categoriaEdit.LimiteKm"
-                                             class="form-control"
-                                             placeholder="Digite o limite de quilômetros" />
-                                <ValidationMessage For="@(() => categoriaEdit.LimiteKm)" />
-                            </div>
-
-                            <!-- Valor do km excedente -->
-                            <div class="mb-3">
-                                <label class="form-label">Valor do km excedente <span class="text-danger">*</span></label>
-                                <InputMoeda @bind-Value="categoriaEdit.ValorKmExcedente"
-                                            placeholder="R$ 0,00" />
-                                <ValidationMessage For="@(() => categoriaEdit.ValorKmExcedente)" />
+                            <!-- Situação -->
+                            <div class="mb-0">
+                                <label class="form-label d-block">Situação</label>
+                                <span class="badge @(filialOriginal.Ativo ? "bg-success" : "bg-danger")">
+                                    @(filialOriginal.Ativo ? "Ativa" : "Inativa")
+                                </span>
+                                @if (filialOriginal.Ativo)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="Desativar" disabled="@processando">
+                                        <i class="bi bi-slash-circle me-1"></i>Desativar
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-success ms-2" @onclick="Ativar" disabled="@processando">
+                                        <i class="bi bi-check-circle me-1"></i>Ativar
+                                    </button>
+                                }
                             </div>
                         </div>
                     </div>
+
+                    <!-- Endereço -->
+                    <EnderecoForm @bind-Endereco="filialEdit.Endereco" Titulo="Endereço da Filial" />
 
                     <div class="row mt-4">
                         <div class="col">
@@ -122,19 +123,19 @@
                     <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="bi bi-images me-2"></i>
-                            Fotos da Categoria
+                            Fotos da Filial
                         </h5>
-                        <a href="/categorias/@id/fotos" class="btn btn-sm btn-light">
+                        <a href="/filial/@id/fotos" class="btn btn-sm btn-light">
                             <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
                         </a>
                     </div>
                     <div class="card-body">
-                        @if (categoriaOriginal.Fotos == null || !categoriaOriginal.Fotos.Any())
+                        @if (filialOriginal.Fotos == null || !filialOriginal.Fotos.Any())
                         {
                             <div class="text-center py-4">
                                 <i class="bi bi-camera fs-1 text-muted"></i>
                                 <p class="mt-2 text-muted">Nenhuma foto cadastrada</p>
-                                <a href="/categorias/@id/fotos" class="btn btn-sm btn-outline-primary mt-2">
+                                <a href="/filial/@id/fotos" class="btn btn-sm btn-outline-primary mt-2">
                                     <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
                                 </a>
                             </div>
@@ -142,7 +143,7 @@
                         else
                         {
                             <div class="fotos-grid">
-                                @foreach (var foto in categoriaOriginal.Fotos)
+                                @foreach (var foto in filialOriginal.Fotos)
                                 {
                                     <div class="foto-item">
                                         <div class="foto-imagem-container">
@@ -223,129 +224,13 @@
     </div>
 </div>
 
-<style>
-    .fotos-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
-        max-height: 500px;
-        overflow-y: auto;
-        padding: 0.5rem;
-    }
-
-    .fotos-grid::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .fotos-grid::-webkit-scrollbar-track {
-        background: var(--superficie-2);
-        border-radius: 3px;
-    }
-
-    .fotos-grid::-webkit-scrollbar-thumb {
-        background: var(--borda-forte);
-        border-radius: 3px;
-    }
-
-    .foto-item {
-        background: var(--superficie-2);
-        border-radius: var(--raio-2);
-        overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
-        border: 1px solid var(--borda);
-    }
-
-    .foto-item:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--sombra-2);
-    }
-
-    .foto-imagem-container {
-        position: relative;
-        aspect-ratio: 1;
-        overflow: hidden;
-        background-color: var(--superficie-3);
-        cursor: pointer;
-    }
-
-    .foto-imagem {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.3s;
-    }
-
-    .foto-item:hover .foto-imagem {
-        transform: scale(1.05);
-    }
-
-    .foto-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--scrim);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-
-    .foto-item:hover .foto-overlay {
-        opacity: 1;
-    }
-
-    .btn-excluir-foto {
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .foto-info {
-        padding: 0.75rem;
-        background: var(--superficie);
-    }
-
-    .foto-nome {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--texto);
-        margin-bottom: 0.25rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .foto-tamanho {
-        display: inline-block;
-        font-size: 0.7rem;
-        color: var(--texto-suave);
-        background: var(--superficie-3);
-        padding: 0.125rem 0.5rem;
-        border-radius: var(--raio-1);
-        margin-right: 0.5rem;
-    }
-
-    .foto-data {
-        display: inline-block;
-        font-size: 0.7rem;
-        color: var(--texto-suave);
-    }
-</style>
-
 @code {
     // ===== PARÂMETROS DA ROTA =====
     [Parameter] public int id { get; set; }
 
     // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
-    private AtualizarCategoriaRequest? categoriaEdit;
-    private CategoriaResponse? categoriaOriginal;
+    private EditarFilialRequest? filialEdit;
+    private FilialResponse? filialOriginal;
     private bool carregando = true;
     private bool processando;
     private FluentValidationValidator? validadorFluent;
@@ -354,40 +239,48 @@
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnParametersSetAsync()
     {
-        await CarregarDadosCategoria();
+        await CarregarDadosFilial();
     }
 
     // ===== MÉTODO DE CARREGAMENTO =====
-    private async Task CarregarDadosCategoria()
+    private async Task CarregarDadosFilial()
     {
         try
         {
             carregando = true;
             StateHasChanged();
 
-            categoriaOriginal = await _categoriaService.ObterPorId(id.ToString());
+            filialOriginal = await _filialService.ObterPorId(id.ToString());
 
-            if (categoriaOriginal == null)
+            if (filialOriginal == null)
             {
-                Logger.LogWarning("Categoria não encontrada: {CategoriaId}", id);
-                NotificacaoService.ShowWarning("Categoria não encontrada", "Atenção");
+                Logger.LogWarning("Filial não encontrada: {FilialId}", id);
+                NotificacaoService.ShowWarning("Filial não encontrada", "Atenção");
                 return;
             }
 
-            categoriaEdit = new AtualizarCategoriaRequest
+            filialEdit = new EditarFilialRequest
             {
-                Nome = categoriaOriginal.Nome,
-                ValorDiaria = categoriaOriginal.ValorDiaria ?? 0,
-                LimiteKm = categoriaOriginal.LimiteKm ?? 0,
-                ValorKmExcedente = categoriaOriginal.ValorKmExcedente ?? 0
+                Nome = filialOriginal.Nome,
+                Cidade = filialOriginal.Cidade,
+                Endereco = new EnderecoRequest
+                {
+                    Logradouro = filialOriginal.Endereco?.Logradouro,
+                    Numero = filialOriginal.Endereco?.Numero,
+                    Complemento = filialOriginal.Endereco?.Complemento,
+                    Bairro = filialOriginal.Endereco?.Bairro,
+                    Cidade = filialOriginal.Endereco?.Cidade,
+                    Estado = filialOriginal.Endereco?.Estado,
+                    Cep = filialOriginal.Endereco?.Cep
+                }
             };
 
-            Logger.LogInformation("Dados da categoria {CategoriaId} carregados com sucesso", id);
+            Logger.LogInformation("Dados da filial {FilialId} carregados com sucesso", id);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Erro ao carregar categoria {CategoriaId}", id);
-            NotificacaoService.ShowError("Erro ao carregar dados da categoria", "Erro");
+            Logger.LogError(ex, "Erro ao carregar filial {FilialId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados da filial", "Erro");
         }
         finally
         {
@@ -399,7 +292,8 @@
     // ===== MÉTODO PARA OBTER URL DA IMAGEM =====
     private string ObterUrlImagem(FotoResponse foto)
     {
-        return $"https://localhost:44310/api/v1/categorias-veiculos/{id}/fotos/{foto.IdFoto}";
+        var baseUrl = Configuracao["ApiConfig:BaseUrlApiLocacao"]?.TrimEnd('/');
+        return $"{baseUrl}/api/v1/filiais/{id}/fotos/{foto.IdFoto}";
     }
 
     // ===== MÉTODO PARA VISUALIZAR FOTO =====
@@ -413,38 +307,40 @@
     // ===== MÉTODO PARA EXCLUIR FOTO =====
     private async Task ExcluirFoto(int fotoId, string nomeArquivo)
     {
-        var confirmado = true;/* await _confirmService.ConfirmAsync($"Deseja realmente excluir a foto '{nomeArquivo}'? Esta ação não pode ser desfeita.", "Confirmar Exclusão"); */
+        var confirmado = await _confirmService.ConfirmAsync(
+            $"Deseja realmente excluir a foto '{nomeArquivo}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
 
-        if (confirmado)
+        if (!confirmado)
+            return;
+
+        try
         {
-            try
-            {
-                var sucesso = await _categoriaService.ExcluirFoto(id, fotoId);
+            var sucesso = await _filialService.ExcluirFoto(id, fotoId);
 
-                if (sucesso)
-                {
-                    NotificacaoService.ShowSuccess($"Foto '{nomeArquivo}' excluída com sucesso!", "Exclusão");
-
-                    // Recarrega os dados para atualizar a lista de fotos
-                    await CarregarDadosCategoria();
-                }
-                else
-                {
-                    NotificacaoService.ShowError("Erro ao excluir a foto.", "Erro");
-                }
-            }
-            catch (Exception ex)
+            if (sucesso)
             {
-                Logger.LogError(ex, "Erro ao excluir foto {FotoId} da categoria {CategoriaId}", fotoId, id);
-                NotificacaoService.ShowError($"Erro ao excluir foto: {ex.Message}", "Erro");
+                NotificacaoService.ShowSuccess($"Foto '{nomeArquivo}' excluída com sucesso!", "Exclusão");
+
+                // Recarrega os dados para atualizar a lista de fotos
+                await CarregarDadosFilial();
             }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao excluir a foto.", "Erro");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao excluir foto {FotoId} da filial {FilialId}", fotoId, id);
+            NotificacaoService.ShowError($"Erro ao excluir foto: {ex.Message}", "Erro");
         }
     }
 
     // ===== MÉTODO PRINCIPAL DE ENVIO =====
     private async Task ManipularEnvio()
     {
-        if (categoriaEdit == null || categoriaOriginal == null) return;
+        if (filialEdit == null || filialOriginal == null) return;
 
         if (!ValidarDados())
             return;
@@ -454,26 +350,70 @@
 
         try
         {
-            Logger.LogInformation("Atualizando categoria ID: {CategoriaId}", id);
+            Logger.LogInformation("Atualizando filial ID: {FilialId}", id);
 
-            var sucesso = await _categoriaService.Atualizar(id, categoriaEdit);
+            var sucesso = await _filialService.Atualizar(id, filialEdit);
 
-            if (sucesso.Value)
+            if (sucesso == true)
             {
-                NotificacaoService.ShowSuccess("Categoria atualizada com sucesso!", "Sucesso");
+                NotificacaoService.ShowSuccess("Filial atualizada com sucesso!", "Sucesso");
                 await Task.Delay(1500);
-                Navegacao.NavigateTo($"/categorias/visualizar/{id}");
+                Navegacao.NavigateTo($"/filial/visualizar/{id}");
             }
             else
             {
-                Logger.LogWarning("Falha ao atualizar categoria {CategoriaId}", id);
-                NotificacaoService.ShowWarning("Não foi possível atualizar a categoria", "Atenção");
+                Logger.LogWarning("Falha ao atualizar filial {FilialId}", id);
+                NotificacaoService.ShowWarning("Não foi possível atualizar a filial", "Atenção");
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "ERRO ao editar categoria {CategoriaId}", id);
-            NotificacaoService.ShowError($"Erro ao atualizar categoria: {ex.Message}", "Erro");
+            Logger.LogError(ex, "ERRO ao editar filial {FilialId}", id);
+            NotificacaoService.ShowError($"Erro ao atualizar filial: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== ATIVAR / DESATIVAR =====
+    private async Task Ativar()
+    {
+        await AlterarSituacao(ativar: true);
+    }
+
+    private async Task Desativar()
+    {
+        await AlterarSituacao(ativar: false);
+    }
+
+    private async Task AlterarSituacao(bool ativar)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var sucesso = ativar
+                ? await _filialService.Ativar(id)
+                : await _filialService.Desativar(id);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Filial {(ativar ? "ativada" : "desativada")} com sucesso!", "Sucesso");
+                await CarregarDadosFilial();
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"Não foi possível {(ativar ? "ativar" : "desativar")} a filial", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao alterar situação da filial {FilialId}", id);
+            NotificacaoService.ShowError($"Erro ao alterar situação: {ex.Message}", "Erro");
         }
         finally
         {
@@ -485,29 +425,23 @@
     // ===== VALIDAÇÃO ADICIONAL =====
     private bool ValidarDados()
     {
-        if (categoriaEdit == null) return false;
+        if (filialEdit == null) return false;
 
-        if (string.IsNullOrWhiteSpace(categoriaEdit.Nome))
+        if (string.IsNullOrWhiteSpace(filialEdit.Nome))
         {
-            NotificacaoService.ShowWarning("O nome da categoria é obrigatório", "Validação");
+            NotificacaoService.ShowWarning("O nome da filial é obrigatório", "Validação");
             return false;
         }
 
-        if (categoriaEdit.ValorDiaria <= 0)
+        if (filialEdit.Endereco == null || string.IsNullOrWhiteSpace(filialEdit.Endereco.Cidade))
         {
-            NotificacaoService.ShowWarning("O valor da diária deve ser maior que zero", "Validação");
+            NotificacaoService.ShowWarning("A cidade do endereço é obrigatória", "Validação");
             return false;
         }
 
-        if (categoriaEdit.LimiteKm < 0)
+        if (string.IsNullOrWhiteSpace(filialEdit.Endereco.Logradouro))
         {
-            NotificacaoService.ShowWarning("O limite de KM não pode ser negativo", "Validação");
-            return false;
-        }
-
-        if (categoriaEdit.ValorKmExcedente < 0)
-        {
-            NotificacaoService.ShowWarning("O valor do KM excedente não pode ser negativo", "Validação");
+            NotificacaoService.ShowWarning("O logradouro é obrigatório", "Validação");
             return false;
         }
 
@@ -517,25 +451,8 @@
     // ===== MÉTODOS DE NAVEGAÇÃO =====
     private void Voltar()
     {
-        if (PossuiAlteracoesNaoSalvas())
-        {
-            Navegacao.NavigateTo($"/categorias/visualizar/{id}");
-        }
-        else
-        {
-            Navegacao.NavigateTo($"/categorias/visualizar/{id}");
-        }
+        Navegacao.NavigateTo($"/filial/visualizar/{id}");
     }
 
     private void Cancelar() => Voltar();
-
-    private bool PossuiAlteracoesNaoSalvas()
-    {
-        if (categoriaEdit == null || categoriaOriginal == null) return false;
-
-        return categoriaEdit.Nome != categoriaOriginal.Nome ||
-               Math.Abs(categoriaEdit.LimiteKm - (categoriaOriginal.LimiteKm ?? 0)) > 0 ||
-               Math.Abs(categoriaEdit.ValorKmExcedente - (categoriaOriginal.ValorKmExcedente ?? 0)) > 0.01 ||
-               Math.Abs(categoriaEdit.ValorDiaria - (categoriaOriginal.ValorDiaria ?? 0)) > 0.01;
-    }
 }

@@ -1,4 +1,6 @@
-﻿.fotos-grid {
+﻿/* Cores vêm de wwwroot/css/tema.css */
+
+.fotos-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
@@ -12,33 +14,33 @@
 }
 
 .fotos-grid::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--superficie-2);
     border-radius: 3px;
 }
 
 .fotos-grid::-webkit-scrollbar-thumb {
-    background: #888;
+    background: var(--borda-forte);
     border-radius: 3px;
 }
 
 .foto-item {
-    background: #f8f9fa;
-    border-radius: 0.5rem;
+    background: var(--superficie-2);
+    border-radius: var(--raio-2);
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--borda);
 }
 
     .foto-item:hover {
         transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: var(--sombra-2);
     }
 
 .foto-imagem-container {
     position: relative;
     aspect-ratio: 1;
     overflow: hidden;
-    background-color: #e9ecef;
+    background-color: var(--superficie-3);
     cursor: pointer;
 }
 
@@ -59,7 +61,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.5);
+    background: var(--scrim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -82,14 +84,14 @@
 
 .foto-info {
     padding: 0.75rem;
-    background: white;
+    background: var(--superficie);
 }
 
 .foto-nome {
     display: block;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--texto);
     margin-bottom: 0.25rem;
     white-space: nowrap;
     overflow: hidden;
@@ -99,16 +101,15 @@
 .foto-tamanho {
     display: inline-block;
     font-size: 0.7rem;
-    color: #6c757d;
-    background: #e9ecef;
+    color: var(--texto-suave);
+    background: var(--superficie-3);
     padding: 0.125rem 0.5rem;
-    border-radius: 0.25rem;
+    border-radius: var(--raio-1);
     margin-right: 0.5rem;
 }
 
 .foto-data {
     display: inline-block;
     font-size: 0.7rem;
-    color: #adb5bd;
+    color: var(--texto-suave);
 }
-

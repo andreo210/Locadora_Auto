@@ -1,0 +1,673 @@
+﻿/* ============================================================================
+   TEMA — LOCADORA AUTO
+   Direção visual: painel de instrumentos. A lateral é a capota do painel
+   (grafite), a área de trabalho é a oficina bem iluminada, e uma faixa fina
+   da cor da marca marca sempre onde o operador está.
+
+   ----------------------------------------------------------------------------
+   TROCAR A COR DO PROPRIETÁRIO (white-label)
+   ----------------------------------------------------------------------------
+   Mude APENAS `--marca` no bloco abaixo. Hover, foco, faixas, botões, badges,
+   tabelas e o hero do início são derivados dela com color-mix() — nenhum outro
+   arquivo precisa ser tocado.
+
+   Se a cor escolhida for muito clara (amarelo, lima), troque também
+   `--marca-texto` para um tom escuro, senão o texto sobre a cor some.
+   ============================================================================ */
+
+:root {
+    /* >>>>>>>>>>>>>>>>  A COR DA LOCADORA  <<<<<<<<<<<<<<<<< */
+    --marca: #0E3FC1;
+    --marca-texto: #FFFFFF;
+    /* >>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+
+    /* Paletas prontas — troque a linha acima por uma destas:
+       Azul Placa .... #0E3FC1   (padrão)
+       Verde Frota ... #0F7A4A
+       Vermelho Pista  #B31E27
+       Laranja Pátio . #C2560C
+       Grafite ....... #33414F   (identidade monocromática)
+    */
+
+    /* --- Derivados da marca (não precisa mexer) --- */
+    --marca-forte: color-mix(in oklab, var(--marca) 84%, black);
+    --marca-clara: color-mix(in oklab, var(--marca) 70%, white);
+    --marca-luz: color-mix(in oklab, var(--marca) 45%, white);
+    --marca-veu-forte: color-mix(in oklab, var(--marca) 24%, transparent);
+    --marca-veu: color-mix(in oklab, var(--marca) 13%, transparent);
+    --marca-veu-tenue: color-mix(in oklab, var(--marca) 7%, transparent);
+    --marca-foco: color-mix(in oklab, var(--marca) 35%, transparent);
+    /* cor da marca para texto/ícone: no tema escuro vira a versão clara */
+    --marca-ui: var(--marca);
+
+    /* --- Asfalto: neutros com leve viés frio --- */
+    --asfalto-950: #0B1015;
+    --asfalto-900: #111A21;
+    --asfalto-850: #16212A;
+    --asfalto-800: #1C2933;
+    --asfalto-700: #27353F;
+    --asfalto-600: #3C4A55;
+    --asfalto-500: #5C6B76;
+    --asfalto-400: #8593A0;
+    --asfalto-300: #B3BFC9;
+    --asfalto-200: #D8E0E7;
+    --asfalto-100: #EAEFF3;
+    --asfalto-50: #F4F7F9;
+    --branco: #FFFFFF;
+
+    /* --- Sinalização (independente da marca: verde é verde, freio é vermelho) --- */
+    --sucesso: #12894F;
+    --alerta: #C98A00;
+    --perigo: #D0342C;
+    --info: #0E7490;
+    --sucesso-veu: color-mix(in oklab, var(--sucesso) 14%, transparent);
+    --alerta-veu: color-mix(in oklab, var(--alerta) 16%, transparent);
+    --perigo-veu: color-mix(in oklab, var(--perigo) 13%, transparent);
+    --info-veu: color-mix(in oklab, var(--info) 13%, transparent);
+
+    /* Azul da tarja da placa Mercosul: é um objeto do mundo real,
+       por isso NÃO acompanha a cor do proprietário. */
+    --placa-azul: #0B3D91;
+
+    /* --- Superfícies (tema claro) --- */
+    --fundo: var(--asfalto-50);
+    --superficie: var(--branco);
+    --superficie-2: var(--asfalto-100);
+    --superficie-3: var(--asfalto-200);
+    --texto: var(--asfalto-900);
+    --texto-suave: var(--asfalto-500);
+    --texto-forte: var(--asfalto-950);
+    --borda: var(--asfalto-200);
+    --borda-forte: var(--asfalto-300);
+
+    /* --- Painel (lateral escura, igual nos dois temas) --- */
+    --painel: var(--asfalto-950);
+    --painel-2: var(--asfalto-850);
+    --painel-texto: #AFBCC7;
+    --painel-texto-forte: var(--branco);
+    --painel-borda: rgba(255,255,255,.07);
+    --painel-hover: rgba(255,255,255,.06);
+
+    /* véu escuro sobre fotos (galerias, previews) */
+    --scrim: rgba(11,16,21,.55);
+
+    --sombra-1: 0 1px 2px rgba(11,16,21,.06), 0 1px 3px rgba(11,16,21,.04);
+    --sombra-2: 0 4px 12px rgba(11,16,21,.08), 0 2px 4px rgba(11,16,21,.04);
+    --sombra-3: 0 18px 40px rgba(11,16,21,.16);
+
+    /* --- Formas e ritmo --- */
+    --raio-1: 6px;
+    --raio-2: 10px;
+    --raio-3: 16px;
+    --faixa: 3px; /* espessura da faixa que marca a posição atual */
+    --sidebar-width: 272px;
+
+    /* --- Tipografia --- */
+    --fonte-titulo: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+    --fonte-corpo: 'Barlow', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --fonte-dados: 'Barlow Condensed', 'Segoe UI', system-ui, sans-serif;
+
+    /* --- Compatibilidade com os nomes antigos usados em telas já prontas --- */
+    --bg-sidebar: var(--painel);
+    --bg-main: var(--fundo);
+    --bg-topbar: var(--superficie);
+    --text-sidebar: var(--painel-texto);
+    --text-main: var(--texto);
+    --text-hover: var(--branco);
+    --bg-hover: var(--superficie-2);
+    --accent-color: var(--marca);
+    --border-color: var(--borda);
+}
+
+/* ============================================================================
+   TEMA ESCURO — só as superfícies mudam; a marca continua sendo a mesma
+   ============================================================================ */
+body.dark-theme {
+    --fundo: #0D141A;
+    --superficie: #141E26;
+    --superficie-2: #1B2831;
+    --superficie-3: #24333E;
+    --texto: #E6ECF1;
+    --texto-suave: #90A0AC;
+    --texto-forte: var(--branco);
+    --borda: #26343E;
+    --borda-forte: #354550;
+
+    --painel: #0A1015;
+    --painel-2: #131D25;
+
+    --sombra-1: 0 1px 2px rgba(0,0,0,.4);
+    --sombra-2: 0 6px 16px rgba(0,0,0,.45);
+    --sombra-3: 0 20px 44px rgba(0,0,0,.55);
+
+    /* Em fundo escuro a marca pura fica pesada: usa-se a versão clara para
+       texto, ícones e bordas. Continua derivada de --marca. */
+    --marca-ui: var(--marca-clara);
+}
+
+/* ============================================================================
+   TIPOGRAFIA BASE
+   ============================================================================ */
+body {
+    font-family: var(--fonte-corpo);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--texto);
+    background-color: var(--fundo);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: var(--fonte-titulo);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    color: var(--texto-forte);
+}
+
+h1, .h1 { font-size: 1.9rem; }
+h2, .h2 { font-size: 1.45rem; }
+h3, .h3 { font-size: 1.2rem; }
+h4, .h4 { font-size: 1.05rem; }
+h5, .h5 { font-size: .95rem; }
+
+/* Rótulo: micro-texto de sinalização (o "eyebrow" do painel) */
+.rotulo {
+    display: inline-block;
+    font-family: var(--fonte-dados);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+}
+
+/* Números de leitura (odômetro, valores, contadores) */
+.dados {
+    font-family: var(--fonte-dados);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+}
+
+/* ============================================================================
+   PLACA — assinatura visual do sistema
+   Reproduz a placa Mercosul. Use em qualquer lugar que mostre um veículo:
+   <span class="placa">RIO2A18</span>
+   ============================================================================ */
+.placa {
+    position: relative;
+    display: inline-block;
+    padding: 1rem .6rem .25rem;
+    background: var(--branco);
+    color: #0B1015;
+    border: 1.5px solid #0B1015;
+    border-radius: 5px;
+    font-family: var(--fonte-dados);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    box-shadow: var(--sombra-1);
+}
+
+    .placa::before {
+        content: "BRASIL";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: .8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--placa-azul);
+        color: var(--branco);
+        font-size: .45rem;
+        letter-spacing: .28em;
+        border-radius: 3px 3px 0 0;
+    }
+
+.placa-grande {
+    padding: 1.6rem 1.1rem .5rem;
+    font-size: 2.1rem;
+    letter-spacing: .18em;
+    border-width: 2px;
+    border-radius: 8px;
+}
+
+    .placa-grande::before {
+        height: 1.25rem;
+        font-size: .62rem;
+    }
+
+/* ============================================================================
+   FOCO VISÍVEL — teclado sempre enxerga onde está
+   ============================================================================ */
+:focus-visible {
+    outline: 2px solid var(--marca-ui);
+    outline-offset: 2px;
+    border-radius: var(--raio-1);
+}
+
+/* ============================================================================
+   PONTE COM O BOOTSTRAP
+   As telas já prontas usam .btn, .card, .table, .badge… Em vez de reescrever
+   cada tela, as variáveis de componente do Bootstrap passam a apontar para os
+   tokens do tema — assim tudo herda a cor do proprietário.
+   ============================================================================ */
+body {
+    --bs-body-bg: var(--fundo);
+    --bs-body-color: var(--texto);
+    --bs-body-font-family: var(--fonte-corpo);
+    --bs-body-font-size: .95rem;
+    --bs-emphasis-color: var(--texto-forte);
+    --bs-heading-color: var(--texto-forte);
+    --bs-secondary-color: var(--texto-suave);
+    --bs-border-color: var(--borda);
+    --bs-border-radius: var(--raio-2);
+    --bs-border-radius-sm: var(--raio-1);
+    --bs-border-radius-lg: var(--raio-3);
+    --bs-link-color: var(--marca-ui);
+    --bs-link-hover-color: var(--marca-forte);
+    --bs-focus-ring-color: var(--marca-foco);
+}
+
+body.dark-theme {
+    --bs-link-hover-color: var(--marca-luz);
+}
+
+/* --- Botões --- */
+.btn {
+    font-weight: 600;
+    letter-spacing: .01em;
+    --bs-btn-focus-box-shadow: 0 0 0 .2rem var(--marca-foco);
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--marca);
+    --bs-btn-border-color: var(--marca);
+    --bs-btn-color: var(--marca-texto);
+    --bs-btn-hover-bg: var(--marca-forte);
+    --bs-btn-hover-border-color: var(--marca-forte);
+    --bs-btn-hover-color: var(--marca-texto);
+    --bs-btn-active-bg: var(--marca-forte);
+    --bs-btn-active-border-color: var(--marca-forte);
+    --bs-btn-active-color: var(--marca-texto);
+    --bs-btn-disabled-bg: var(--marca);
+    --bs-btn-disabled-border-color: var(--marca);
+    --bs-btn-disabled-color: var(--marca-texto);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--marca-ui);
+    --bs-btn-border-color: var(--marca-ui);
+    --bs-btn-hover-bg: var(--marca);
+    --bs-btn-hover-border-color: var(--marca);
+    --bs-btn-hover-color: var(--marca-texto);
+    --bs-btn-active-bg: var(--marca-forte);
+    --bs-btn-active-border-color: var(--marca-forte);
+    --bs-btn-active-color: var(--marca-texto);
+    --bs-btn-disabled-color: var(--marca-ui);
+    --bs-btn-disabled-border-color: var(--marca-ui);
+}
+
+.btn-secondary, .btn-outline-secondary {
+    --bs-btn-color: var(--texto);
+    --bs-btn-border-color: var(--borda-forte);
+    --bs-btn-hover-bg: var(--superficie-2);
+    --bs-btn-hover-border-color: var(--borda-forte);
+    --bs-btn-hover-color: var(--texto-forte);
+    --bs-btn-active-bg: var(--superficie-3);
+    --bs-btn-active-border-color: var(--borda-forte);
+    --bs-btn-active-color: var(--texto-forte);
+    --bs-btn-disabled-color: var(--texto-suave);
+    --bs-btn-disabled-border-color: var(--borda);
+}
+
+.btn-secondary {
+    --bs-btn-bg: var(--superficie-2);
+}
+
+.btn-success {
+    --bs-btn-bg: var(--sucesso);
+    --bs-btn-border-color: var(--sucesso);
+    --bs-btn-hover-bg: color-mix(in oklab, var(--sucesso) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in oklab, var(--sucesso) 85%, black);
+    --bs-btn-active-bg: color-mix(in oklab, var(--sucesso) 78%, black);
+}
+
+.btn-outline-success {
+    --bs-btn-color: var(--sucesso);
+    --bs-btn-border-color: var(--sucesso);
+    --bs-btn-hover-bg: var(--sucesso);
+    --bs-btn-hover-border-color: var(--sucesso);
+    --bs-btn-active-bg: var(--sucesso);
+    --bs-btn-active-border-color: var(--sucesso);
+}
+
+.btn-danger {
+    --bs-btn-bg: var(--perigo);
+    --bs-btn-border-color: var(--perigo);
+    --bs-btn-hover-bg: color-mix(in oklab, var(--perigo) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in oklab, var(--perigo) 85%, black);
+    --bs-btn-active-bg: color-mix(in oklab, var(--perigo) 78%, black);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--perigo);
+    --bs-btn-border-color: var(--perigo);
+    --bs-btn-hover-bg: var(--perigo);
+    --bs-btn-hover-border-color: var(--perigo);
+    --bs-btn-active-bg: var(--perigo);
+    --bs-btn-active-border-color: var(--perigo);
+}
+
+.btn-warning {
+    --bs-btn-bg: var(--alerta);
+    --bs-btn-border-color: var(--alerta);
+    --bs-btn-color: var(--branco);
+    --bs-btn-hover-bg: color-mix(in oklab, var(--alerta) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in oklab, var(--alerta) 85%, black);
+    --bs-btn-hover-color: var(--branco);
+    --bs-btn-active-color: var(--branco);
+}
+
+.btn-outline-warning {
+    --bs-btn-color: var(--alerta);
+    --bs-btn-border-color: var(--alerta);
+    --bs-btn-hover-bg: var(--alerta);
+    --bs-btn-hover-border-color: var(--alerta);
+    --bs-btn-hover-color: var(--branco);
+}
+
+.btn-info, .btn-outline-info {
+    --bs-btn-color: var(--info);
+    --bs-btn-border-color: var(--info);
+    --bs-btn-hover-bg: var(--info);
+    --bs-btn-hover-border-color: var(--info);
+    --bs-btn-hover-color: var(--branco);
+}
+
+.btn-info {
+    --bs-btn-bg: var(--info);
+    --bs-btn-color: var(--branco);
+}
+
+/* Botão de linha para usar sobre superfícies escuras (hero, painel) */
+.btn-linha-clara {
+    --bs-btn-color: var(--branco);
+    --bs-btn-border-color: rgba(255,255,255,.32);
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: rgba(255,255,255,.1);
+    --bs-btn-hover-border-color: rgba(255,255,255,.5);
+    --bs-btn-hover-color: var(--branco);
+    --bs-btn-active-bg: rgba(255,255,255,.16);
+    --bs-btn-active-color: var(--branco);
+}
+
+/* --- Cartões: hairline + faixa da marca no topo do cabeçalho --- */
+.card {
+    --bs-card-bg: var(--superficie);
+    --bs-card-color: var(--texto);
+    --bs-card-border-color: var(--borda);
+    --bs-card-border-radius: var(--raio-3);
+    --bs-card-inner-border-radius: calc(var(--raio-3) - 1px);
+    --bs-card-cap-bg: var(--superficie);
+    --bs-card-cap-color: var(--texto-forte);
+    box-shadow: var(--sombra-1);
+}
+
+.card.shadow-sm {
+    box-shadow: var(--sombra-1) !important;
+}
+
+.card-header {
+    position: relative;
+    padding: 1rem 1.25rem;
+    border-bottom-color: var(--borda);
+    font-family: var(--fonte-titulo);
+    font-weight: 600;
+}
+
+    .card-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 1.25rem;
+        width: 44px;
+        height: var(--faixa);
+        background: var(--marca);
+        border-radius: 0 0 var(--faixa) var(--faixa);
+    }
+
+.card-footer {
+    border-top-color: var(--borda);
+}
+
+/* --- Tabelas --- */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--texto);
+    --bs-table-border-color: var(--borda);
+    --bs-table-hover-bg: var(--marca-veu-tenue);
+    --bs-table-hover-color: var(--texto-forte);
+    --bs-table-striped-bg: var(--superficie-2);
+    --bs-table-active-bg: var(--marca-veu);
+}
+
+    .table > thead th {
+        font-family: var(--fonte-dados);
+        font-size: .82rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+        background-color: var(--superficie-2);
+        border-bottom: 1px solid var(--borda);
+        padding: .7rem .75rem;
+        white-space: nowrap;
+    }
+
+    .table > tbody td {
+        border-color: var(--borda);
+        vertical-align: middle;
+    }
+
+.table-primary {
+    --bs-table-bg: var(--marca-veu);
+    --bs-table-color: var(--texto);
+    --bs-table-hover-bg: var(--marca-veu-forte);
+    --bs-table-hover-color: var(--texto-forte);
+    --bs-table-border-color: var(--borda);
+}
+
+/* --- Formulários --- */
+.form-control, .form-select {
+    background-color: var(--superficie);
+    border-color: var(--borda-forte);
+    color: var(--texto);
+    border-radius: var(--raio-1);
+    padding: .5rem .75rem;
+}
+
+    .form-control::placeholder {
+        color: var(--texto-suave);
+        opacity: .8;
+    }
+
+    .form-control:focus, .form-select:focus {
+        background-color: var(--superficie);
+        color: var(--texto);
+        border-color: var(--marca-ui);
+        box-shadow: 0 0 0 .2rem var(--marca-foco);
+    }
+
+    .form-control:disabled, .form-select:disabled {
+        background-color: var(--superficie-2);
+        color: var(--texto-suave);
+    }
+
+.form-label, label {
+    font-weight: 600;
+    font-size: .88rem;
+    color: var(--texto);
+}
+
+.form-check-input {
+    border-color: var(--borda-forte);
+    background-color: var(--superficie);
+}
+
+    .form-check-input:checked {
+        background-color: var(--marca);
+        border-color: var(--marca);
+    }
+
+    .form-check-input:focus {
+        border-color: var(--marca-ui);
+        box-shadow: 0 0 0 .2rem var(--marca-foco);
+    }
+
+.input-group-text {
+    background-color: var(--superficie-2);
+    border-color: var(--borda-forte);
+    color: var(--texto-suave);
+}
+
+/* --- Badges, alertas, dropdowns, modais --- */
+.badge {
+    font-family: var(--fonte-dados);
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: .35em .6em;
+    border-radius: var(--raio-1);
+}
+
+.bg-primary { background-color: var(--marca) !important; color: var(--marca-texto) !important; }
+.bg-success { background-color: var(--sucesso) !important; }
+.bg-danger  { background-color: var(--perigo) !important; }
+.bg-warning { background-color: var(--alerta) !important; color: var(--branco) !important; }
+.bg-info    { background-color: var(--info) !important; color: var(--branco) !important; }
+.bg-secondary { background-color: var(--asfalto-500) !important; }
+
+.text-primary { color: var(--marca-ui) !important; }
+.text-success { color: var(--sucesso) !important; }
+.text-danger  { color: var(--perigo) !important; }
+.text-warning { color: var(--alerta) !important; }
+.text-info    { color: var(--info) !important; }
+.text-muted   { color: var(--texto-suave) !important; }
+
+.alert {
+    border-radius: var(--raio-2);
+    border-width: 0 0 0 var(--faixa);
+    font-size: .92rem;
+}
+
+.alert-danger  { background: var(--perigo-veu);  border-color: var(--perigo);  color: var(--texto); }
+.alert-success { background: var(--sucesso-veu); border-color: var(--sucesso); color: var(--texto); }
+.alert-warning { background: var(--alerta-veu);  border-color: var(--alerta);  color: var(--texto); }
+.alert-info    { background: var(--info-veu);    border-color: var(--info);    color: var(--texto); }
+
+.dropdown-menu {
+    --bs-dropdown-bg: var(--superficie);
+    --bs-dropdown-color: var(--texto);
+    --bs-dropdown-border-color: var(--borda);
+    --bs-dropdown-border-radius: var(--raio-2);
+    --bs-dropdown-link-color: var(--texto);
+    --bs-dropdown-link-hover-bg: var(--superficie-2);
+    --bs-dropdown-link-hover-color: var(--texto-forte);
+    --bs-dropdown-link-active-bg: var(--marca);
+    --bs-dropdown-link-active-color: var(--marca-texto);
+    box-shadow: var(--sombra-2);
+}
+
+.modal-content {
+    background-color: var(--superficie);
+    color: var(--texto);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-3);
+}
+
+.modal-header, .modal-footer {
+    border-color: var(--borda);
+}
+
+.list-group {
+    --bs-list-group-bg: var(--superficie);
+    --bs-list-group-color: var(--texto);
+    --bs-list-group-border-color: var(--borda);
+    --bs-list-group-action-hover-bg: var(--superficie-2);
+    --bs-list-group-active-bg: var(--marca);
+    --bs-list-group-active-border-color: var(--marca);
+    --bs-list-group-active-color: var(--marca-texto);
+}
+
+.nav-tabs {
+    --bs-nav-tabs-border-color: var(--borda);
+    --bs-nav-tabs-link-active-bg: var(--superficie);
+    --bs-nav-tabs-link-active-color: var(--marca-ui);
+    --bs-nav-tabs-link-active-border-color: var(--borda) var(--borda) var(--superficie);
+    --bs-nav-link-color: var(--texto-suave);
+    --bs-nav-link-hover-color: var(--texto);
+}
+
+.page-link {
+    --bs-pagination-bg: var(--superficie);
+    --bs-pagination-color: var(--texto);
+    --bs-pagination-border-color: var(--borda);
+    --bs-pagination-hover-bg: var(--superficie-2);
+    --bs-pagination-hover-color: var(--texto-forte);
+    --bs-pagination-active-bg: var(--marca);
+    --bs-pagination-active-border-color: var(--marca);
+    --bs-pagination-active-color: var(--marca-texto);
+    --bs-pagination-focus-box-shadow: 0 0 0 .2rem var(--marca-foco);
+}
+
+.spinner-border.text-primary {
+    color: var(--marca-ui) !important;
+}
+
+.progress {
+    background-color: var(--superficie-2);
+}
+
+.progress-bar {
+    background-color: var(--marca);
+}
+
+hr {
+    border-color: var(--borda);
+    opacity: 1;
+}
+
+/* No tema escuro as telas antigas que pedem fundo branco/claro
+   ganham a superfície certa em vez de um bloco branco. */
+body.dark-theme .bg-white,
+body.dark-theme .bg-light {
+    background-color: var(--superficie) !important;
+    color: var(--texto) !important;
+}
+
+body.dark-theme .table > thead th,
+body.dark-theme .thead-light {
+    background-color: var(--superficie-2) !important;
+}
+
+body.dark-theme .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ============================================================================
+   MOVIMENTO — quem pediu menos movimento, recebe menos movimento
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
+}

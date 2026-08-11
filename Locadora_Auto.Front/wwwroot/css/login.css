@@ -1,91 +1,181 @@
-﻿  /* =========================
-       LOGIN LAYOUT
-       ========================= */
-    .login-layout {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
+﻿/* ============================================================================
+   ENTRADA NO SISTEMA
+   Cores e fontes vêm de css/tema.css — trocar --marca troca esta tela junto.
+   ============================================================================ */
+
+.login-layout {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    padding: 24px;
+    background: linear-gradient(140deg, var(--asfalto-950) 0%, var(--asfalto-850) 60%, var(--asfalto-900) 100%);
+}
+
+    /* trilhos diagonais na cor da locadora */
+    .login-layout::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient( 115deg, transparent 0 34px, var(--marca-veu) 34px 38px );
+        -webkit-mask-image: radial-gradient(120% 90% at 78% 8%, #000 0%, transparent 72%);
+        mask-image: radial-gradient(120% 90% at 78% 8%, #000 0%, transparent 72%);
+        pointer-events: none;
+    }
+
+    /* farol: um halo da marca atrás do cartão */
+    .login-layout::after {
+        content: "";
+        position: absolute;
+        width: 620px;
+        height: 620px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, var(--marca-veu) 0%, transparent 68%);
+        pointer-events: none;
+    }
+
+.login-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+}
+
+.login-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 32px 26px;
+    background-color: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-3);
+    box-shadow: var(--sombra-3);
+    animation: entrar .35s ease;
+}
+
+    /* faixa da marca no topo do cartão */
+    .login-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--marca);
+    }
+
+.login-logo img {
+    width: 150px;
+    height: auto;
+    margin-bottom: 28px;
+}
+
+.login-body {
+    width: 100%;
+}
+
+    .login-body h3 {
+        margin-bottom: 4px;
+        font-family: var(--fonte-titulo);
+        font-size: 1.35rem;
+        font-weight: 600;
+        color: var(--texto-forte);
+    }
+
+    .login-body form {
+        margin-top: 22px;
+    }
+
+    .login-body label {
+        display: block;
+        margin-bottom: 5px;
+        font-family: var(--fonte-dados);
+        font-size: .8rem;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .login-body .form-control {
+        height: 46px;
+        font-size: 1rem;
+    }
+
+    .login-body .btn-primary {
         width: 100%;
-        background-color: var(--bg-main);
-        transition: background 0.3s ease;
+        height: 46px;
+        margin-top: 6px;
+        font-family: var(--fonte-dados);
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-transform: uppercase;
     }
 
-    .login-container {
-        width: 100%;
-        max-width: 400px;
-        padding: 16px;
+.login-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--borda);
+}
+
+    /* legenda discreta do lado esquerdo do rodapé */
+    .login-footer::before {
+        content: "Acesso restrito a colaboradores";
+        font-size: .78rem;
+        color: var(--texto-suave);
     }
 
-    .login-card {
-        background-color: var(--bg-topbar);
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        padding: 32px 24px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        animation: fadeIn 0.3s ease;
-        transition: background 0.3s ease, color 0.3s ease;
+.theme-toggle {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--borda);
+    border-radius: var(--raio-1);
+    color: var(--texto-suave);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color .2s ease, border-color .2s ease;
+}
+
+    .theme-toggle:hover {
+        color: var(--marca-ui);
+        border-color: var(--marca-ui);
     }
 
-    .login-logo img {
-        width: 120px;
-        margin-bottom: 24px;
-    }
-
-    .login-body {
-        width: 100%;
-    }
-
-    .login-footer {
-        margin-top: 24px;
-        display: flex;
-        justify-content: flex-end;
-        width: 100%;
-    }
-
-    .theme-toggle {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        font-size: 1.3rem;
-        color: var(--text-main);
-        transition: color 0.2s ease;
-    }
-
-        .theme-toggle:hover {
-            color: var(--accent-color);
-        }
-
-    @keyframes fadeIn {
-        from
-
-    {
+@keyframes entrar {
+    from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(12px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0);
     }
+}
 
-    }
-
-    /* =========================
-       RESPONSIVO (mobile)
-       ========================= */
-    @media (max-width: 500px) {
-        .login-card
-
-    {
-        padding: 24px 16px;
+@media (max-width: 500px) {
+    .login-card {
+        padding: 32px 20px 22px;
     }
 
     .login-logo img {
-        width: 100px;
-        margin-bottom: 16px;
+        width: 120px;
+        margin-bottom: 20px;
     }
-
-    }
+}

@@ -1,4 +1,5 @@
-﻿using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
+﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Domain.Entidades;
 
 namespace Locadora_Auto.Application.Models.Mappers
@@ -21,7 +22,8 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Endereco = filial.Endereco?.ToDto(),
                 TotalVeiculos = totalVeiculos,
                 VeiculosDisponiveis = veiculosDisponiveis,
-                TotalLocacoesMes = totalLocacoesMes
+                TotalLocacoesMes = totalLocacoesMes,
+                Fotos = filial.Fotos != null ? filial.Fotos.ToDtoList() : new List<FotoDto>()
             };
         }
 

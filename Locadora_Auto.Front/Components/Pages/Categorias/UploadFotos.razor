@@ -146,29 +146,29 @@
 
 <style>
     .upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 1rem;
+        border: 2px dashed var(--borda-forte);
+        border-radius: var(--raio-3);
         padding: 2rem;
         text-align: center;
-        background-color: #f8f9fa;
+        background-color: var(--superficie-2);
         transition: all 0.3s;
         cursor: pointer;
     }
 
         .upload-area.drag-over {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
+            border-color: var(--marca-ui);
+            background-color: var(--marca-veu);
         }
 
     .upload-icon {
-        color: #6c757d;
+        color: var(--texto-suave);
     }
 
     .file-list {
         max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-2);
     }
 
     .file-item {
@@ -176,7 +176,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--borda);
     }
 
         .file-item:last-child {
@@ -191,7 +191,7 @@
 
         .file-info .bi {
             font-size: 1.25rem;
-            color: #0d6efd;
+            color: var(--marca-ui);
         }
 
     .file-name {
@@ -212,9 +212,9 @@
     .preview-item {
         position: relative;
         aspect-ratio: 1;
-        border-radius: 0.5rem;
+        border-radius: var(--raio-2);
         overflow: hidden;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--borda);
     }
 
         .preview-item img {
@@ -227,10 +227,10 @@
         position: absolute;
         top: 0.25rem;
         right: 0.25rem;
-        background: rgba(0, 0, 0, 0.6);
+        background: var(--scrim);
         border: none;
         border-radius: 50%;
-        color: white;
+        color: var(--branco);
         cursor: pointer;
         padding: 0.25rem;
         line-height: 1;
@@ -243,7 +243,7 @@
     }
 
         .btn-remove-preview:hover {
-            background: rgba(220, 53, 69, 0.9);
+            background: var(--perigo);
         }
 
         .btn-remove-preview .bi {

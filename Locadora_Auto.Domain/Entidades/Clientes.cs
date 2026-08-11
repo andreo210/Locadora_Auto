@@ -128,7 +128,5 @@ namespace Locadora_Auto.Domain.Entidades
         Habilitado,
         Inadimplente,
         Bloqueado
-    }
-
-    
+    }    
 }

@@ -8,7 +8,7 @@
         public bool Ativo { get; set; }
         public EnderecoResponse? Endereco { get; set; }
         public int TotalVeiculos { get; set; }
-        public int VeiculosDisponivel { get; set; }
+        public int VeiculosDisponiveis { get; set; }
         public int TotalLocacoesMes { get; set; }
         public DateTime DataCriacao { get; set; }
         public DateTime? DataModificacao { get; set; }
