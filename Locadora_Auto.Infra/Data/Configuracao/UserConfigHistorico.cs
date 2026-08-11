@@ -14,7 +14,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<UserHistorico> builder)
         {
-            builder.ToTable("tbUserHistorico");
+            builder.ToTable("tb_user_historico");
 
             builder.HasKey(e => e.IdHistorico);
             builder.Property(e => e.IdHistorico)

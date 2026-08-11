@@ -18,17 +18,17 @@ var env = builder.Environment;
 /***********************************/
 
 
-// serviço de configurações de login.
+// serviï¿½o de configuraï¿½ï¿½es de login.
 //services.AddApplicationAuthentication(config, env);
 
-//injetar serviços do apps
+//injetar serviï¿½os do apps
 services.AddInjecaoDependenciaApplicationsConfig();
 
-//injetar serviço do Infra.service
+//injetar serviï¿½o do Infra.service
 services.AddHttpServices(config);
 
-//injeção de dependencia do Infra
-services.AddMySqlDbContext<LocadoraDbContext>(config["ConnectionStrings:dbModelo"] ?? "");
+//injeÃ§Ã£oo de dependencia do Infra
+services.AddPostgresDbContext<LocadoraDbContext>(config["ConnectionStrings:dbModelo"] ?? "");
 services.AddSqlServerRepositories();
 
 //adiciona o controle de identidade
@@ -41,16 +41,16 @@ services.AddIdentityConfiguration();
 //health check
 //services.AddHealthChecksConfig(builder.Configuration);
 
-//serviços de configurações do apiConfig(configuraçoes basicas)
+//serviï¿½os de configuraï¿½ï¿½es do apiConfig(configuraï¿½oes basicas)
 services.AddApiConfig();
 
-//serviços de configurações do versionamento de api
+//serviï¿½os de configuraï¿½ï¿½es do versionamento de api
 services.AddVersionamentoConfig();
 
-//serviço de configurações do hangfire
+//serviï¿½o de configuraï¿½ï¿½es do hangfire
 //services.AddHangFireConfig(config);
 
-//configurações do swagger
+//configuraï¿½ï¿½es do swagger
 builder.Services.AddSwaggerConfig();
 
 /**************************************/
@@ -59,28 +59,28 @@ builder.Services.AddSwaggerConfig();
 
 
 
-//usar os serviços 
+//usar os serviï¿½os 
 var app = builder.Build();
 
-//usar configuração do swagger
+//usar configuraï¿½ï¿½o do swagger
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 app.UseSwaggerConfig(apiVersionDescriptionProvider);
 
 
-// Configura o serviço com base no appsettings
+// Configura o serviï¿½o com base no appsettings
 
-//usar configuração do health check
+//usar configuraï¿½ï¿½o do health check
 //app.UseHealthChecksConfig();
 
-//usar configurações do apiConfig(configuraçoes basicas)
+//usar configuraï¿½ï¿½es do apiConfig(configuraï¿½oes basicas)
 app.UseApiConfig();
 
-//configuração Hangfire
+//configuraï¿½ï¿½o Hangfire
 //app.UseHangFireConfig();
 
 
 
-//configuração de login
+//configuraï¿½ï¿½o de login
 app.UseAuthenticationConfig();
 
 //UseCorsConfig();

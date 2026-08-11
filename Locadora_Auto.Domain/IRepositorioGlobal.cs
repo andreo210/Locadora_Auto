@@ -26,8 +26,8 @@ namespace Locadora_Auto.Domain
             CancellationToken ct = default);
         Task<IReadOnlyList<TEntity>> ObterPaginadoAsync(
             Expression<Func<TEntity, bool>> filtro,
-            int skip,
-            int take,
+            int pagina,
+            int ItemPorPagina,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? ordenarPor = null,
             CancellationToken ct = default);
         Task<PaginatedResult<TEntity>> ObterPaginadoComFiltroAsync<TEntity>(

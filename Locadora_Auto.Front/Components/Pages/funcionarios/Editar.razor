@@ -3,13 +3,15 @@
 @using Locadora_Auto.Front.Components.Forms
 @using Locadora_Auto.Front.Models.Enum
 @using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Request.Funcionario
 @using Locadora_Auto.Front.Models.Response
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Funcionario
-@using Locadora_Auto.Front.Services.Servicos.Notificacao
+@using Locadora_Auto.Front.Services.Utils.Notificacao
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject IFuncionarioService FuncionarioService
+@inject ILogger<FuncionarioEditarRequest> Logger
 @* @attribute [Authorize(Roles = "Administrador")] *@
 @rendermode InteractiveServer
 
@@ -438,6 +440,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "ERRO ao editar funcionario:  {idCliente}, {mensagem}", id, ex);
             NotificacaoService.ShowError($"Erro ao atualizar funcionário: {ex.Message}");
         }
         finally

@@ -53,7 +53,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
                 throw new ArgumentNullException("refreshToken", "refreshToken foi desativado");
 
 
-            if (refreshTokenDB.ExpiraEm < DateTime.Now)
+            if (refreshTokenDB.ExpiraEm < DateTime.UtcNow)
                 throw new ProblemException(ValidationProblemFactory.Single("Token", "Token expirado"));
 
             //RefreshToken antigo - Atualizar - Desativar esse refreshToken

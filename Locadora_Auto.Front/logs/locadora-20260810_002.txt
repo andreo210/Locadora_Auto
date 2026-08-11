@@ -1,0 +1,17 @@
+2026-08-10 09:29:21.932 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-10 09:29:22.006 -03:00 [INF] Hosting environment: Development
+2026-08-10 09:29:22.008 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-10 19:04:22.657 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:04:24.329 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:04:26.861 -03:00 [INF] ❌ Fechando notificação manualmente
+2026-08-10 19:06:12.547 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:06:12.548 -03:00 [WRN] Categoria não encontrada: 1
+2026-08-10 19:07:10.955 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:07:10.955 -03:00 [WRN] Categoria não encontrada: 1
+2026-08-10 19:07:15.972 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:07:30.228 -03:00 [INF] ❌ Fechando notificação manualmente
+2026-08-10 19:07:37.500 -03:00 [INF] Carregando dados do cliente ID: 1
+2026-08-10 19:07:37.546 -03:00 [INF] Dados do cliente 1 carregados com sucesso
+2026-08-10 19:39:20.209 -03:00 [INF] Exibidos 1 erros de validação para o usuário
+2026-08-10 19:39:28.886 -03:00 [ERR] ❌ ERRO SERVIDOR: "InternalServerError" - /api/v1/Funcionarios/1 - {"Type":null,"Title":"InternalServerError","Status":500,"Detail":"Falha ao atualizar funcionário.","Instance":"/api/v1/Funcionarios/1","Extensions":{"traceId":"4000008c-000a-fa00-b63f-84710c7967bb"}}
+2026-08-10 19:39:35.577 -03:00 [ERR] ❌ ERRO SERVIDOR: "InternalServerError" - /api/v1/Funcionarios/1 - {"Type":null,"Title":"InternalServerError","Status":500,"Detail":"Falha ao atualizar funcionário.","Instance":"/api/v1/Funcionarios/1","Extensions":{"traceId":"4000008d-000a-fa00-b63f-84710c7967bb"}}

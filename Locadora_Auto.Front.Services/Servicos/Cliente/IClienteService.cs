@@ -5,7 +5,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 {
     public interface IClienteService
     {
-        Task<ClienteResponse?> Inserir(ClienteRequest request);
+        Task<ClienteResponse?> Inserir(CriarClienteRequest request);
         Task<bool?> Atualizar(int id, ClienteEditarRequest request);
         Task<bool> Excluir(string id);
         Task<PaginatedResponse<ClienteResponse>> ObterTodos(

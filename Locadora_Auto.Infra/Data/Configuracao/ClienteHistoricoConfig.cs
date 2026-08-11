@@ -8,11 +8,11 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<ClienteHistorico> builder)
         {
-            builder.ToTable("tbClienteHistorico");
+            builder.ToTable("tb_cliente_historico");
 
             builder.HasKey(e => e.IdHistorico);
             builder.Property(e => e.IdHistorico)
-                .HasColumnName("idHistorico");
+                .HasColumnName("id_historico");
 
             builder.Property(e => e.IdCliente)
                 .HasColumnName("id_cliente");
@@ -36,7 +36,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasColumnName("usuario_evento");
 
             builder.Property(e => e.IdUsuarioModificacao)
-                .HasColumnName("Id_usuario_modificacao");
+                .HasColumnName("id_usuario_modificacao");
         }
     }
 }

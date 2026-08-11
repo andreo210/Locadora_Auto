@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Clientes> builder)
         {
-            builder.ToTable("tbCliente");
+            builder.ToTable("tb_cliente");
 
             builder.HasKey(e => e.IdCliente);
 
@@ -46,7 +46,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             //chave estrangeira
             builder.Property(e => e.IdUser)
-                .HasColumnName("idAspNetUsers");
+                .HasColumnName("id_asp_net_users");
 
 
             #region relacionamento

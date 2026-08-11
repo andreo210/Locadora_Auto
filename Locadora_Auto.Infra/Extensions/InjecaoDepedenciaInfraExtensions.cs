@@ -37,21 +37,23 @@ namespace Locadora_Auto.Infra.Extensions
 
 
         //adiciona o dbcontext
-        public static IServiceCollection AddMySqlDbContext<TContext>(this IServiceCollection services, string ConnectionString) where TContext : DbContext
+        public static IServiceCollection AddPostgresDbContext<TContext>(this IServiceCollection services, string ConnectionString) where TContext : DbContext
         {
             services.AddDbContext<TContext>(options =>
             {
-                options.UseMySql(
+                options.UseNpgsql(
                     ConnectionString,
-                    ServerVersion.AutoDetect(ConnectionString),
-                    mySqlOptions =>
+                    npgsqlOptions =>
                     {
-                        mySqlOptions.EnableRetryOnFailure(
+                        npgsqlOptions.EnableRetryOnFailure(
                             maxRetryCount: 5,
                             maxRetryDelay: TimeSpan.FromSeconds(10),
-                            errorNumbersToAdd: null);
+                            errorCodesToAdd: null);
                     }
                 );
+
+                //tabelas e colunas em snake_case
+                options.UseSnakeCaseNamingConvention();
             });
 
             //usuario corrente

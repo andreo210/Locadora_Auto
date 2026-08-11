@@ -35,7 +35,7 @@ namespace Locadora_Auto.Front.Models.Layout
                 {
                     Titulo = "Dashboard",
                     Icone = "bi-speedometer2",
-                    Url = "/"
+                    Url = "/teste"
                 },
 
                 new MenuItem
@@ -122,7 +122,7 @@ namespace Locadora_Auto.Front.Models.Layout
                     SubItens = new List<MenuItem>
                     {
                         new MenuItem { Titulo = "Listar Filiais", Icone = "bi-list", Url = "/filiais" },
-                        new MenuItem { Titulo = "Nova Filial", Icone = "bi-plus", Url = "/filiais/nova" }
+                        new MenuItem { Titulo = "Nova Filial", Icone = "bi-plus", Url = "/filial/nova" }
                     }
                 },
 

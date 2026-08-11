@@ -63,6 +63,14 @@
             }
         }
 
+        public void RemoverFoto(int idFoto)
+        {
+            var foto = _fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (foto == null)
+                throw new DomainException("Foto não encontrada");
+            _fotos.Remove(foto);
+        }
+
     }
 
 

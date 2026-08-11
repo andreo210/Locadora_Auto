@@ -289,7 +289,9 @@ namespace Locadora_Auto.Application.Services.FuncionarioServices
 
             if (!string.IsNullOrWhiteSpace(nome))
             {
-                condicoes.Add(f => f.Usuario.NomeCompleto.Contains(nome));
+                //ToLower nos dois lados: no Postgres o LIKE é sensível a maiúsculas, diferente do MySQL
+                var nomeBusca = nome.ToLower();
+                condicoes.Add(f => f.Usuario.NomeCompleto.ToLower().Contains(nomeBusca));
             }
 
             if (!string.IsNullOrWhiteSpace(cargo))

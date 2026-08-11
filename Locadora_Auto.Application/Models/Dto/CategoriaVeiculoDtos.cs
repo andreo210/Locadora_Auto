@@ -22,6 +22,7 @@
         public int? LimiteKm { get; set; }
         public decimal? ValorKmExcedente { get; set; }
         public int? TotalVeiculos { get; set; }
+        public List<FotoDto>? Fotos { get; set; }
     }
 
 }

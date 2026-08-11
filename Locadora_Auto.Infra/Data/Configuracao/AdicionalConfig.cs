@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Adicional> builder)
         {
-            builder.ToTable("tbAdicional");
+            builder.ToTable("tb_adicional");
 
             //chave primaria
             builder.HasKey(e => e.IdAdicional);

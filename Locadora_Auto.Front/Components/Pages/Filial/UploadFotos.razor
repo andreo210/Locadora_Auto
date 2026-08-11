@@ -1,0 +1,439 @@
+﻿@page "/filial/{categoriaId:int}/fotos"
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject ICategoriaService _categoriaService
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Upload de Fotos - Categoria</h2>
+            <p class="text-muted">Adicione fotos para esta categoria</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-images me-2"></i>
+                        Enviar Fotos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Informações da categoria -->
+                    @if (categoria != null)
+                    {
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>@categoria.Nome</strong> - Envie fotos para esta categoria
+                        </div>
+                    }
+
+                    <!-- Área de upload -->
+                    <div class="upload-area @(isDragging ? "drag-over" : "")"
+                         @ondragenter="OnDragEnter"
+                         @ondragleave="OnDragLeave"
+                         @ondragover="OnDragOver"
+                         @ondragover:preventDefault="true"
+                         @ondragover:stopPropagation="true"
+                         @ondrop="OnDrop"
+                         @ondrop:preventDefault="true"
+                         @ondrop:stopPropagation="true">
+
+                        <div class="upload-icon">
+                            <i class="bi bi-cloud-upload fs-1"></i>
+                        </div>
+                        <h6 class="mt-3">Arraste e solte imagens aqui</h6>
+                        <p class="text-muted small">ou</p>
+
+                        <InputFile id="fileInput"
+                                   OnChange="OnFileSelected"
+                                   multiple
+                                   accept="image/*"
+                                   class="d-none" />
+
+                        <button type="button" class="btn btn-primary mt-2"
+                                onclick="document.getElementById('fileInput').click()">
+                            <i class="bi bi-folder2-open me-1"></i>
+                            Selecionar Imagens
+                        </button>
+
+                        <p class="text-muted small mt-3">
+                            Formatos suportados: JPG, PNG, GIF, WEBP<br>
+                            Tamanho máximo: 10MB por arquivo
+                        </p>
+                    </div>
+
+                    <!-- Lista de arquivos selecionados -->
+                    @if (arquivosSelecionados.Any())
+                    {
+                        <div class="mt-4">
+                            <h6 class="mb-3">
+                                <i class="bi bi-files me-2"></i>
+                                Arquivos selecionados (@arquivosSelecionados.Count)
+                            </h6>
+
+                            <div class="file-list">
+                                @foreach (var arquivo in arquivosSelecionados)
+                                {
+                                    <div class="file-item">
+                                        <div class="file-info">
+                                            <i class="bi bi-file-image"></i>
+                                            <span class="file-name">@arquivo.Name</span>
+                                            <span class="file-size text-muted">(@FormatarTamanho(arquivo.Size))</span>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => RemoverArquivo(arquivo)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Pré-visualização -->
+                            @if (previewUrls.Any())
+                            {
+                                <div class="mt-3">
+                                    <h6 class="mb-2">Pré-visualização</h6>
+                                    <div class="preview-grid">
+                                        @foreach (var preview in previewUrls)
+                                        {
+                                            <div class="preview-item">
+                                                <img src="@preview.Url" alt="Preview" />
+                                                <button type="button" class="btn-remove-preview"
+                                                        @onclick="() => RemoverPreview(preview.Arquivo)">
+                                                    <i class="bi bi-x-circle-fill"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Botões de ação -->
+                    <div class="mt-4 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            Voltar
+                        </button>
+
+                        <button type="button" class="btn btn-primary"
+                                @onclick="EnviarFotos"
+                                disabled="@(!arquivosSelecionados.Any() || enviando)">
+                            @if (enviando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Enviando...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cloud-upload me-1"></i>
+                                <span>Enviar (@arquivosSelecionados.Count) foto(s)</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 1rem;
+        padding: 2rem;
+        text-align: center;
+        background-color: #f8f9fa;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+        .upload-area.drag-over {
+            border-color: #0d6efd;
+            background-color: #e7f1ff;
+        }
+
+    .upload-icon {
+        color: #6c757d;
+    }
+
+    .file-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+    }
+
+    .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+        .file-info .bi {
+            font-size: 1.25rem;
+            color: #0d6efd;
+        }
+
+    .file-name {
+        font-weight: 500;
+    }
+
+    .file-size {
+        font-size: 0.875rem;
+    }
+
+    .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .preview-item {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid #dee2e6;
+    }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .btn-remove-preview {
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+        background: rgba(0, 0, 0, 0.6);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        cursor: pointer;
+        padding: 0.25rem;
+        line-height: 1;
+        transition: all 0.2s;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .btn-remove-preview:hover {
+            background: rgba(220, 53, 69, 0.9);
+        }
+
+        .btn-remove-preview .bi {
+            font-size: 1rem;
+        }
+</style>
+
+@code {
+    [Parameter] public int categoriaId { get; set; }
+
+    private CategoriaResponse? categoria;
+    private List<IBrowserFile> arquivosSelecionados = new();
+    private List<(IBrowserFile Arquivo, string Url)> previewUrls = new();
+    private bool enviando;
+    private bool isDragging;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarCategoria();
+    }
+
+    private async Task CarregarCategoria()
+    {
+        try
+        {
+            categoria = await _categoriaService.ObterPorId(categoriaId.ToString());
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categoria: {ex.Message}", "Erro");
+        }
+    }
+
+    private void OnDragEnter()
+    {
+        isDragging = true;
+    }
+
+    private void OnDragLeave()
+    {
+        isDragging = false;
+    }
+
+    private void OnDragOver()
+    {
+        isDragging = true;
+    }
+
+    private async Task OnDrop(DragEventArgs e)
+    {
+        isDragging = false;
+
+        // Para acessar os arquivos no Blazor, você precisa usar JavaScript
+        // Este é um placeholder - a implementação real requer JS Interop
+        var files = await GetFilesFromDragEvent(e);
+        foreach (var file in files)
+        {
+            await AdicionarArquivo(file);
+        }
+    }
+
+    // Método auxiliar para obter arquivos do evento de drag
+    private async Task<List<IBrowserFile>> GetFilesFromDragEvent(DragEventArgs e)
+    {
+        // No Blazor, o acesso direto aos arquivos no drag and drop é limitado
+        // Uma alternativa é usar JavaScript Interop
+        // Por simplicidade, vamos usar apenas o InputFile para seleção de arquivos
+        return new List<IBrowserFile>();
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles())
+        {
+            await AdicionarArquivo(file);
+        }
+    }
+
+    private async Task AdicionarArquivo(IBrowserFile file)
+    {
+        // Validar tamanho (10MB)
+        if (file.Size > 10 * 1024 * 1024)
+        {
+            NotificacaoService.ShowWarning($"Arquivo {file.Name} excede o limite de 10MB", "Arquivo muito grande");
+            return;
+        }
+
+        // Validar tipo
+        var tiposPermitidos = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!tiposPermitidos.Contains(file.ContentType))
+        {
+            NotificacaoService.ShowWarning($"Arquivo {file.Name} não é um formato de imagem válido", "Formato inválido");
+            return;
+        }
+
+        arquivosSelecionados.Add(file);
+
+        // Gerar preview
+        var previewUrl = await GerarPreview(file);
+        previewUrls.Add((file, previewUrl));
+
+        StateHasChanged();
+    }
+
+    private async Task<string> GerarPreview(IBrowserFile file)
+    {
+        var buffer = new byte[file.Size];
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await stream.ReadAsync(buffer);
+
+        var base64 = Convert.ToBase64String(buffer);
+        return $"data:{file.ContentType};base64,{base64}";
+    }
+
+    private void RemoverArquivo(IBrowserFile arquivo)
+    {
+        arquivosSelecionados.Remove(arquivo);
+
+        var preview = previewUrls.FirstOrDefault(p => p.Arquivo == arquivo);
+        if (preview.Arquivo != null)
+        {
+            previewUrls.Remove(preview);
+        }
+
+        StateHasChanged();
+    }
+
+    private void RemoverPreview(IBrowserFile arquivo)
+    {
+        RemoverArquivo(arquivo);
+    }
+
+    private async Task EnviarFotos()
+    {
+        if (!arquivosSelecionados.Any())
+        {
+            NotificacaoService.ShowWarning("Selecione pelo menos uma foto para enviar", "Nenhuma foto selecionada");
+            return;
+        }
+
+        enviando = true;
+        StateHasChanged();
+
+        try
+        {
+            var sucesso = await _categoriaService.UploadFotos(categoriaId, arquivosSelecionados);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Fotos enviadas com sucesso! ({arquivosSelecionados.Count} arquivos)", "Upload concluído");
+
+                // Limpar seleção
+                arquivosSelecionados.Clear();
+                previewUrls.Clear();
+
+                // Aguardar 2 segundos e voltar
+                await Task.Delay(2000);
+                Navegacao.NavigateTo($"/categorias/visualizar/{categoriaId}");
+            }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao enviar as fotos. Tente novamente.", "Erro no upload");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao enviar fotos: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            enviando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navegacao.NavigateTo($"/categorias/visualizar/{categoriaId}");
+    }
+
+    private string FormatarTamanho(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}

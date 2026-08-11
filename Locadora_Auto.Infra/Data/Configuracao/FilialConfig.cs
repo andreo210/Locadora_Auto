@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Filial> builder)
         {
-            builder.ToTable("tbFilial");
+            builder.ToTable("tb_filial");
 
             builder.HasKey(e => e.IdFilial);
 
@@ -30,7 +30,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
 
             //chave estrangeira
             builder.Property(e => e.IdEndereco)
-                .HasColumnName("idEndereco")
+                .HasColumnName("id_endereco")
                 .IsRequired();
 
             builder.HasOne(u => u.Endereco)//uma filial tem um endereço

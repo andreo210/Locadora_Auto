@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Locadora_Auto.Infra.Data
 {
@@ -34,6 +35,27 @@ namespace Locadora_Auto.Infra.Data
         public DbSet<Dano> Danos => Set<Dano>();
 
 
+        /// <summary>
+        /// O Postgres grava data/hora em 'timestamp with time zone' e o Npgsql só aceita DateTime com
+        /// Kind=Utc — datas vindas de DTO chegam como Unspecified e seriam rejeitadas. Este conversor
+        /// normaliza na escrita e remarca como Utc na leitura.
+        /// </summary>
+        private static readonly ValueConverter<DateTime, DateTime> ConversorDataUtc = new(
+            valor => valor.Kind == DateTimeKind.Local
+                ? valor.ToUniversalTime()
+                : DateTime.SpecifyKind(valor, DateTimeKind.Utc),
+            valor => DateTime.SpecifyKind(valor, DateTimeKind.Utc));
+
+        private static readonly ValueConverter<DateTime?, DateTime?> ConversorDataUtcNulavel = new(
+            valor => valor.HasValue
+                ? (valor.Value.Kind == DateTimeKind.Local
+                    ? valor.Value.ToUniversalTime()
+                    : DateTime.SpecifyKind(valor.Value, DateTimeKind.Utc))
+                : valor,
+            valor => valor.HasValue
+                ? DateTime.SpecifyKind(valor.Value, DateTimeKind.Utc)
+                : valor);
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             //Aplica todas as configurações de entidade do assembly
@@ -41,10 +63,26 @@ namespace Locadora_Auto.Infra.Data
 
             base.OnModelCreating(builder);
 
+            //O Identity nomeia as próprias tabelas em PascalCase; renomeia para o padrão snake_case
+            builder.Entity<User>().ToTable("asp_net_users");
+            builder.Entity<IdentityRole>().ToTable("asp_net_roles");
+            builder.Entity<IdentityUserRole<string>>().ToTable("asp_net_user_roles");
+            builder.Entity<IdentityUserClaim<string>>().ToTable("asp_net_user_claims");
+            builder.Entity<IdentityUserLogin<string>>().ToTable("asp_net_user_logins");
+            builder.Entity<IdentityUserToken<string>>().ToTable("asp_net_user_tokens");
+            builder.Entity<IdentityRoleClaim<string>>().ToTable("asp_net_role_claims");
 
-            //Ajuste charset MariaDB
-            builder.UseCollation("utf8mb4_unicode_ci");
-            builder.HasCharSet("utf8mb4");
+            //Aplica o conversor de UTC depois do base para alcançar também as entidades do Identity
+            foreach (var tipoEntidade in builder.Model.GetEntityTypes())
+            {
+                foreach (var propriedade in tipoEntidade.GetProperties())
+                {
+                    if (propriedade.ClrType == typeof(DateTime))
+                        propriedade.SetValueConverter(ConversorDataUtc);
+                    else if (propriedade.ClrType == typeof(DateTime?))
+                        propriedade.SetValueConverter(ConversorDataUtcNulavel);
+                }
+            }
         }
 
         //sobreescreve o saveChange para criar histórico temporal
@@ -85,7 +123,7 @@ namespace Locadora_Auto.Infra.Data
 
                 MapearValores(entry, history);
 
-                history.DataEvento = DateTime.Now;
+                history.DataEvento = DateTime.UtcNow;
                 history.Acao = entry.State == EntityState.Modified ? "UPDATE" : "DELETE";
                 history.UsuarioEvento = _currentUser.UserId ?? "SYSTEM";
 

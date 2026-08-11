@@ -134,8 +134,8 @@ namespace Locadora_Auto.Application.Services.OAuth.Token
             var tokenModel = new RefreshToken()
             {
                 Token = idRefresh,
-                ExpiraEm = DateTime.Now.AddHours(3),
-                CriadoEm = DateTime.Now,
+                ExpiraEm = DateTime.UtcNow.AddHours(3),
+                CriadoEm = DateTime.UtcNow,
                 Revogado = false,
                 UserId = user.Id                
             };

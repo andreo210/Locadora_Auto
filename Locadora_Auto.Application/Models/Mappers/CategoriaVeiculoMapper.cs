@@ -15,7 +15,8 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Nome = categoria.Nome,
                 ValorDiaria = categoria.ValorDiaria,
                 LimiteKm = categoria.LimiteKm,
-                ValorKmExcedente = categoria.ValorKmExcedente
+                ValorKmExcedente = categoria.ValorKmExcedente,
+                Fotos = categoria.Fotos != null ? categoria.Fotos.ToDtoList() : new List<FotoDto>()
             };
         }
 

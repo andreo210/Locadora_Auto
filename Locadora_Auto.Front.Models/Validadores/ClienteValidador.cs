@@ -1,15 +1,10 @@
 ﻿using FluentValidation;
 using Locadora_Auto.Front.Models.Request.Cliente;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Locadora_Auto.Front.Models.Validadores
 {
   
-    public class ClienteValidator : AbstractValidator<ClienteRequest>
+    public class ClienteValidator : AbstractValidator<CriarClienteRequest>
     {
         public ClienteValidator()
         {

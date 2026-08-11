@@ -15,9 +15,9 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
             _api = api;
         }
 
-        public async Task<ClienteResponse?> Inserir(ClienteRequest request)
+        public async Task<ClienteResponse?> Inserir(CriarClienteRequest request)
         {
-            var (objeto, code) = await _api.PostAsync<ClienteResponse, ClienteRequest>("api/v1/Clientes", request);
+            var (objeto, code) = await _api.PostAsync<ClienteResponse, CriarClienteRequest>("api/v1/Clientes", request);
             if (code == HttpStatusCode.Created || code == HttpStatusCode.OK)
             {
                 return objeto;
@@ -47,7 +47,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Funcionario
 
         public async Task<ClienteResponse> ObterPorId(string id)
         {
-            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/obter-funcionario?usuarioId={id}");
+            return await _api.GetAsync<ClienteResponse>($"api/v1/Clientes/{id}");
         }
 
         public async Task<PaginatedResponse<ClienteResponse>> ObterTodos(

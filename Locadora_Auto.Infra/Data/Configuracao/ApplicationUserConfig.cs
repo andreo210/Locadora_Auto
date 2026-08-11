@@ -8,17 +8,9 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<User> builder)
         {
-            builder.ToTable("aspnet_users");
-
+            //nomes de tabela e coluna vêm da convenção snake_case (UseSnakeCaseNamingConvention)
             builder.Property(e => e.NomeCompleto)
-                .HasColumnName("NomeCompleto")
                 .HasMaxLength(255);
-
-            builder.Property(e => e.Ativo)
-                .HasColumnName("Ativo");
-
-            builder.Property(e => e.DataCriacao)
-                .HasColumnName("DataCriacao");
         }
     }
 

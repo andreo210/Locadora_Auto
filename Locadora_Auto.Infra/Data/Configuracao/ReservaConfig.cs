@@ -8,7 +8,7 @@ namespace Locadora_Auto.Infra.Data.Configuracao
     {
         public void Configure(EntityTypeBuilder<Reserva> builder)
         {
-            builder.ToTable("tbReserva");
+            builder.ToTable("tb_reserva");
 
             builder.HasKey(e => e.IdReserva);
 

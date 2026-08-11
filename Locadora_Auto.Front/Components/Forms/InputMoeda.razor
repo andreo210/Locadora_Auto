@@ -1,0 +1,129 @@
+﻿@typeparam TValue
+@inherits InputBase<TValue>
+
+<input type="text"
+       class="@CssClass"
+       value="@ValorExibicao"
+       @oninput="OnInput"
+       @onblur="OnBlur"
+       @attributes="AdditionalAttributes" />
+
+@code {
+    private bool isFocused = false;
+
+    [Parameter]
+    public bool AlinharDireita { get; set; } = false;
+
+    private string CssClass
+    {
+        get
+        {
+            var css = "form-control";
+            if (AlinharDireita)
+                css += " text-end";
+            return css;
+        }
+    }
+
+    private string ValorExibicao
+    {
+        get
+        {
+            if (isFocused)
+                return _valorDigitado;
+
+            if (CurrentValue != null)
+            {
+                if (CurrentValue is double doubleValue)
+                    return doubleValue.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+                if (CurrentValue is decimal decimalValue)
+                    return decimalValue.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+            }
+            return string.Empty;
+        }
+    }
+
+    private string _valorDigitado = string.Empty;
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        isFocused = true;
+        var inputValue = e.Value?.ToString() ?? string.Empty;
+
+        // Remove tudo que não é número
+        var apenasNumeros = new string(inputValue.Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(apenasNumeros))
+        {
+            _valorDigitado = string.Empty;
+            CurrentValue = default;
+            return;
+        }
+
+        // Remove zeros à esquerda
+        apenasNumeros = apenasNumeros.TrimStart('0');
+        if (string.IsNullOrEmpty(apenasNumeros))
+            apenasNumeros = "0";
+
+        // Converte para valor monetário
+        var valorNumerico = double.Parse(apenasNumeros) / 100;
+
+        // Formata para exibição
+        _valorDigitado = valorNumerico.ToString("F2").Replace(".", ",");
+
+        // Atualiza o valor real
+        if (typeof(TValue) == typeof(double))
+        {
+            CurrentValue = (TValue)(object)valorNumerico;
+        }
+        else if (typeof(TValue) == typeof(decimal))
+        {
+            CurrentValue = (TValue)(object)(decimal)valorNumerico;
+        }
+    }
+
+    private void OnBlur()
+    {
+        isFocused = false;
+        _valorDigitado = string.Empty;
+    }
+
+    protected override bool TryParseValueFromString(string? value, out TValue result, out string? validationErrorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result = default!;
+            validationErrorMessage = null;
+            return true;
+        }
+
+        var apenasNumeros = new string(value.Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(apenasNumeros))
+        {
+            result = default!;
+            validationErrorMessage = null;
+            return true;
+        }
+
+        var valorNumerico = double.Parse(apenasNumeros) / 100;
+
+        if (typeof(TValue) == typeof(double))
+        {
+            result = (TValue)(object)valorNumerico;
+            validationErrorMessage = null;
+            return true;
+        }
+
+        if (typeof(TValue) == typeof(decimal))
+        {
+            result = (TValue)(object)(decimal)valorNumerico;
+            validationErrorMessage = null;
+            return true;
+        }
+
+        result = default!;
+        validationErrorMessage = "Valor inválido";
+        return false;
+    }
+}
