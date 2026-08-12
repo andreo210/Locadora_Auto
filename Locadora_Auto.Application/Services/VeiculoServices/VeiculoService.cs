@@ -2,9 +2,11 @@
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.VeiculoServices;
+using Locadora_Auto.Domain;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 public class VeiculoService : IVeiculoService
 {
@@ -61,10 +63,84 @@ public class VeiculoService : IVeiculoService
         return veiculos.Select(v => v.ToDto()).ToList();
     }
 
+    public async Task<PaginatedResult<VeiculoDto>> ObterTodosPaginadoAsync(
+        int pagina,
+        int itensPorPagina,
+        string? termo = null,
+        int? idCategoria = null,
+        int? idFilial = null,
+        int? idStatus = null,
+        bool? ativo = null,
+        string? ordenarPor = null,
+        string? direcao = null,
+        CancellationToken ct = default)
+    {
+        // No Postgres o LIKE é sensível a maiúsculas: comparar em minúsculas dos dois lados
+        var busca = string.IsNullOrWhiteSpace(termo) ? null : termo.Trim().ToLower();
+
+        // comparar enum com enum evita o cast dentro da árvore de expressão
+        StatusVeiculo? status = idStatus.HasValue ? (StatusVeiculo)idStatus.Value : null;
+
+        Expression<Func<Veiculo, bool>> filtro = v =>
+            (busca == null
+                || v.Placa.ToLower().Contains(busca)
+                || v.Marca.ToLower().Contains(busca)
+                || v.Modelo.ToLower().Contains(busca)
+                || v.Chassi.ToLower().Contains(busca))
+            && (idCategoria == null || v.IdCategoria == idCategoria)
+            && (idFilial == null || v.FilialAtualId == idFilial)
+            && (status == null || v.Status == status)
+            && (ativo == null || v.Ativo == ativo);
+
+        var veiculos = await _veiculoRepository.ObterPaginadoComFiltroAsync(
+            filtro: filtro,
+            ordenarPor: MontarOrdenacao(ordenarPor, direcao),
+            incluir: q => q.Include(v => v.Categoria)
+                           .Include(v => v.FilialAtual),
+            pagina: pagina,
+            itensPorPagina: itensPorPagina,
+            asNoTracking: true,
+            ct: ct);
+
+        return new PaginatedResult<VeiculoDto>
+        {
+            Items = veiculos.Items.Select(v => v.ToDto()).ToList(),
+            Total = veiculos.Total,
+            Pagina = veiculos.Pagina,
+            TotalPaginas = veiculos.TotalPaginas,
+            ItensPorPagina = veiculos.ItensPorPagina
+        };
+    }
+
+    /// <summary>
+    /// Traduz a coluna clicada na tela para o OrderBy correspondente. Coluna desconhecida cai na placa.
+    /// </summary>
+    private static Func<IQueryable<Veiculo>, IOrderedQueryable<Veiculo>> MontarOrdenacao(string? ordenarPor, string? direcao)
+    {
+        var descendente = string.Equals(direcao, "desc", StringComparison.OrdinalIgnoreCase);
+
+        return (ordenarPor?.ToLower()) switch
+        {
+            "marca" => q => descendente ? q.OrderByDescending(v => v.Marca) : q.OrderBy(v => v.Marca),
+            "modelo" => q => descendente ? q.OrderByDescending(v => v.Modelo) : q.OrderBy(v => v.Modelo),
+            "ano" => q => descendente ? q.OrderByDescending(v => v.Ano) : q.OrderBy(v => v.Ano),
+            "kmatual" => q => descendente ? q.OrderByDescending(v => v.KmAtual) : q.OrderBy(v => v.KmAtual),
+            "categoria" => q => descendente ? q.OrderByDescending(v => v.Categoria.Nome) : q.OrderBy(v => v.Categoria.Nome),
+            "filial" => q => descendente ? q.OrderByDescending(v => v.FilialAtual.Nome) : q.OrderBy(v => v.FilialAtual.Nome),
+            "status" => q => descendente ? q.OrderByDescending(v => v.Status) : q.OrderBy(v => v.Status),
+            "ativo" => q => descendente ? q.OrderByDescending(v => v.Ativo) : q.OrderBy(v => v.Ativo),
+            _ => q => descendente ? q.OrderByDescending(v => v.Placa) : q.OrderBy(v => v.Placa)
+        };
+    }
+
     public async Task<IReadOnlyList<VeiculoDto>> ObterDisponiveisAsync(int? idFilial = null, CancellationToken ct = default)
     {
+        // inativo, locado ou em manutenção nunca conta como disponível
         var veiculos = await _veiculoRepository.ObterAsync(
-            filtro: v => v.Ativo && v.Disponivel && (idFilial == null || v.FilialAtualId == idFilial),
+            filtro: v => v.Ativo
+                         && v.Disponivel
+                         && v.Status == StatusVeiculo.Disponivel
+                         && (idFilial == null || v.FilialAtualId == idFilial),
             incluir: q => q.Include(v => v.Categoria)
                            .Include(v => v.FilialAtual),
             ct: ct);
@@ -125,8 +201,21 @@ public class VeiculoService : IVeiculoService
             _notificador.Add("Km não pode ser menor que o atual");
             return false;
         }
- 
-        veiculo.Atualizar(dto.KmAtual.Value, dto.IdFilialAtual.Value);
+
+        if (dto.IdFilialAtual.HasValue &&
+            !await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilialAtual.Value, ct))
+        {
+            _notificador.Add("Filial não encontrada");
+            return false;
+        }
+
+        // campos não informados mantêm o valor atual
+        veiculo.Atualizar(
+            dto.KmAtual ?? veiculo.KmAtual,
+            dto.IdFilialAtual ?? veiculo.FilialAtualId,
+            dto.Marca,
+            dto.Modelo,
+            dto.Ano);
 
         await _veiculoRepository.SalvarAsync(ct);
         return true;
@@ -158,6 +247,25 @@ public class VeiculoService : IVeiculoService
 
     #endregion
     #region Manutecao
+    public async Task<IReadOnlyList<ManutencaoDto>> ObterManutencoesAsync(int id, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            incluir: q => q.Include(v => v.Manutencoes),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return new List<ManutencaoDto>();
+        }
+
+        return veiculo.Manutencoes
+            .OrderByDescending(m => m.DataInicio)
+            .Select(m => m.ToDto(veiculo.IdVeiculo))
+            .ToList();
+    }
+
     public async Task<bool> IniciarManutencao(int id,CriarManutencaoDto dto, CancellationToken ct = default)
     {
         var veiculo = await ObterPorId(id);

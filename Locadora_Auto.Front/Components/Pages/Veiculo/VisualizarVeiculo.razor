@@ -1,0 +1,247 @@
+﻿@page "/veiculos/visualizar/{id:int}"
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Veiculo
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IVeiculoService _veiculoService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Detalhes do Veículo</h2>
+            </div>
+            <p class="text-muted mt-2">Visualize as informações completas do veículo</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do veículo...</p>
+        </div>
+    }
+    else if (veiculo == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Veículo não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Dados do veículo -->
+            <div class="col-md-7">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-truck me-2"></i>
+                            @veiculo.Placa — @veiculo.Descricao
+                        </h5>
+                        <div>
+                            <span class="badge @(((StatusVeiculoEnum)veiculo.IdStatus).GetCorBadge())">
+                                @(((StatusVeiculoEnum)veiculo.IdStatus).GetDisplayName())
+                            </span>
+                            <span class="badge @(veiculo.Ativo ? "bg-success" : "bg-danger")">
+                                @(veiculo.Ativo ? "Ativo" : "Inativo")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Placa</label>
+                                <p class="mb-0 fs-5">@veiculo.Placa</p>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Marca</label>
+                                <p class="mb-0 fs-5">@veiculo.Marca</p>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Modelo</label>
+                                <p class="mb-0 fs-5">@veiculo.Modelo</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Ano</label>
+                                <p class="mb-0">@veiculo.Ano</p>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="fw-bold text-muted small">Chassi</label>
+                                <p class="mb-0">@veiculo.Chassi</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Categoria</label>
+                                <p class="mb-0">@veiculo.Categoria</p>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Filial atual</label>
+                                <p class="mb-0">@veiculo.Filial</p>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="fw-bold text-muted small">Quilometragem</label>
+                                <p class="mb-0 fs-5">@veiculo.KmAtual.ToString("N0") km</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-0">
+                                <label class="fw-bold text-muted small">Disponível para locação</label>
+                                <p class="mb-0">
+                                    <span class="badge @(veiculo.Disponivel ? "bg-success" : "bg-secondary")">
+                                        @(veiculo.Disponivel ? "Sim" : "Não")
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manutenções -->
+            <div class="col-md-5">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-tools me-2"></i>
+                            Manutenções
+                        </h5>
+                        <a href="/veiculos/@id/manutencao" class="btn btn-sm btn-light">
+                            <i class="bi bi-gear me-1"></i>Gerenciar
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (!manutencoes.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-tools fs-1 text-muted"></i>
+                                <p class="mt-2 text-muted">Nenhuma manutenção registrada</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <h4 class="mb-0">@manutencoes.Count</h4>
+                                    <small class="text-muted">Total</small>
+                                </div>
+                                <div class="col-4">
+                                    <h4 class="mb-0 text-warning">@manutencoes.Count(m => m.IdStatus == (int)StatusManutencaoEnum.Aberta)</h4>
+                                    <small class="text-muted">Abertas</small>
+                                </div>
+                                <div class="col-4">
+                                    <h4 class="mb-0 text-success">@manutencoes.Sum(m => m.Custo).ToString("C")</h4>
+                                    <small class="text-muted">Custo total</small>
+                                </div>
+                            </div>
+                            <hr />
+                            <ul class="list-group list-group-flush">
+                                @foreach (var manutencao in manutencoes.Take(5))
+                                {
+                                    <li class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>@manutencao.Tipo</strong>
+                                                <div class="text-muted small">@manutencao.DataInicio.ToString("dd/MM/yyyy")</div>
+                                            </div>
+                                            <span class="badge @(((StatusManutencaoEnum)manutencao.IdStatus).GetCorBadge())">
+                                                @(((StatusManutencaoEnum)manutencao.IdStatus).GetDisplayName())
+                                            </span>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                            @if (manutencoes.Count > 5)
+                            {
+                                <div class="text-center mt-2">
+                                    <a href="/veiculos/@id/manutencao" class="small">
+                                        Ver todas as @manutencoes.Count manutenções
+                                    </a>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ações -->
+        <div class="row mt-2">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="Voltar">
+                        <i class="bi bi-arrow-left me-1"></i>Voltar
+                    </button>
+                    <a href="/veiculos/@id/manutencao" class="btn btn-outline-warning">
+                        <i class="bi bi-tools me-1"></i>Manutenção
+                    </a>
+                    <a href="/veiculos/editar/@id" class="btn btn-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private VeiculoResponse? veiculo;
+    private List<ManutencaoResponse> manutencoes = new();
+    private bool carregando = true;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarVeiculo();
+    }
+
+    // ===== MÉTODOS DE CARREGAMENTO =====
+    private async Task CarregarVeiculo()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            veiculo = await _veiculoService.ObterPorId(id);
+
+            if (veiculo != null)
+            {
+                manutencoes = await _veiculoService.ObterManutencoes(id);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar veículo: {ex.Message}");
+            veiculo = null;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Voltar()
+    {
+        Navegacao.NavigateTo("/veiculos");
+    }
+}

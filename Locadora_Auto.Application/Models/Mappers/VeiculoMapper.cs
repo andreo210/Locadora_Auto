@@ -16,12 +16,14 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Marca = veiculo.Marca,
                 Modelo = veiculo.Modelo,
                 Ano = veiculo.Ano,
+                Chassi = veiculo.Chassi,
                 KmAtual = veiculo.KmAtual,
                 Ativo = veiculo.Ativo,
                 Disponivel = veiculo.Disponivel,
                 IdCategoria = veiculo.IdCategoria,
                 Categoria = veiculo.Categoria?.Nome ?? string.Empty,
                 IdFilialAtual = veiculo.FilialAtualId,
+                IdStatus = (int)veiculo.Status,
                 Status = veiculo.Status.ToString(),
                 Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };

@@ -1,0 +1,492 @@
+﻿@page "/veiculos"
+@page "/veiculos/disponiveis"
+@page "/veiculos/manutencoes"
+@using Locadora_Auto.Front.Components.Notificacao
+@using Locadora_Auto.Front.Components.UI
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Tabelas
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Veiculo
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject NavigationManager Navegacao
+@inject IVeiculoService _veiculoService
+@inject IFilialService _filialService
+@inject ICategoriaService _categoriaService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
+
+<div class="container-fluid py-4">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>@TituloPagina</h2>
+            <p class="text-muted">@SubtituloPagina</p>
+        </div>
+    </div>
+
+    <!-- Tabela genérica de veículos -->
+    <TabelaGenerica TItem="VeiculoResponse"
+                    @bind-PaginaAtual="paginaAtual"
+                    @bind-ItensPorPagina="itensPorPagina"
+                    @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                    @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                    @bind-TermoBusca="termoBuscaGlobal"
+                    Items="veiculos"
+                    TotalItens="totalItems"
+                    Colunas="colunas"
+                    Carregando="carregando"
+                    OnCarregarDados="CarregarVeiculos"
+                    Titulo="@TituloPagina"
+                    PlaceholderBusca="Pesquisar por placa, marca, modelo ou chassi..."
+                    ColunasFiltro="4"
+                    SelecaoHabilitada="true"
+                    LarguraColunaAcoes="200"
+                    Acoes="acoes"
+                    AcoesEmMassa="acoesEmMassa"
+                    ObterId="@(v => v.IdVeiculo.ToString())"
+                    IconeVazio="bi-truck"
+                    MensagemVazio="Nenhum veículo encontrado"
+                    MensagemVazioDetalhe="Clique em 'Novo Veículo' para começar">
+
+        <!-- Ações no cabeçalho -->
+        <AcoesCabecalho>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        title="Atualizar lista" disabled="@carregando" @onclick="CarregarVeiculos">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <a href="/veiculos/novo" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i>Novo Veículo
+                </a>
+            </div>
+        </AcoesCabecalho>
+
+        <!-- Filtros adicionais -->
+        <FiltrosAdicionais>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroCategoria" @onchange="AlterarFiltroCategoria">
+                        <option value="">Todas as categorias</option>
+                        @foreach (var categoria in categorias)
+                        {
+                            <option value="@categoria.Id">@categoria.Nome</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroFilial" @onchange="AlterarFiltroFilial">
+                        <option value="">Todas as filiais</option>
+                        @foreach (var filial in filiais)
+                        {
+                            <option value="@filial.IdFilial">@filial.Nome</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroStatus" @onchange="AlterarFiltroStatus">
+                        <option value="">Todos os status</option>
+                        @foreach (var status in System.Enum.GetValues<StatusVeiculoEnum>())
+                        {
+                            <option value="@((int)status)">@status.GetDisplayName()</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </FiltrosAdicionais>
+    </TabelaGenerica>
+</div>
+
+@code {
+    // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
+    private ConfirmDialog? confirmDialog;
+
+    // ===== VARIÁVEIS DE ESTADO =====
+    private List<VeiculoResponse> veiculos = new();
+    private List<CategoriaResponse> categorias = new();
+    private List<FilialResponse> filiais = new();
+    private bool carregando;
+    private int totalItems;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    // ===== FILTROS =====
+    private string filtroCategoria = string.Empty;
+    private string filtroFilial = string.Empty;
+    private string filtroStatus = string.Empty;
+    private bool? filtroAtivo;
+
+    // A mesma tela atende /veiculos, /veiculos/disponiveis e /veiculos/manutencoes,
+    // mudando só o filtro de status aplicado por padrão.
+    private string RotaAtual => Navegacao.ToBaseRelativePath(Navegacao.Uri).Split('?')[0].Trim('/').ToLower();
+
+    private bool EhRotaDaListagem =>
+        RotaAtual is "veiculos" or "veiculos/disponiveis" or "veiculos/manutencoes";
+
+    private string TituloPagina => RotaAtual switch
+    {
+        "veiculos/disponiveis" => "Veículos Disponíveis",
+        "veiculos/manutencoes" => "Veículos em Manutenção",
+        _ => "Veículos"
+    };
+
+    private string SubtituloPagina => RotaAtual switch
+    {
+        "veiculos/disponiveis" => "Veículos prontos para locação",
+        "veiculos/manutencoes" => "Veículos que estão em manutenção no momento",
+        _ => "Gerencie a frota do sistema"
+    };
+
+    // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
+    private List<ColunaTabela<VeiculoResponse>> colunas = new()
+    {
+        new()
+        {
+            Titulo = "Placa",
+            Propriedade = "Placa",
+            Largura = "110",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Marca",
+            Propriedade = "Marca",
+            Largura = "140",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Modelo",
+            Propriedade = "Modelo",
+            Largura = "160",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Ano",
+            Propriedade = "Ano",
+            Largura = "80",
+            Alinhamento = "center",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Categoria",
+            Propriedade = "Categoria",
+            Largura = "140",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Filial",
+            Propriedade = "Filial",
+            Largura = "160",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Km",
+            Propriedade = "KmAtual",
+            Largura = "110",
+            Alinhamento = "right",
+            Ordenavel = true,
+            Valor = v => v.KmAtual.ToString("N0")
+        },
+        new()
+        {
+            Titulo = "Status",
+            Propriedade = "Status",
+            Largura = "140",
+            Ordenavel = true,
+            Template = veiculo => @<span class="badge @(((StatusVeiculoEnum)veiculo.IdStatus).GetCorBadge())">
+                @(((StatusVeiculoEnum)veiculo.IdStatus).GetDisplayName())
+            </span>
+        },
+        new()
+        {
+            Titulo = "Situação",
+            Propriedade = "Ativo",
+            Largura = "110",
+            Ordenavel = true,
+            Template = veiculo => @<span class="badge @(veiculo.Ativo ? "bg-success" : "bg-danger")">
+                @(veiculo.Ativo ? "Ativo" : "Inativo")
+            </span>
+        }
+    };
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private List<AcaoTabela<VeiculoResponse>> acoes => new()
+    {
+        new()
+        {
+            Titulo = "Visualizar",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (v) => Navegacao.NavigateTo($"/veiculos/visualizar/{v.IdVeiculo}")
+        },
+        new()
+        {
+            Titulo = "Editar",
+            Icone = "bi-pencil",
+            Cor = "primary",
+            Acao = async (v) => Navegacao.NavigateTo($"/veiculos/editar/{v.IdVeiculo}")
+        },
+        new()
+        {
+            Titulo = "Manutenção",
+            Icone = "bi-tools",
+            Cor = "warning",
+            Acao = async (v) => Navegacao.NavigateTo($"/veiculos/{v.IdVeiculo}/manutencao")
+        },
+        new()
+        {
+            Titulo = "Ativar/Desativar",
+            Icone = "bi-toggle-on",
+            Cor = "secondary",
+            Acao = async (v) => await AlternarSituacao(v)
+        }
+    };
+
+    // ===== AÇÕES EM MASSA =====
+    private List<AcaoEmMassa> acoesEmMassa => new()
+    {
+        new()
+        {
+            Titulo = "Ativar selecionados",
+            Icone = "bi-check-circle",
+            Cor = "success",
+            Acao = async (ids) => await AlterarSituacaoSelecionados(ids, ativar: true),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Desativar selecionados",
+            Icone = "bi-slash-circle",
+            Cor = "danger",
+            Acao = async (ids) => await AlterarSituacaoSelecionados(ids, ativar: false),
+            MostrarQuantidade = true
+        }
+    };
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnInitializedAsync()
+    {
+        // as três rotas caem no mesmo componente, então a troca entre elas não recria a
+        // instância nem passa por OnParametersSet com a URI nova: quem avisa é o LocationChanged
+        Navegacao.LocationChanged += AoMudarRota;
+
+        await CarregarListasAuxiliares();
+        AplicarFiltroDaRota();
+        await CarregarVeiculos();
+    }
+
+    private void AoMudarRota(object? sender, LocationChangedEventArgs e)
+    {
+        // saindo da listagem o componente é descartado, não faz sentido recarregar
+        if (!EhRotaDaListagem)
+            return;
+
+        _ = InvokeAsync(async () =>
+        {
+            AplicarFiltroDaRota();
+            paginaAtual = 1;
+            await CarregarVeiculos();
+        });
+    }
+
+    public void Dispose()
+    {
+        Navegacao.LocationChanged -= AoMudarRota;
+    }
+
+    private void AplicarFiltroDaRota()
+    {
+        filtroStatus = RotaAtual switch
+        {
+            "veiculos/disponiveis" => ((int)StatusVeiculoEnum.Disponivel).ToString(),
+            "veiculos/manutencoes" => ((int)StatusVeiculoEnum.EmManutencao).ToString(),
+            _ => string.Empty
+        };
+
+        // veículo inativo não entra na lista de disponíveis, mesmo com status disponível
+        filtroAtivo = RotaAtual == "veiculos/disponiveis" ? true : null;
+    }
+
+    // ===== CARREGAMENTO DAS LISTAS DE APOIO =====
+    private async Task CarregarListasAuxiliares()
+    {
+        try
+        {
+            var resultadoCategorias = await _categoriaService.ObterTodos(itensPorPagina: 100);
+            categorias = resultadoCategorias?.Items?.ToList() ?? new();
+
+            var resultadoFiliais = await _filialService.ObterTodos(itensPorPagina: 100);
+            filiais = resultadoFiliais?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar filtros: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
+    private async Task CarregarVeiculos()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await _veiculoService.ObterTodos(
+                termo: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                idCategoria: ConverterFiltro(filtroCategoria),
+                idFilial: ConverterFiltro(filtroFilial),
+                idStatus: ConverterFiltro(filtroStatus),
+                ativo: filtroAtivo,
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                ordenarPor: ordenacaoPropriedade,
+                direcao: ordenacaoDirecao);
+
+            veiculos = resultado?.Items?.ToList() ?? new();
+            totalItems = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar veículos: {ex.Message}", "Erro");
+            veiculos = new();
+            totalItems = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private static int? ConverterFiltro(string valor) =>
+        int.TryParse(valor, out var numero) ? numero : null;
+
+    // ===== FILTROS =====
+    private async Task AlterarFiltroCategoria(ChangeEventArgs e)
+    {
+        filtroCategoria = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarVeiculos();
+    }
+
+    private async Task AlterarFiltroFilial(ChangeEventArgs e)
+    {
+        filtroFilial = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarVeiculos();
+    }
+
+    private async Task AlterarFiltroStatus(ChangeEventArgs e)
+    {
+        filtroStatus = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarVeiculos();
+    }
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private async Task AlternarSituacao(VeiculoResponse veiculo)
+    {
+        var acao = veiculo.Ativo ? "desativar" : "ativar";
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente {acao} o veículo de placa '{veiculo.Placa}'?",
+            "Confirmar Alteração");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = veiculo.Ativo
+                ? await _veiculoService.Desativar(veiculo.IdVeiculo)
+                : await _veiculoService.Ativar(veiculo.IdVeiculo);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Veículo {veiculo.Placa} {(veiculo.Ativo ? "desativado" : "ativado")} com sucesso!", "Sucesso");
+                await CarregarVeiculos();
+            }
+            else
+            {
+                NotificacaoService.ShowError($"Erro ao {acao} o veículo.", "Erro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao {acao} o veículo: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== AÇÕES EM MASSA =====
+    private async Task AlterarSituacaoSelecionados(List<string> ids, bool ativar)
+    {
+        if (!ids.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum veículo selecionado", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente {(ativar ? "ativar" : "desativar")} {ids.Count} veículo(s)?",
+            "Confirmar Alteração em Massa");
+
+        if (!confirmado)
+            return;
+
+        var sucessos = 0;
+        var erros = 0;
+
+        foreach (var id in ids)
+        {
+            if (!int.TryParse(id, out var idVeiculo))
+            {
+                erros++;
+                continue;
+            }
+
+            try
+            {
+                var sucesso = ativar
+                    ? await _veiculoService.Ativar(idVeiculo)
+                    : await _veiculoService.Desativar(idVeiculo);
+
+                if (sucesso)
+                    sucessos++;
+                else
+                    erros++;
+            }
+            catch
+            {
+                erros++;
+            }
+        }
+
+        if (erros == 0)
+        {
+            NotificacaoService.ShowSuccess($"{sucessos} veículo(s) {(ativar ? "ativado(s)" : "desativado(s)")} com sucesso!", "Sucesso");
+        }
+        else
+        {
+            NotificacaoService.ShowWarning($"{sucessos} alterado(s), {erros} falha(s)", "Atenção");
+        }
+
+        await CarregarVeiculos();
+    }
+}

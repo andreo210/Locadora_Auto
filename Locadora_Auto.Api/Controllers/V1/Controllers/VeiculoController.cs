@@ -20,9 +20,21 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult> ObterTodos(CancellationToken ct)
+        public async Task<ActionResult> ObterTodos(
+            CancellationToken ct,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int itensPorPagina = 10,
+            [FromQuery] string? termo = null,
+            [FromQuery] int? idCategoria = null,
+            [FromQuery] int? idFilial = null,
+            [FromQuery] int? idStatus = null,
+            [FromQuery] bool? ativo = null,
+            [FromQuery] string? ordenarPor = null,
+            [FromQuery] string? direcao = null)
         {
-            var result = await _veiculoService.ObterTodosAsync(ct);
+            var result = await _veiculoService.ObterTodosPaginadoAsync(
+                pagina, itensPorPagina, termo, idCategoria, idFilial, idStatus, ativo, ordenarPor, direcao, ct);
+
             return CustomResponse(result);
         }
 
@@ -91,6 +103,13 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
                 return CustomResponse();
 
             return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        [HttpGet("{id:int}/manutencao")]
+        public async Task<ActionResult> ObterManutencoes(int id, CancellationToken ct)
+        {
+            var result = await _veiculoService.ObterManutencoesAsync(id, ct);
+            return CustomResponse(result);
         }
 
         [HttpPost("{id:int}/manutencao/iniciar-manutencao")]
