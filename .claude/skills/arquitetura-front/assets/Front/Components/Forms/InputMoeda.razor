@@ -1,0 +1,97 @@
+@* Campo monetário pt-BR: o usuário digita só dígitos e o componente divide por 100
+   (3500 → R$ 35,00). Resolve o problema do <input type="number">, que usa cultura
+   invariante no @bind e recusa "35,00".
+
+   Uso: <InputMoeda @bind-Value="modelo.ValorDiaria" />
+        <ValidationMessage For="@(() => modelo.ValorDiaria)" /> *@
+@namespace {{RootNamespace}}.Front.Components.Forms
+@typeparam TValue
+@inherits InputBase<TValue>
+
+<input type="text"
+       class="@ClasseCss"
+       value="@ValorExibicao"
+       @oninput="AoDigitar"
+       @onblur="AoSair"
+       @attributes="AdditionalAttributes" />
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura =
+        System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    [Parameter] public bool AlinharDireita { get; set; }
+
+    private bool _editando;
+    private string _valorDigitado = string.Empty;
+
+    private string ClasseCss => AlinharDireita ? "form-control text-end" : "form-control";
+
+    // Enquanto digita mostra o número cru formatado; fora do foco mostra a moeda completa.
+    private string ValorExibicao
+    {
+        get
+        {
+            if (_editando)
+                return _valorDigitado;
+
+            return CurrentValue switch
+            {
+                decimal d => d.ToString("C2", Cultura),
+                double db => db.ToString("C2", Cultura),
+                _ => string.Empty
+            };
+        }
+    }
+
+    private void AoDigitar(ChangeEventArgs e)
+    {
+        _editando = true;
+
+        var digitos = new string((e.Value?.ToString() ?? "").Where(char.IsDigit).ToArray()).TrimStart('0');
+
+        if (digitos.Length == 0)
+        {
+            _valorDigitado = string.Empty;
+            CurrentValue = default!;
+            return;
+        }
+
+        var valor = double.Parse(digitos, Cultura) / 100;
+
+        _valorDigitado = valor.ToString("N2", Cultura);
+        CurrentValue = Converter(valor);
+    }
+
+    private void AoSair()
+    {
+        _editando = false;
+        _valorDigitado = string.Empty;
+    }
+
+    protected override bool TryParseValueFromString(string? value, out TValue result, out string? validationErrorMessage)
+    {
+        validationErrorMessage = null;
+
+        var digitos = new string((value ?? "").Where(char.IsDigit).ToArray());
+
+        if (digitos.Length == 0)
+        {
+            result = default!;
+            return true;
+        }
+
+        result = Converter(double.Parse(digitos, Cultura) / 100);
+        return true;
+    }
+
+    private static TValue Converter(double valor)
+    {
+        if (typeof(TValue) == typeof(decimal) || typeof(TValue) == typeof(decimal?))
+            return (TValue)(object)(decimal)valor;
+
+        if (typeof(TValue) == typeof(double) || typeof(TValue) == typeof(double?))
+            return (TValue)(object)valor;
+
+        throw new InvalidOperationException($"InputMoeda não suporta {typeof(TValue).Name}; use decimal ou double.");
+    }
+}
