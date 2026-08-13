@@ -14,7 +14,17 @@ O build atual passa com 0 erros e ~333 warnings — os warnings são pré-existe
 
 Todos os projetos são `net8.0` e o SDK/runtime 8.0 estão instalados — nada de `--roll-forward`. Na prática a execução/debug acontece no Visual Studio. Portas fixas em `launchSettings.json`: Api `https://localhost:61977`, Front `https://localhost:62259`.
 
-**Não há projetos de teste no repositório.** Não invente comandos de teste.
+## Testes
+
+`Locadora_Auto.Tests` (xUnit, sem biblioteca de mock):
+
+```powershell
+dotnet test Locadora_Auto.Tests\Locadora_Auto.Tests.csproj --nologo
+```
+
+Cobre o Domain (entidades e transições de estado) e os serviços da Application. Serviço se testa com `RepositorioFake<T>` (`Fakes/`), um `IRepositorioGlobal<T>` em memória, mais o `NotificadorService` real — a asserção de falha de regra é `notificador.TemNotificacao()`, que é exatamente o que o `CustomResponse` consulta. Entidades válidas saem de `Fabrica` (`Fabricas/`); não construa entidade à mão no teste.
+
+O fake **ignora `incluir`** (Include só existe sobre provider do EF) e não tem change tracking — por isso o que se verifica é `repositorio.Salvamentos`, não o conteúdo do armazém. Tradução de `Expression` para SQL, tracking e auditoria do `SaveChangesAsync` ficam fora: isso exigiria teste de integração com banco, que ainda não existe.
 
 ## Git
 
@@ -38,6 +48,12 @@ Telas de listagem usam o componente genérico `Front/Components/Tabela/TabelaGen
 
 Serviços sinalizam falha de regra de negócio chamando `_notificador.Add("mensagem")` — **não lançam exceção**. Controllers herdam de `MainController` e retornam `CustomResponse(resultado, HttpStatusCode.X)`; `CustomResponse` consulta o `INotificadorService` (scoped) e, se houver notificação, devolve um `ProblemDetails` (RFC 7807) em vez do payload de sucesso. Siga esse fluxo em código novo.
 
+### Listagens paginadas
+
+`Reserva`, `Seguro` e `Veiculo` usam `ConsultaPaginadaRequest` (`[FromQuery]`, com os nomes `pagina`/`itensPorPagina`/`termo`/`ordenarPor`/`direcao` e teto de 200 itens), o mapa `OrdenacaoDeConsulta<T>` no lugar do `switch` de ordenação, e `pagina.ParaDto(XxxMapper.ToDtoList)` para reprojetar. Siga esse padrão em listagens novas.
+
+`Cliente` e `Funcionario` ainda usam a assinatura antiga (`ordem` em vez de `direcao`, `nome`/`cpf`/`cargo` em vez de `termo`, `pageNumber`/`pageSize` no controller de cliente) e `Filial`/`CategoriaVeiculo` não aceitam ordenação. Padronizar esses quatro **muda a query string** e exige alterar junto o `Locadora_Auto.Front.Services` correspondente.
+
 ### Acesso a dados
 
 Repositórios herdam `RepositorioGlobal<TEntity>`, que já oferece `ObterAsync`, `ObterPrimeiroAsync`, `ObterPaginadoComFiltroAsync`, `InserirSalvarAsync`, `AtualizarSalvarAsync`, `ExcluirSalvarAsync` — todos com `filtro` / `ordenarPor` / `incluir` opcionais, `AsNoTracking` por padrão (`rastreado: true` para rastrear) e `CancellationToken ct`. Prefira esses métodos a escrever LINQ novo no repositório concreto.
@@ -59,6 +75,8 @@ Tabelas e colunas são **snake_case**. Isso vem de `UseSnakeCaseNamingConvention
 Datas: as colunas são `timestamp with time zone` e o Npgsql só aceita `DateTime` com `Kind=Utc`. Um conversor global em `OnModelCreating` normaliza tudo na escrita — **mas use `DateTime.UtcNow`, nunca `DateTime.Now`**, ou a hora gravada fica certa e as comparações em memória erram por 3h.
 
 O `db.sql` na raiz é o schema **MySQL antigo**, mantido só como referência histórica; `db_postgres.sql` é gerado por `dotnet ef migrations script --idempotent`.
+
+**Concorrência otimista:** `AplicarTokenDeConcorrencia` (em `LocadoraDbContext`) marca o `xmin` como token nas entidades de domínio — pula Identity, histórico temporal e tipos owned. Conflito vira `DbUpdateConcurrencyException`, traduzida para **409** no `ExceptionProblemFactory`. Só protege quando a entidade foi carregada com `rastreado: true`; sem rastreio, o `FindAsync` de `AtualizarSalvarAsync` relê a linha e o token compara com o valor recém-lido. A migration `ConcorrenciaOtimista` é **vazia de propósito**: `xmin` é coluna de sistema e o `AddColumn` que o EF gera falharia — se regerar essa migration, esvazie o `Up`/`Down` de novo.
 
 ## Estado atual do `Program.cs`
 

@@ -24,17 +24,12 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
         [HttpGet]
         public async Task<ActionResult> ObterTodos(
             CancellationToken ct,
-            [FromQuery] int pagina = 1,
-            [FromQuery] int itensPorPagina = 10,
-            [FromQuery] string? termo = null,
+            [FromQuery] ConsultaPaginadaRequest consulta,
             [FromQuery] int? status = null,
             [FromQuery] int? idFilial = null,
-            [FromQuery] int? idCliente = null,
-            [FromQuery] string? ordenarPor = null,
-            [FromQuery] string? direcao = null)
+            [FromQuery] int? idCliente = null)
         {
-            var result = await _reservaService.ObterTodosPaginadoAsync(
-                pagina, itensPorPagina, termo, status, idFilial, idCliente, ordenarPor, direcao, ct);
+            var result = await _reservaService.ObterTodosPaginadoAsync(consulta, status, idFilial, idCliente, ct);
 
             return CustomResponse(result);
         }

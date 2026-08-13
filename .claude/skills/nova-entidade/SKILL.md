@@ -7,6 +7,8 @@ description: Cria uma funcionalidade nova (entidade + CRUD) atravessando todas a
 
 Objetivo: adicionar uma funcionalidade atravessando as camadas sem inventar padrões novos. **Antes de escrever qualquer arquivo, leia um vertical slice já pronto e copie a estrutura dele.** Use `Cliente` ou `Funcionario` como referência — são os mais recentes.
 
+A base conceitual (por que cada camada existe, notificador em vez de exceção, entidade com `Criar`, uso do `RepositorioGlobal`) está na skill **`arquitetura-api`** — consulte quando a dúvida for de desenho, não de caminho de arquivo. Aqui ficam os passos operacionais deste repositório.
+
 Se o usuário não disse qual entidade, pergunte. Se não disse quais operações (listar / obter / criar / editar / excluir), assuma CRUD completo e confirme no final.
 
 ## Ordem de trabalho
@@ -23,8 +25,12 @@ Siga de baixo para cima; cada camada depende da anterior.
 - `Data/Configuracao/<Nome>Config.cs` implementando `IEntityTypeConfiguration<T>`. É aplicado automaticamente por `ApplyConfigurationsFromAssembly` — não é preciso registrar nada.
 - `Data/Repositorio/<Nome>Repository.cs` herdando `RepositorioGlobal<T>` e implementando a interface do Domain.
 - Adicione o `DbSet<T>` em `Data/LocadoraDbContext.cs`.
-- Registre o repositório na extensão de injeção de dependência da Infra (`AddSqlServerRepositories()` — nome enganoso, o banco é MySQL).
-- **Atualize `db.sql` na raiz** com a tabela nova. Não existem migrations do EF Core; `db.sql` é a fonte de verdade do schema. Respeite `utf8mb4` / `utf8mb4_unicode_ci` e o padrão de nomes das tabelas vizinhas.
+- Registre o repositório na extensão de injeção de dependência da Infra (`AddSqlServerRepositories()` — nome enganoso, o banco é PostgreSQL).
+- **Gere a migration na mesma mudança** — o modelo é a fonte de verdade e o schema sai das migrations:
+  ```powershell
+  dotnet ef migrations add <Nome> --project Locadora_Auto.Infra --startup-project Locadora_Auto.Api --output-dir Data/Migrations
+  ```
+  Tabelas e colunas em snake_case. O `db.sql` na raiz é o schema MySQL antigo, mantido só como referência histórica — não atualize.
 
 ### 3. Application — `Locadora_Auto.Application`
 
@@ -47,8 +53,8 @@ Siga de baixo para cima; cada camada depende da anterior.
 ## Ao terminar
 
 1. Compile:
-   ```bash
-   "/mnt/c/Program Files/dotnet/dotnet.exe" build Locadora_Auto-Api.sln -c Debug --nologo
+   ```powershell
+   dotnet build Locadora_Auto-Api.sln -c Debug --nologo
    ```
    Espere 0 erros. Os ~333 warnings são pré-existentes — só se preocupe com warnings nos arquivos que você criou.
 2. Liste ao usuário os arquivos criados por camada e confirme se falta o front-end (Blazor) para a funcionalidade — este skill cobre só a Api.

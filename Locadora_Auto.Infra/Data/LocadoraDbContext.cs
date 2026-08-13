@@ -83,6 +83,48 @@ namespace Locadora_Auto.Infra.Data
                         propriedade.SetValueConverter(ConversorDataUtcNulavel);
                 }
             }
+
+            AplicarTokenDeConcorrencia(builder);
+        }
+
+        /// <summary>
+        /// Marca o <c>xmin</c> — coluna de sistema que o Postgres já mantém em toda tabela — como
+        /// token de concorrência. Com isso o UPDATE passa a levar <c>WHERE xmin = @original</c>: se
+        /// outra pessoa gravou a mesma linha nesse meio tempo, nenhuma linha é afetada e o EF lança
+        /// <see cref="Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException"/> em vez de a
+        /// segunda gravação apagar a primeira em silêncio.
+        ///
+        /// Não cria coluna nova nem exige campo na entidade: o xmin entra como propriedade sombra.
+        ///
+        /// Só protege quando a entidade chega rastreada da leitura original — ou seja, quando o
+        /// serviço carregou com <c>rastreado: true</c>. Em entidade lida sem rastreio, o
+        /// <c>AtualizarSalvarAsync</c> relê a linha antes de gravar e o token compara com o valor
+        /// recém-lido, o que não acusa conflito (mas também não gera falso positivo).
+        /// </summary>
+        private static void AplicarTokenDeConcorrencia(ModelBuilder builder)
+        {
+            foreach (var tipoEntidade in builder.Model.GetEntityTypes())
+            {
+                var tipo = tipoEntidade.ClrType;
+
+                //tipos owned são gravados junto da raiz, que já carrega o próprio token
+                if (tipoEntidade.IsOwned()) continue;
+
+                //o Identity já traz ConcurrencyStamp para o mesmo fim
+                if (typeof(IdentityUser).IsAssignableFrom(tipo)
+                    || tipo.Namespace?.StartsWith("Microsoft.AspNetCore.Identity") == true) continue;
+
+                //histórico temporal só recebe insert: não há concorrência de escrita a proteger
+                if (typeof(ITemporalHistory).IsAssignableFrom(tipo)) continue;
+
+                //mapeamento escrito à mão porque UseXminAsConcurrencyToken() está obsoleto no
+                //Npgsql 8; o resultado é o mesmo, via API padrão do EF
+                builder.Entity(tipo)
+                    .Property<uint>("xmin")
+                    .HasColumnName("xmin")
+                    .HasColumnType("xid")
+                    .IsRowVersion();
+            }
         }
 
         //sobreescreve o saveChange para criar histórico temporal

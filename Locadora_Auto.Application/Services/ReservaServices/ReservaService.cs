@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models.Consultas;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain;
@@ -67,19 +68,28 @@ namespace Locadora_Auto.Application.Services.ReservaServices
             return reserva?.ToDto();
         }
 
+        /// <summary>
+        /// Colunas que a listagem aceita ordenar. Coluna desconhecida cai na data de início,
+        /// da mais recente para a mais antiga.
+        /// </summary>
+        private static readonly OrdenacaoDeConsulta<Reserva> Ordenacoes =
+            OrdenacaoDeConsulta<Reserva>.Padrao(r => r.DataInicio, descendente: true)
+                .Com("nomecliente", r => r.Cliente.Usuario!.NomeCompleto)
+                .Com("nomefilial", r => r.Filial.Nome)
+                .Com("nomecategoriaveiculo", r => r.CategoriaVeiculo.Nome)
+                .Com("datainicio", r => r.DataInicio)
+                .Com("datafim", r => r.DataFim)
+                .Com("status", r => r.Status)
+                .Com("ativo", r => r.Ativo);
+
         public async Task<PaginatedResult<ReservaDto>> ObterTodosPaginadoAsync(
-            int pagina,
-            int itensPorPagina,
-            string? termo = null,
+            ConsultaPaginadaRequest consulta,
             int? status = null,
             int? idFilial = null,
             int? idCliente = null,
-            string? ordenarPor = null,
-            string? direcao = null,
             CancellationToken ct = default)
         {
-            // No Postgres o LIKE é sensível a maiúsculas: comparar em minúsculas dos dois lados
-            var busca = string.IsNullOrWhiteSpace(termo) ? null : termo.Trim().ToLower();
+            var busca = consulta.TermoNormalizado;
 
             // Status é gravado com HasConversion<int>: comparar como enum, não com cast dentro da expressão
             var situacao = status.HasValue ? (StatusReserva?)status.Value : null;
@@ -95,48 +105,14 @@ namespace Locadora_Auto.Application.Services.ReservaServices
 
             var reservas = await _reservaRepository.ObterPaginadoComFiltroAsync(
                 filtro: filtro,
-                ordenarPor: MontarOrdenacao(ordenarPor, direcao),
+                ordenarPor: Ordenacoes.Montar(consulta),
                 incluir: IncluirRelacionados,
-                pagina: pagina,
-                itensPorPagina: itensPorPagina,
+                pagina: consulta.Pagina,
+                itensPorPagina: consulta.ItensPorPagina,
                 asNoTracking: true,
                 ct: ct);
 
-            return new PaginatedResult<ReservaDto>
-            {
-                Items = reservas.Items.ToDtoList(),
-                Total = reservas.Total,
-                Pagina = reservas.Pagina,
-                TotalPaginas = reservas.TotalPaginas,
-                ItensPorPagina = reservas.ItensPorPagina
-            };
-        }
-
-        /// <summary>
-        /// Traduz a coluna clicada na tela para o OrderBy correspondente.
-        /// Coluna desconhecida cai na data de início, da mais recente para a mais antiga.
-        /// </summary>
-        private static Func<IQueryable<Reserva>, IOrderedQueryable<Reserva>> MontarOrdenacao(string? ordenarPor, string? direcao)
-        {
-            var descendente = string.Equals(direcao, "desc", StringComparison.OrdinalIgnoreCase);
-
-            return (ordenarPor?.ToLower()) switch
-            {
-                "nomecliente" => q => descendente
-                    ? q.OrderByDescending(r => r.Cliente.Usuario!.NomeCompleto)
-                    : q.OrderBy(r => r.Cliente.Usuario!.NomeCompleto),
-                "nomefilial" => q => descendente
-                    ? q.OrderByDescending(r => r.Filial.Nome)
-                    : q.OrderBy(r => r.Filial.Nome),
-                "nomecategoriaveiculo" => q => descendente
-                    ? q.OrderByDescending(r => r.CategoriaVeiculo.Nome)
-                    : q.OrderBy(r => r.CategoriaVeiculo.Nome),
-                "datafim" => q => descendente ? q.OrderByDescending(r => r.DataFim) : q.OrderBy(r => r.DataFim),
-                "status" => q => descendente ? q.OrderByDescending(r => r.Status) : q.OrderBy(r => r.Status),
-                "ativo" => q => descendente ? q.OrderByDescending(r => r.Ativo) : q.OrderBy(r => r.Ativo),
-                "datainicio" => q => descendente ? q.OrderByDescending(r => r.DataInicio) : q.OrderBy(r => r.DataInicio),
-                _ => q => q.OrderByDescending(r => r.DataInicio)
-            };
+            return reservas.ParaDto(ReservaMapper.ToDtoList);
         }
 
         public async Task<IReadOnlyList<ReservaDto>> ObterPorClienteAsync(int idCliente, CancellationToken ct = default)

@@ -55,6 +55,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("valor_total");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdLocacaoAdicional")
                         .HasName("pk_tb_locacao_adicional");
 
@@ -91,6 +97,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("valor_diaria");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdAdicional")
                         .HasName("pk_tb_adicional");
 
@@ -126,6 +138,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("valor_km_excedente");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_tb_categoria_veiculo");
 
@@ -155,6 +173,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int?>("id_locacao")
                         .HasColumnType("integer")
                         .HasColumnName("id_locacao");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdCaucao")
                         .HasName("pk_tb_caucao");
@@ -264,6 +288,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("validade_habilitacao");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdCliente")
                         .HasName("pk_tb_cliente");
 
@@ -309,6 +339,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("valor_estimado");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdDano")
                         .HasName("pk_tb_dano");
@@ -366,6 +402,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("numero");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdEndereco")
                         .HasName("pk_tb_endereco");
 
@@ -404,6 +446,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("nome");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdFilial")
                         .HasName("pk_tb_filial");
@@ -452,6 +500,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id_categoria_veiculo");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdFoto")
                         .HasName("pk_tb_foto_categoria_veiculo");
 
@@ -497,6 +551,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int?>("id_filial")
                         .HasColumnType("integer")
                         .HasColumnName("id_filial");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdFoto")
                         .HasName("pk_tb_foto_filial");
@@ -544,6 +604,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id_vistoria");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdFoto")
                         .HasName("pk_tb_foto_vistoria");
 
@@ -581,6 +647,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("matricula");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdFuncionario")
                         .HasName("pk_tb_funcionario");
@@ -627,6 +699,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_historico_status_locacao");
 
@@ -669,6 +747,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("user_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_refresh_tokens");
@@ -888,6 +972,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("valor_previsto");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdLocacao")
                         .HasName("pk_tb_locacao");
 
@@ -929,6 +1019,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int>("IdSeguro")
                         .HasColumnType("integer")
                         .HasColumnName("id_seguro");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdLocacaoSeguro")
                         .HasName("pk_tb_locacao_seguro");
@@ -977,6 +1073,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id_veiculo");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdManutencao")
                         .HasName("pk_tb_manutencao");
 
@@ -1015,6 +1117,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int?>("id_locacao")
                         .HasColumnType("integer")
                         .HasColumnName("id_locacao");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdMulta")
                         .HasName("pk_tb_multa");
@@ -1055,6 +1163,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int>("id_locacao")
                         .HasColumnType("integer")
                         .HasColumnName("id_locacao");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdPagamento")
                         .HasName("pk_tb_pagamento");
@@ -1102,6 +1216,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdReserva")
                         .HasName("pk_tb_reserva");
@@ -1157,6 +1277,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("valor_diaria");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdSeguro")
                         .HasName("pk_tb_seguro");
@@ -1224,6 +1350,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("IdVeiculo")
                         .HasName("pk_tb_veiculo");
 
@@ -1280,6 +1412,12 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int>("Tipo")
                         .HasColumnType("integer")
                         .HasColumnName("tipo");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("IdVistoria")
                         .HasName("pk_tb_vistoria");

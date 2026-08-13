@@ -27,6 +27,12 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Status = veiculo.Status.ToString(),
                 Filial = veiculo.FilialAtual?.Nome ?? string.Empty
             };
-        }              
+        }
+
+        public static List<VeiculoDto> ToDtoList(this IEnumerable<Veiculo> veiculos)
+        {
+            if (veiculos == null) return new List<VeiculoDto>();
+            return veiculos.Select(ToDto).ToList();
+        }
     }
 }

@@ -8,14 +8,10 @@ namespace Locadora_Auto.Application.Services.ReservaServices
         #region Consultas
         Task<ReservaDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         Task<PaginatedResult<ReservaDto>> ObterTodosPaginadoAsync(
-            int pagina,
-            int itensPorPagina,
-            string? termo = null,
+            ConsultaPaginadaRequest consulta,
             int? status = null,
             int? idFilial = null,
             int? idCliente = null,
-            string? ordenarPor = null,
-            string? direcao = null,
             CancellationToken ct = default);
         Task<IReadOnlyList<ReservaDto>> ObterPorClienteAsync(int idCliente, CancellationToken ct = default);
         #endregion Consultas

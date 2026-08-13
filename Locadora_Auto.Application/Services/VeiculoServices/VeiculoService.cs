@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models.Consultas;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Application.Services.VeiculoServices;
@@ -63,20 +64,30 @@ public class VeiculoService : IVeiculoService
         return veiculos.Select(v => v.ToDto()).ToList();
     }
 
+    /// <summary>
+    /// Colunas que a listagem aceita ordenar. Coluna desconhecida cai na placa.
+    /// </summary>
+    private static readonly OrdenacaoDeConsulta<Veiculo> Ordenacoes =
+        OrdenacaoDeConsulta<Veiculo>.Padrao(v => v.Placa)
+            .Com("placa", v => v.Placa)
+            .Com("marca", v => v.Marca)
+            .Com("modelo", v => v.Modelo)
+            .Com("ano", v => v.Ano)
+            .Com("kmatual", v => v.KmAtual)
+            .Com("categoria", v => v.Categoria.Nome)
+            .Com("filial", v => v.FilialAtual.Nome)
+            .Com("status", v => v.Status)
+            .Com("ativo", v => v.Ativo);
+
     public async Task<PaginatedResult<VeiculoDto>> ObterTodosPaginadoAsync(
-        int pagina,
-        int itensPorPagina,
-        string? termo = null,
+        ConsultaPaginadaRequest consulta,
         int? idCategoria = null,
         int? idFilial = null,
         int? idStatus = null,
         bool? ativo = null,
-        string? ordenarPor = null,
-        string? direcao = null,
         CancellationToken ct = default)
     {
-        // No Postgres o LIKE é sensível a maiúsculas: comparar em minúsculas dos dois lados
-        var busca = string.IsNullOrWhiteSpace(termo) ? null : termo.Trim().ToLower();
+        var busca = consulta.TermoNormalizado;
 
         // comparar enum com enum evita o cast dentro da árvore de expressão
         StatusVeiculo? status = idStatus.HasValue ? (StatusVeiculo)idStatus.Value : null;
@@ -94,43 +105,15 @@ public class VeiculoService : IVeiculoService
 
         var veiculos = await _veiculoRepository.ObterPaginadoComFiltroAsync(
             filtro: filtro,
-            ordenarPor: MontarOrdenacao(ordenarPor, direcao),
+            ordenarPor: Ordenacoes.Montar(consulta),
             incluir: q => q.Include(v => v.Categoria)
                            .Include(v => v.FilialAtual),
-            pagina: pagina,
-            itensPorPagina: itensPorPagina,
+            pagina: consulta.Pagina,
+            itensPorPagina: consulta.ItensPorPagina,
             asNoTracking: true,
             ct: ct);
 
-        return new PaginatedResult<VeiculoDto>
-        {
-            Items = veiculos.Items.Select(v => v.ToDto()).ToList(),
-            Total = veiculos.Total,
-            Pagina = veiculos.Pagina,
-            TotalPaginas = veiculos.TotalPaginas,
-            ItensPorPagina = veiculos.ItensPorPagina
-        };
-    }
-
-    /// <summary>
-    /// Traduz a coluna clicada na tela para o OrderBy correspondente. Coluna desconhecida cai na placa.
-    /// </summary>
-    private static Func<IQueryable<Veiculo>, IOrderedQueryable<Veiculo>> MontarOrdenacao(string? ordenarPor, string? direcao)
-    {
-        var descendente = string.Equals(direcao, "desc", StringComparison.OrdinalIgnoreCase);
-
-        return (ordenarPor?.ToLower()) switch
-        {
-            "marca" => q => descendente ? q.OrderByDescending(v => v.Marca) : q.OrderBy(v => v.Marca),
-            "modelo" => q => descendente ? q.OrderByDescending(v => v.Modelo) : q.OrderBy(v => v.Modelo),
-            "ano" => q => descendente ? q.OrderByDescending(v => v.Ano) : q.OrderBy(v => v.Ano),
-            "kmatual" => q => descendente ? q.OrderByDescending(v => v.KmAtual) : q.OrderBy(v => v.KmAtual),
-            "categoria" => q => descendente ? q.OrderByDescending(v => v.Categoria.Nome) : q.OrderBy(v => v.Categoria.Nome),
-            "filial" => q => descendente ? q.OrderByDescending(v => v.FilialAtual.Nome) : q.OrderBy(v => v.FilialAtual.Nome),
-            "status" => q => descendente ? q.OrderByDescending(v => v.Status) : q.OrderBy(v => v.Status),
-            "ativo" => q => descendente ? q.OrderByDescending(v => v.Ativo) : q.OrderBy(v => v.Ativo),
-            _ => q => descendente ? q.OrderByDescending(v => v.Placa) : q.OrderBy(v => v.Placa)
-        };
+        return veiculos.ParaDto(VeiculoMapper.ToDtoList);
     }
 
     public async Task<IReadOnlyList<VeiculoDto>> ObterDisponiveisAsync(int? idFilial = null, CancellationToken ct = default)
