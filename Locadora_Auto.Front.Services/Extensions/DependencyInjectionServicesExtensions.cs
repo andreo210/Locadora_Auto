@@ -3,6 +3,7 @@ using Locadora_Auto.Front.Services.Configuration;
 using Locadora_Auto.Front.Services.Servicos.Filial;
 using Locadora_Auto.Front.Services.Servicos.Funcionario;
 using Locadora_Auto.Front.Services.Servicos.Login;
+using Locadora_Auto.Front.Services.Servicos.Reserva;
 using Locadora_Auto.Front.Services.Servicos.Seguro;
 using Locadora_Auto.Front.Services.Servicos.Veiculo;
 using Locadora_Auto.Front.Services.Usuarios;
@@ -47,6 +48,7 @@ namespace Locadora_Auto.Front.Services.Extensions
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<IVeiculoService, VeiculoService>();
             services.AddScoped<ISeguroService, SeguroService>();
+            services.AddScoped<IReservaService, ReservaService>();
 
             return services;
         }

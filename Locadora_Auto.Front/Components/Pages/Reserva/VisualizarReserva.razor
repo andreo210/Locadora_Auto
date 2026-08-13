@@ -1,0 +1,245 @@
+﻿@page "/reservas/visualizar/{id:int}"
+@using Locadora_Auto.Front.Components.Notificacao
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Reserva
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@inject IReservaService _reservaService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Detalhes da Reserva</h2>
+            </div>
+            <p class="text-muted mt-2">Visualize as informações completas da reserva</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados da reserva...</p>
+        </div>
+    }
+    else if (reserva == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Reserva não encontrada ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bookmark-check me-2"></i>
+                            Reserva #@reserva.IdReserva
+                        </h5>
+                        <span class="badge @CorStatus(reserva.IdStatus)">
+                            @DescricaoStatus(reserva.IdStatus)
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold text-muted small">Cliente</label>
+                                <p class="mb-0 fs-5">@reserva.NomeCliente</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Filial de retirada</label>
+                                <p class="mb-0">@reserva.NomeFilial</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Categoria de veículo</label>
+                                <p class="mb-0">@reserva.NomeCategoriaVeiculo</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Retirada</label>
+                                <p class="mb-0">@FormatarDataLocal(reserva.DataInicio)</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Entrega</label>
+                                <p class="mb-0">@FormatarDataLocal(reserva.DataFim)</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12 mb-0">
+                                <label class="fw-bold text-muted small">Período</label>
+                                <p class="mb-0">@TotalDiarias diária(s)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (reserva.IdStatus == 0)
+                {
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-danger" disabled="@processando" @onclick="CancelarReserva">
+                            <i class="bi bi-x-circle me-1"></i>Cancelar Reserva
+                        </button>
+                        <button type="button" class="btn btn-success" disabled="@processando" @onclick="FinalizarReserva">
+                            <i class="bi bi-check2-circle me-1"></i>Finalizar Reserva
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-secondary mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Situação @DescricaoStatus(reserva.IdStatus): não há mais ações disponíveis.
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private ConfirmDialog? confirmDialog;
+
+    private ReservaResponse? reserva;
+    private bool carregando = true;
+    private bool processando;
+
+    private int TotalDiarias => reserva == null
+        ? 0
+        : Math.Max(1, (int)Math.Ceiling((reserva.DataFim - reserva.DataInicio).TotalDays));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReserva();
+    }
+
+    private async Task CarregarReserva()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            reserva = await _reservaService.ObterPorId(id);
+
+            if (reserva == null)
+                NotificacaoService.ShowWarning("Reserva não encontrada", "Atenção");
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar reserva: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== DATAS =====
+    /// <summary>
+    /// A Api grava e devolve em UTC. Sem converter, a tela mostraria 12:00 para uma retirada
+    /// marcada às 09:00 no horário de Brasília.
+    /// </summary>
+    private static string FormatarDataLocal(DateTime data) => (data.Kind switch
+    {
+        DateTimeKind.Utc => data.ToLocalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(data, DateTimeKind.Utc).ToLocalTime(),
+        _ => data
+    }).ToString("dd/MM/yyyy HH:mm");
+
+    // ===== APARÊNCIA DA SITUAÇÃO =====
+    private static string CorStatus(int idStatus) => idStatus switch
+    {
+        0 => "bg-light text-primary", // Reservado
+        1 => "bg-danger",             // Cancelado
+        2 => "bg-success",            // Finalizado
+        3 => "bg-secondary",          // Expirado
+        _ => "bg-light text-dark"
+    };
+
+    private static string DescricaoStatus(int idStatus) => idStatus switch
+    {
+        0 => "Reservado",
+        1 => "Cancelado",
+        2 => "Finalizado",
+        3 => "Expirado",
+        _ => "Desconhecida"
+    };
+
+    // ===== TRANSIÇÕES DE ESTADO =====
+    private async Task CancelarReserva()
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            "Deseja realmente cancelar esta reserva? Esta ação não pode ser desfeita.",
+            "Confirmar Cancelamento");
+
+        if (!confirmado)
+            return;
+
+        await ExecutarTransicao(() => _reservaService.Cancelar(id), "cancelada");
+    }
+
+    private async Task FinalizarReserva()
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            "Deseja realmente finalizar esta reserva?",
+            "Confirmar Finalização");
+
+        if (!confirmado)
+            return;
+
+        await ExecutarTransicao(() => _reservaService.Finalizar(id), "finalizada");
+    }
+
+    private async Task ExecutarTransicao(Func<Task<bool>> transicao, string descricao)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            if (await transicao())
+            {
+                NotificacaoService.ShowSuccess($"Reserva {descricao} com sucesso!", "Sucesso");
+                await CarregarReserva();
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"Não foi possível deixar a reserva {descricao}", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao alterar a reserva: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Voltar() => Navegacao.NavigateTo("/reservas");
+}

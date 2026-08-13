@@ -1,0 +1,12 @@
+2026-08-13 10:32:00.557 -03:00 [INF] Now listening on: https://localhost:62259
+2026-08-13 10:32:00.611 -03:00 [INF] Now listening on: http://localhost:62260
+2026-08-13 10:32:00.615 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-13 10:32:00.616 -03:00 [INF] Hosting environment: Development
+2026-08-13 10:32:00.618 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-13 10:37:58.589 -03:00 [INF] Now listening on: https://localhost:62259
+2026-08-13 10:37:58.632 -03:00 [INF] Now listening on: http://localhost:62260
+2026-08-13 10:37:58.635 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-13 10:37:58.635 -03:00 [INF] Hosting environment: Development
+2026-08-13 10:37:58.636 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-13 10:39:33.686 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/seguros/1
+2026-08-13 10:39:33.769 -03:00 [INF] 📄 RECURSO NÃO ENCONTRADO: "NotFound" - /api/v1/seguros/1

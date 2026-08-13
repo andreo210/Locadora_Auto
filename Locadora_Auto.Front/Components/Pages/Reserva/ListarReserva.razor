@@ -1,0 +1,453 @@
+﻿@page "/reservas"
+@using Locadora_Auto.Front.Components.Notificacao
+@using Locadora_Auto.Front.Components.UI
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Tabelas
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Reserva
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject IReservaService _reservaService
+@inject IFilialService _filialService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
+
+<div class="container-fluid py-4">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Reservas</h2>
+            <p class="text-muted">Acompanhe as reservas de veículos por cliente, filial e categoria</p>
+        </div>
+    </div>
+
+    <!-- Tabela genérica de reservas -->
+    <TabelaGenerica TItem="ReservaResponse"
+                    @bind-PaginaAtual="paginaAtual"
+                    @bind-ItensPorPagina="itensPorPagina"
+                    @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                    @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                    @bind-TermoBusca="termoBuscaGlobal"
+                    Items="reservas"
+                    TotalItens="totalItems"
+                    Colunas="colunas"
+                    Carregando="carregando"
+                    OnCarregarDados="CarregarReservas"
+                    Titulo="Reservas"
+                    PlaceholderBusca="Pesquisar por cliente, filial ou categoria..."
+                    SelecaoHabilitada="true"
+                    LarguraColunaAcoes="160"
+                    Acoes="acoes"
+                    AcoesEmMassa="acoesEmMassa"
+                    ObterId="@(r => r.IdReserva.ToString())"
+                    IconeVazio="bi-bookmark-check"
+                    MensagemVazio="Nenhuma reserva encontrada"
+                    MensagemVazioDetalhe="Clique em 'Nova Reserva' para começar">
+
+        <!-- Ações no cabeçalho -->
+        <AcoesCabecalho>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        title="Atualizar lista" disabled="@carregando" @onclick="CarregarReservas">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button type="button" class="btn btn-outline-warning btn-sm"
+                        title="Expirar reservas cuja data de início já passou"
+                        disabled="@carregando" @onclick="ExpirarVencidas">
+                    <i class="bi bi-hourglass-bottom me-1"></i>Expirar vencidas
+                </button>
+                <a href="/reservas/nova" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i>Nova Reserva
+                </a>
+            </div>
+        </AcoesCabecalho>
+
+        <!-- Filtros adicionais -->
+        <FiltrosAdicionais>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroStatus" @onchange="AlterarFiltroStatus">
+                        <option value="">Todas as situações</option>
+                        <option value="0">Reservado</option>
+                        <option value="1">Cancelado</option>
+                        <option value="2">Finalizado</option>
+                        <option value="3">Expirado</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroFilial" @onchange="AlterarFiltroFilial">
+                        <option value="">Todas as filiais</option>
+                        @foreach (var filial in filiais)
+                        {
+                            <option value="@filial.IdFilial">@filial.Nome</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </FiltrosAdicionais>
+    </TabelaGenerica>
+</div>
+
+@code {
+    // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
+    private ConfirmDialog? confirmDialog;
+
+    // ===== VARIÁVEIS DE ESTADO =====
+    private List<ReservaResponse> reservas = new();
+    private List<FilialResponse> filiais = new();
+    private bool carregando;
+    private int totalItems;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    // ===== FILTROS =====
+    private string filtroStatus = string.Empty;
+    private string filtroFilial = string.Empty;
+
+    // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
+    private List<ColunaTabela<ReservaResponse>> colunas = new()
+    {
+        new()
+        {
+            Titulo = "Cliente",
+            Propriedade = "NomeCliente",
+            Largura = "240",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Filial",
+            Propriedade = "NomeFilial",
+            Largura = "180",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Categoria",
+            Propriedade = "NomeCategoriaVeiculo",
+            Largura = "160",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Início",
+            Propriedade = "DataInicio",
+            Largura = "150",
+            Ordenavel = true,
+            Valor = r => FormatarDataLocal(r.DataInicio)
+        },
+        new()
+        {
+            Titulo = "Entrega",
+            Propriedade = "DataFim",
+            Largura = "150",
+            Ordenavel = true,
+            Valor = r => FormatarDataLocal(r.DataFim)
+        },
+        new()
+        {
+            Titulo = "Situação",
+            Propriedade = "Status",
+            Largura = "120",
+            Ordenavel = true,
+            Template = reserva => @<span class="badge @CorStatus(reserva.IdStatus)">
+                @DescricaoStatus(reserva.IdStatus)
+            </span>
+        }
+    };
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private List<AcaoTabela<ReservaResponse>> acoes => new()
+    {
+        new()
+        {
+            Titulo = "Visualizar",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (r) => Navegacao.NavigateTo($"/reservas/visualizar/{r.IdReserva}")
+        },
+        new()
+        {
+            Titulo = "Cancelar",
+            Icone = "bi-x-circle",
+            Cor = "danger",
+            Acao = async (r) => await CancelarReserva(r)
+        },
+        new()
+        {
+            Titulo = "Finalizar",
+            Icone = "bi-check2-circle",
+            Cor = "success",
+            Acao = async (r) => await FinalizarReserva(r)
+        }
+    };
+
+    // ===== AÇÕES EM MASSA =====
+    private List<AcaoEmMassa> acoesEmMassa => new()
+    {
+        new()
+        {
+            Titulo = "Cancelar selecionadas",
+            Icone = "bi-x-circle",
+            Cor = "danger",
+            Acao = async (ids) => await CancelarSelecionadas(ids),
+            MostrarQuantidade = true
+        }
+    };
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarFiliais();
+        await CarregarReservas();
+    }
+
+    // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
+    private async Task CarregarReservas()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await _reservaService.ObterTodos(
+                termo: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                status: ConverterFiltroNumerico(filtroStatus),
+                idFilial: ConverterFiltroNumerico(filtroFilial),
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                ordenarPor: ordenacaoPropriedade,
+                direcao: ordenacaoDirecao);
+
+            reservas = resultado?.Items?.ToList() ?? new();
+            totalItems = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar reservas: {ex.Message}", "Erro");
+            reservas = new();
+            totalItems = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Popula o filtro de filial. Não é paginado na tela: puxa uma página grande de uma vez.
+    /// </summary>
+    private async Task CarregarFiliais()
+    {
+        try
+        {
+            var resultado = await _filialService.ObterTodos(itensPorPagina: 500);
+            filiais = resultado?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowWarning($"Não foi possível carregar as filiais: {ex.Message}", "Atenção");
+            filiais = new();
+        }
+    }
+
+    private static int? ConverterFiltroNumerico(string valor) =>
+        int.TryParse(valor, out var numero) ? numero : null;
+
+    // ===== DATAS =====
+    /// <summary>
+    /// A Api grava e devolve em UTC. Sem converter, a tela mostraria 12:00 para uma retirada
+    /// marcada às 09:00 no horário de Brasília.
+    /// </summary>
+    private static DateTime ParaHoraLocal(DateTime data) => data.Kind switch
+    {
+        DateTimeKind.Utc => data.ToLocalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(data, DateTimeKind.Utc).ToLocalTime(),
+        _ => data
+    };
+
+    private static string FormatarDataLocal(DateTime data) =>
+        ParaHoraLocal(data).ToString("dd/MM/yyyy HH:mm");
+
+    // ===== APARÊNCIA DA SITUAÇÃO =====
+    private static string CorStatus(int idStatus) => idStatus switch
+    {
+        0 => "bg-primary",   // Reservado
+        1 => "bg-danger",    // Cancelado
+        2 => "bg-success",   // Finalizado
+        3 => "bg-secondary", // Expirado
+        _ => "bg-light text-dark"
+    };
+
+    private static string DescricaoStatus(int idStatus) => idStatus switch
+    {
+        0 => "Reservado",
+        1 => "Cancelado",
+        2 => "Finalizado",
+        3 => "Expirado",
+        _ => "Desconhecida"
+    };
+
+    // ===== FILTROS =====
+    private async Task AlterarFiltroStatus(ChangeEventArgs e)
+    {
+        filtroStatus = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarReservas();
+    }
+
+    private async Task AlterarFiltroFilial(ChangeEventArgs e)
+    {
+        filtroFilial = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarReservas();
+    }
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private async Task CancelarReserva(ReservaResponse reserva)
+    {
+        // só reservas em "Reservado" mudam de estado: evita ida à Api para receber a recusa
+        if (reserva.IdStatus != 0)
+        {
+            NotificacaoService.ShowWarning(
+                $"Somente reservas ativas podem ser canceladas. Situação atual: {DescricaoStatus(reserva.IdStatus)}.", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente cancelar a reserva de '{reserva.NomeCliente}' com início em {ParaHoraLocal(reserva.DataInicio):dd/MM/yyyy}?",
+            "Confirmar Cancelamento");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            if (await _reservaService.Cancelar(reserva.IdReserva))
+            {
+                NotificacaoService.ShowSuccess("Reserva cancelada com sucesso!", "Sucesso");
+                await CarregarReservas();
+            }
+            // quando a Api recusa, a própria notificação da Api é exibida
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cancelar a reserva: {ex.Message}", "Erro");
+        }
+    }
+
+    private async Task FinalizarReserva(ReservaResponse reserva)
+    {
+        if (reserva.IdStatus != 0)
+        {
+            NotificacaoService.ShowWarning(
+                $"Somente reservas ativas podem ser finalizadas. Situação atual: {DescricaoStatus(reserva.IdStatus)}.", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente finalizar a reserva de '{reserva.NomeCliente}'?",
+            "Confirmar Finalização");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            if (await _reservaService.Finalizar(reserva.IdReserva))
+            {
+                NotificacaoService.ShowSuccess("Reserva finalizada com sucesso!", "Sucesso");
+                await CarregarReservas();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao finalizar a reserva: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== EXPIRAÇÃO EM LOTE =====
+    private async Task ExpirarVencidas()
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            "Deseja marcar como expiradas todas as reservas cuja data de início já passou?",
+            "Confirmar Expiração");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            if (await _reservaService.ExpirarVencidas())
+            {
+                NotificacaoService.ShowSuccess("Reservas vencidas processadas!", "Sucesso");
+                await CarregarReservas();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao expirar reservas: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== AÇÕES EM MASSA =====
+    private async Task CancelarSelecionadas(List<string> ids)
+    {
+        if (!ids.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhuma reserva selecionada", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente cancelar {ids.Count} reserva(s)?",
+            "Confirmar Cancelamento em Massa");
+
+        if (!confirmado)
+            return;
+
+        var sucessos = 0;
+        var erros = 0;
+
+        foreach (var id in ids)
+        {
+            if (!int.TryParse(id, out var idReserva))
+            {
+                erros++;
+                continue;
+            }
+
+            try
+            {
+                if (await _reservaService.Cancelar(idReserva))
+                    sucessos++;
+                else
+                    erros++;
+            }
+            catch
+            {
+                erros++;
+            }
+        }
+
+        if (erros == 0)
+        {
+            NotificacaoService.ShowSuccess($"{sucessos} reserva(s) cancelada(s) com sucesso!", "Sucesso");
+        }
+        else
+        {
+            NotificacaoService.ShowWarning($"{sucessos} cancelada(s), {erros} falha(s)", "Atenção");
+        }
+
+        await CarregarReservas();
+    }
+}

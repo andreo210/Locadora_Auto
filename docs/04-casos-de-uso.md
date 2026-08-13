@@ -434,8 +434,18 @@ flowchart LR
 | Ativar / desativar | `PATCH api/v1/Clientes/{id:int}/ativar` · `/desativar` | `IClienteService` |
 | Verificar CPF | `GET api/v1/Clientes/verificar-cpf/{cpf}` | `IClienteService.ExisteClienteAsync` |
 | Contar ativos | `GET api/v1/Clientes/contar-ativos` | `IClienteService.ContarClientesAtivosAsync` |
-| Reservar veículo | `POST api/v1/Clientes/reserva` | `IClienteService.CriarReservaAsync` |
-| Cancelar reserva | `PATCH api/v1/Clientes/{id:int}/cancelar-reserva/{idReserva:int}` | `IClienteService.CancelarReservaAsync` |
+
+### Reservas
+
+| Caso de uso | Endpoint | Serviço |
+|---|---|---|
+| Listar reservas | `GET api/v1/reservas` | `IReservaService.ObterTodosPaginadoAsync` |
+| Consultar por id | `GET api/v1/reservas/{id:int}` | `IReservaService.ObterPorIdAsync` |
+| Reservas do cliente | `GET api/v1/reservas/cliente/{idCliente:int}` | `IReservaService.ObterPorClienteAsync` |
+| Reservar veículo | `POST api/v1/reservas` | `IReservaService.CriarAsync` → `Clientes.ReservarVeiculo` |
+| Cancelar reserva | `PATCH api/v1/reservas/{id:int}/cancelar` | `IReservaService.CancelarAsync` → `Clientes.CancelarReservar` |
+| Finalizar reserva | `PATCH api/v1/reservas/{id:int}/finalizar` | `IReservaService.FinalizarAsync` |
+| Expirar vencidas | `PATCH api/v1/reservas/expirar-vencidas` | `IReservaService.ExpirarVencidasAsync` |
 
 ### Funcionários
 

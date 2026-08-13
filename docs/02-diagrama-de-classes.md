@@ -123,9 +123,9 @@ classDiagram
         +DateTime? DataModificacao
         +string IdUsuarioModificacao
         +Criar(numeroHabilitacao, validadeCnh, endereco) Clientes
-        +Atualizar(numeroHabilitacao, validadeCnh, endereco)
         +ReservarVeiculo(idCliente, inicio, fim, idFilial, idCategoria)
         +CancelarReservar(reserva)
+        +Atualizar(numeroHabilitacao, validadeCnh, endereco)
         +Bloquear()
         +MarcarInadimplente()
         +Regularizar()
@@ -697,10 +697,19 @@ classDiagram
         +ExcluirClienteAsync(id, ct) bool
         +AtivarClienteAsync(id, ct) bool
         +DesativarClienteAsync(id, ct) bool
-        +CriarReservaAsync(dto, ct) bool
-        +CancelarReservaAsync(idReserva, id, ct) bool
         +ExisteClienteAsync(cpf, ct) bool
         +ContarClientesAtivosAsync(ct) int
+    }
+
+    class IReservaService {
+        <<interface>>
+        +ObterPorIdAsync(id, ct) ReservaDto
+        +ObterTodosPaginadoAsync(...) PaginatedResult~ReservaDto~
+        +ObterPorClienteAsync(idCliente, ct) IReadOnlyList~ReservaDto~
+        +CriarAsync(dto, ct) ReservaDto
+        +CancelarAsync(id, ct) bool
+        +FinalizarAsync(id, ct) bool
+        +ExpirarVencidasAsync(ct) int
     }
 
     class ILocacaoService {
@@ -944,5 +953,6 @@ Pontos do modelo que divergem do que os nomes sugerem — registrados como estã
 - **`Caucao.Deduzir`** e **`Locacao.CompensarMultaComCaucao`**: o laço de compensação não
   decrementa `valorRestante` (a linha está comentada), então cada caução com saldo é deduzida
   do valor cheio da multa.
-- **`Reserva.Criar`** compara datas com `DateTime.Now` (horário local) enquanto o restante do
-  sistema grava em UTC.
+- **`Reserva.Criar`** tem os parâmetros intercalados — `(idCliente, inicio, idilial, fim,
+  idCategoria)`, com o id da filial entre as duas datas e o nome grafado errado. Chame com
+  argumentos nomeados para não trocar a ordem.
