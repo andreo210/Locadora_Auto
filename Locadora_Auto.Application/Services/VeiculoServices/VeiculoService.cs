@@ -220,6 +220,32 @@ public class VeiculoService : IVeiculoService
         await _veiculoRepository.SalvarAsync(ct);
         return true;
     }
+    public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            incluir: q => q.Include(v => v.Locacoes),
+            rastreado: true,
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add($"Veículo com ID {id} não encontrado.");
+            return false;
+        }
+
+        // a FK de locação é Restrict: excluir um veículo com histórico estouraria no banco
+        if (veiculo.Locacoes.Any())
+        {
+            _notificador.Add("Veículo possui locações registradas e não pode ser excluído. Desative-o em vez de excluir.");
+            return false;
+        }
+
+        // as manutenções saem junto (FK em cascata)
+        await _veiculoRepository.ExcluirSalvarAsync(veiculo, ct);
+        return true;
+    }
+
     public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
     {
         var veiculo = await _veiculoRepository.ObterPorIdAsync(id);

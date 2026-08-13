@@ -49,7 +49,7 @@
                     PlaceholderBusca="Pesquisar por placa, marca, modelo ou chassi..."
                     ColunasFiltro="4"
                     SelecaoHabilitada="true"
-                    LarguraColunaAcoes="200"
+                    LarguraColunaAcoes="240"
                     Acoes="acoes"
                     AcoesEmMassa="acoesEmMassa"
                     ObterId="@(v => v.IdVeiculo.ToString())"
@@ -255,6 +255,13 @@
             Icone = "bi-toggle-on",
             Cor = "secondary",
             Acao = async (v) => await AlternarSituacao(v)
+        },
+        new()
+        {
+            Titulo = "Excluir",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (v) => await ExcluirVeiculo(v)
         }
     };
 
@@ -273,8 +280,16 @@
         {
             Titulo = "Desativar selecionados",
             Icone = "bi-slash-circle",
-            Cor = "danger",
+            Cor = "warning",
             Acao = async (ids) => await AlterarSituacaoSelecionados(ids, ativar: false),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Excluir selecionados",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (ids) => await ExcluirSelecionados(ids),
             MostrarQuantidade = true
         }
     };
@@ -434,7 +449,92 @@
         }
     }
 
+    private async Task ExcluirVeiculo(VeiculoResponse veiculo)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir o veículo de placa '{veiculo.Placa}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = await _veiculoService.Excluir(veiculo.IdVeiculo);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Veículo {veiculo.Placa} excluído com sucesso!", "Exclusão");
+
+                // era o último item da página: volta uma para não cair numa página vazia
+                if (veiculos.Count == 1 && paginaAtual > 1)
+                    paginaAtual--;
+
+                await CarregarVeiculos();
+            }
+            // quando a Api recusa (veículo com locações) a própria notificação da Api é exibida
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+        }
+    }
+
     // ===== AÇÕES EM MASSA =====
+    private async Task ExcluirSelecionados(List<string> ids)
+    {
+        if (!ids.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum veículo selecionado", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir {ids.Count} veículo(s)? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão em Massa");
+
+        if (!confirmado)
+            return;
+
+        var sucessos = 0;
+        var erros = 0;
+
+        foreach (var id in ids)
+        {
+            if (!int.TryParse(id, out var idVeiculo))
+            {
+                erros++;
+                continue;
+            }
+
+            try
+            {
+                if (await _veiculoService.Excluir(idVeiculo))
+                    sucessos++;
+                else
+                    erros++;
+            }
+            catch
+            {
+                erros++;
+            }
+        }
+
+        if (erros == 0)
+        {
+            NotificacaoService.ShowSuccess($"{sucessos} veículo(s) excluído(s) com sucesso!", "Sucesso");
+
+            if (veiculos.Count == ids.Count && paginaAtual > 1)
+                paginaAtual--;
+        }
+        else
+        {
+            NotificacaoService.ShowWarning($"{sucessos} excluído(s), {erros} falha(s)", "Atenção");
+        }
+
+        await CarregarVeiculos();
+    }
+
     private async Task AlterarSituacaoSelecionados(List<string> ids, bool ativar)
     {
         if (!ids.Any())

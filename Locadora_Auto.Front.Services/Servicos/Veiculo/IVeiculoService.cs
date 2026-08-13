@@ -20,6 +20,7 @@ namespace Locadora_Auto.Front.Services.Servicos.Veiculo
         Task<List<VeiculoResponse>> ObterDisponiveis(int? idFilial = null);
         Task<VeiculoResponse?> ObterPorId(int id);
         Task<bool?> Atualizar(int id, EditarVeiculoRequest request);
+        Task<bool> Excluir(int id);
         Task<bool> Ativar(int id);
         Task<bool> Desativar(int id);
 

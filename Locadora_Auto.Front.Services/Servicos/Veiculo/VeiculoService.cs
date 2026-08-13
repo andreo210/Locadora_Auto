@@ -30,6 +30,11 @@ namespace Locadora_Auto.Front.Services.Servicos.Veiculo
             return await _api.PutAsync<EditarVeiculoRequest>($"{RotaBase}/{id}", request);
         }
 
+        public async Task<bool> Excluir(int id)
+        {
+            return await _api.DeleteAsync($"{RotaBase}/{id}");
+        }
+
         public async Task<bool> Ativar(int id)
         {
             return await _api.PatchAsync($"{RotaBase}/{id}/ativar", new { });

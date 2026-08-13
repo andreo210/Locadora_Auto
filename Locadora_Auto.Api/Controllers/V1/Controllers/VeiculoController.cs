@@ -85,6 +85,16 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
             return CustomResponse(null, HttpStatusCode.NoContent);
         }
 
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Excluir(int id, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.ExcluirAsync(id, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
         [HttpPatch("{id:int}/ativar")]
         public async Task<ActionResult> Ativar(int id, CancellationToken ct)
         {

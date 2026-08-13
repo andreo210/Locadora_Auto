@@ -23,6 +23,8 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
         Task<VeiculoDto?> CriarAsync(CriarVeiculoDto dto, CancellationToken ct = default);
         Task<bool> AtualizarAsync(int id, AtualizarVeiculoDto dto, CancellationToken ct = default);
 
+        Task<bool> ExcluirAsync(int id, CancellationToken ct = default);
+
         Task<bool> AtivarAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarAsync(int id, CancellationToken ct = default);
 
