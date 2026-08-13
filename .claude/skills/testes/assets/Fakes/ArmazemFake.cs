@@ -3,13 +3,16 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 
-namespace Locadora_Auto.Tests.Fakes
+namespace {{RootNamespace}}.Tests.Fakes
 {
     /// <summary>
     /// Banco em memória compartilhado entre os repositórios fake de um mesmo teste.
-    /// Serviços que dependem de vários repositórios (Reserva depende de cliente, filial,
-    /// categoria e veículo) precisam enxergar o mesmo conjunto de dados — por isso o armazém
-    /// é passado para todos os fakes em vez de cada um ter a própria lista.
+    /// Serviços que dependem de vários repositórios precisam enxergar o mesmo conjunto de
+    /// dados — por isso o armazém é passado para todos os fakes, em vez de cada um ter a
+    /// própria lista.
+    ///
+    /// Uma instância por teste. Nunca guarde o armazém num campo estático: o xUnit executa
+    /// coleções de teste em paralelo e o estado vazaria de um teste para outro.
     /// </summary>
     public sealed class ArmazemFake
     {
@@ -42,10 +45,16 @@ namespace Locadora_Auto.Tests.Fakes
             return this;
         }
 
+        /// <summary>Imita a sequência do banco: maior id da tabela + 1.</summary>
         public int ProximoId<TEntity>() where TEntity : class
         {
             var maior = Tabela<TEntity>()
-                .Select(e => ChavePrimaria.Ler(e) as int? ?? 0)
+                .Select(e => ChavePrimaria.Ler(e) switch
+                {
+                    int inteiro => inteiro,
+                    long longo => (int)longo,
+                    _ => 0
+                })
                 .DefaultIfEmpty(0)
                 .Max();
 
@@ -54,17 +63,19 @@ namespace Locadora_Auto.Tests.Fakes
     }
 
     /// <summary>
-    /// Localiza a chave primária pela convenção das entidades do projeto: atributo [Key],
+    /// Localiza a chave primária pela convenção de nomes das entidades: atributo [Key],
     /// depois <c>Id</c>, <c>Id{Entidade}</c>, <c>{Entidade}Id</c> e, por último, a primeira
-    /// propriedade inteira começando com "Id" — que é o caso de <c>Clientes.IdCliente</c>,
-    /// onde o nome da classe está no plural e o da chave não.
+    /// propriedade de tipo de chave começando com "Id" — que é o caso de entidades cujo nome
+    /// de classe está no plural e o da chave não (<c>Clientes.IdCliente</c>).
     ///
-    /// O cache é <see cref="ConcurrentDictionary{TKey,TValue}"/> porque o xUnit executa coleções
-    /// de teste em paralelo: um <c>Dictionary</c> estático escrito por duas threads corrompe.
+    /// O cache é <see cref="ConcurrentDictionary{TKey,TValue}"/> porque o xUnit roda coleções
+    /// em paralelo e um <c>Dictionary</c> estático escrito por duas threads corrompe.
     /// </summary>
     internal static class ChavePrimaria
     {
         private static readonly ConcurrentDictionary<Type, PropertyInfo?> Cache = new();
+
+        private static readonly Type[] TiposDeChave = { typeof(int), typeof(long), typeof(Guid) };
 
         public static PropertyInfo? Localizar(Type tipo) => Cache.GetOrAdd(tipo, t =>
         {
@@ -74,26 +85,46 @@ namespace Locadora_Auto.Tests.Fakes
                 ?? propriedades.FirstOrDefault(p => p.Name == "Id")
                 ?? propriedades.FirstOrDefault(p => p.Name == $"Id{t.Name}")
                 ?? propriedades.FirstOrDefault(p => p.Name == $"{t.Name}Id")
-                ?? propriedades.FirstOrDefault(p => p.Name.StartsWith("Id") && p.PropertyType == typeof(int));
+                ?? propriedades.FirstOrDefault(p => p.Name.StartsWith("Id") && TiposDeChave.Contains(p.PropertyType));
         });
 
         public static object? Ler(object entidade)
             => Localizar(entidade.GetType())?.GetValue(entidade);
 
         /// <summary>Escreve na chave mesmo com set privado — é o que o EF faz depois do insert.</summary>
-        public static void Definir(object entidade, int valor)
+        public static void Definir(object entidade, object valor)
         {
             var chave = Localizar(entidade.GetType())
                 ?? throw new InvalidOperationException(
-                    $"Não foi possível localizar a chave primária de {entidade.GetType().Name}.");
+                    $"Não foi possível localizar a chave primária de {entidade.GetType().Name}. " +
+                    "Marque-a com [Key] ou siga a convenção Id/Id{Entidade}/{Entidade}Id.");
 
-            chave.SetValue(entidade, valor);
+            chave.SetValue(entidade, Converter(valor, chave.PropertyType));
         }
 
-        public static void AtribuirSeVazia(object entidade, int valor)
+        /// <summary>Só atribui se a chave ainda estiver zerada — não sobrescreve id que o teste fixou.</summary>
+        public static void AtribuirSeVazia(object entidade, int proximoId)
         {
-            if (Ler(entidade) is int atual && atual == 0)
-                Definir(entidade, valor);
+            switch (Ler(entidade))
+            {
+                case int atual when atual == 0:
+                    Definir(entidade, proximoId);
+                    break;
+
+                case long atual when atual == 0:
+                    Definir(entidade, (long)proximoId);
+                    break;
+
+                case Guid atual when atual == Guid.Empty:
+                    Definir(entidade, Guid.NewGuid());
+                    break;
+            }
         }
+
+        /// <summary>
+        /// <c>SetValue</c> não converte: um int "encaixotado" numa propriedade long estoura.
+        /// </summary>
+        private static object Converter(object valor, Type tipoDaChave)
+            => tipoDaChave == typeof(long) && valor is int inteiro ? (long)inteiro : valor;
     }
 }
