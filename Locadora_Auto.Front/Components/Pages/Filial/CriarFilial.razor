@@ -2,7 +2,6 @@
 @using Blazored.FluentValidation
 @using Locadora_Auto.Front.Components.Forms
 @using Locadora_Auto.Front.Models.Request
-@using Locadora_Auto.Front.Models.Request.Categoria
 @using Locadora_Auto.Front.Models.Request.Filial
 @using Locadora_Auto.Front.Models.Validadores
 @using Locadora_Auto.Front.Services.Servicos.Filial
@@ -17,8 +16,13 @@
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col">
-            <h2>Nova Filial</h2>
-            <p class="text-muted">Preencha os dados para cadastrar uma nova filial</p>
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Cancelar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Nova Filial</h2>
+            </div>
+            <p class="text-muted mt-2">Preencha os dados para cadastrar uma nova filial</p>
         </div>
     </div>
 
@@ -27,47 +31,44 @@
 
         <div class="row">
             <div class="col-md-8 mx-auto">
+                <!-- Dados da filial -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Dados da Filial</h5>
                     </div>
                     <div class="card-body">
                         <!-- Nome -->
-                        <div class="mb-3">
+                        <div class="mb-0">
                             <label class="form-label">Nome <span class="text-danger">*</span></label>
                             <InputText @bind-Value="filial.Nome" class="form-control" placeholder="Digite o nome da filial" />
                             <ValidationMessage For="@(() => filial.Nome)" />
                         </div>
                     </div>
-                    <!-- Endereco-->
-                    <div class="card-body">
-                        <!-- Endereco -->
-                        <div class="mb-3">
-                            <EnderecoForm @bind-Endereco="filial.Endereco" Titulo="Endereço da Filial" />
+                </div>
+
+                <!-- Endereço -->
+                <EnderecoForm @bind-Endereco="filial.Endereco" Titulo="Endereço da Filial" />
+
+                <div class="row mt-4">
+                    <div class="col">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@processando">
+                                @if (processando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Salvando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <span>Salvar Filial</span>
+                                }
+                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col">
-                <div class="d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
-                        <i class="bi bi-x-circle me-1"></i>Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary" disabled="@processando">
-                        @if (processando)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                            <span>Salvando...</span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-check-circle me-1"></i>
-                            <span>Salvar Categoria</span>
-                        }
-                    </button>
                 </div>
             </div>
         </div>
@@ -113,14 +114,21 @@
                 return;
             }
 
-            // Chama o serviço para inserir a categoria
-            var categoriaCriada = await _filialService.Inserir(filial);
+            if (!ValidarEndereco())
+            {
+                processando = false;
+                StateHasChanged();
+                return;
+            }
 
-            if (categoriaCriada != null)
+            // Chama o serviço para inserir a filial
+            var filialCriada = await _filialService.Inserir(filial);
+
+            if (filialCriada != null)
             {
                 NotificacaoService.ShowSuccess("Filial cadastrada com sucesso!", "Cadastro Realizado");
-                await Task.Delay(4000);
-                Navegacao.NavigateTo("/Filiais");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/filiais");
             }
             else
             {
@@ -138,22 +146,27 @@
         }
     }
 
-    private void Cancelar()
+    // ===== VALIDAÇÃO ADICIONAL =====
+    private bool ValidarEndereco()
     {
-        if (PossuiAlteracoesNaoSalvas())
+        if (filial.Endereco == null || string.IsNullOrWhiteSpace(filial.Endereco.Cidade))
         {
-            // TODO: Implementar diálogo de confirmação
-            Navegacao.NavigateTo("/filiais");
+            NotificacaoService.ShowWarning("A cidade do endereço é obrigatória", "Validação");
+            return false;
         }
-        else
+
+        if (string.IsNullOrWhiteSpace(filial.Endereco.Logradouro))
         {
-            Navegacao.NavigateTo("/filiais");
+            NotificacaoService.ShowWarning("O logradouro é obrigatório", "Validação");
+            return false;
         }
+
+        return true;
     }
 
-    private bool PossuiAlteracoesNaoSalvas()
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Cancelar()
     {
-        bool nomePreenchido = !string.IsNullOrEmpty(filial.Nome);
-        return nomePreenchido;
+        Navegacao.NavigateTo("/filiais");
     }
 }

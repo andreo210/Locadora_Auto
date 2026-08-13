@@ -3,6 +3,8 @@ using Locadora_Auto.Front.Services.Configuration;
 using Locadora_Auto.Front.Services.Servicos.Filial;
 using Locadora_Auto.Front.Services.Servicos.Funcionario;
 using Locadora_Auto.Front.Services.Servicos.Login;
+using Locadora_Auto.Front.Services.Servicos.Seguro;
+using Locadora_Auto.Front.Services.Servicos.Veiculo;
 using Locadora_Auto.Front.Services.Usuarios;
 using Locadora_Auto.Front.Services.Utils.Notificacao;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -43,6 +45,8 @@ namespace Locadora_Auto.Front.Services.Extensions
             services.AddScoped<IClienteService, ClienteService>();
             services.AddScoped<ICategoriaService, CategoriaService>();
             services.AddScoped<IFilialService, FilialService>();
+            services.AddScoped<IVeiculoService, VeiculoService>();
+            services.AddScoped<ISeguroService, SeguroService>();
 
             return services;
         }

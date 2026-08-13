@@ -1,4 +1,4 @@
-﻿
+﻿/* Cores vêm de wwwroot/css/tema.css */
 
 .gallery-grid {
     display: grid;
@@ -7,24 +7,25 @@
 }
 
 .gallery-item {
-    background: #ffffff;
-    border-radius: 0.75rem;
+    background: var(--superficie);
+    border-radius: var(--raio-2);
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: var(--sombra-1);
     transition: all 0.3s ease;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--borda);
 }
 
     .gallery-item:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        box-shadow: var(--sombra-2);
+        border-color: var(--marca-ui);
     }
 
 .gallery-image-container {
     position: relative;
     aspect-ratio: 1;
     overflow: hidden;
-    background-color: #f8f9fa;
+    background-color: var(--superficie-2);
     cursor: pointer;
 }
 
@@ -41,14 +42,14 @@
 
 .gallery-info {
     padding: 1rem;
-    background: white;
+    background: var(--superficie);
 }
 
 .gallery-filename {
     display: block;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--texto);
     margin-bottom: 0.5rem;
     white-space: nowrap;
     overflow: hidden;
@@ -58,17 +59,17 @@
 .gallery-size {
     display: inline-block;
     font-size: 0.75rem;
-    color: #6c757d;
+    color: var(--texto-suave);
     margin-bottom: 0.5rem;
-    background: #f8f9fa;
+    background: var(--superficie-2);
     padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
+    border-radius: var(--raio-1);
 }
 
 .gallery-date {
     display: block;
     font-size: 0.7rem;
-    color: #adb5bd;
+    color: var(--texto-suave);
     margin-top: 0.5rem;
 }
 

@@ -1,0 +1,178 @@
+﻿@page "/seguros/visualizar/{id:int}"
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Services.Servicos.Seguro
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject ISeguroService _seguroService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Detalhes do Seguro</h2>
+            </div>
+            <p class="text-muted mt-2">Visualize as informações completas do seguro</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do seguro...</p>
+        </div>
+    }
+    else if (seguro == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Seguro não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shield-check me-2"></i>
+                            @seguro.Nome
+                        </h5>
+                        <span class="badge @(seguro.Ativo ? "bg-success" : "bg-danger")">
+                            @(seguro.Ativo ? "Ativo" : "Inativo")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold text-muted small">Descrição</label>
+                                <p class="mb-0">@seguro.Descricao</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Valor da diária</label>
+                                <p class="mb-0 fs-5">@seguro.ValorDiaria.ToString("C2")</p>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold text-muted small">Franquia</label>
+                                <p class="mb-0 fs-5">@seguro.Franquia.ToString("C2")</p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12 mb-0">
+                                <label class="fw-bold text-muted small">Cobertura</label>
+                                <p class="mb-0">@seguro.Cobertura</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-between">
+                    <div>
+                        @if (seguro.Ativo)
+                        {
+                            <button type="button" class="btn btn-outline-danger" disabled="@processando" @onclick="Desativar">
+                                <i class="bi bi-slash-circle me-1"></i>Desativar
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-outline-success" disabled="@processando" @onclick="Ativar">
+                                <i class="bi bi-check-circle me-1"></i>Ativar
+                            </button>
+                        }
+                    </div>
+                    <a href="/seguros/editar/@seguro.IdSeguro" class="btn btn-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private SeguroResponse? seguro;
+    private bool carregando = true;
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarSeguro();
+    }
+
+    private async Task CarregarSeguro()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            seguro = await _seguroService.ObterPorId(id);
+
+            if (seguro == null)
+                NotificacaoService.ShowWarning("Seguro não encontrado", "Atenção");
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar seguro: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== ATIVAR / DESATIVAR =====
+    private async Task Ativar() => await AlterarSituacao(ativar: true);
+
+    private async Task Desativar() => await AlterarSituacao(ativar: false);
+
+    private async Task AlterarSituacao(bool ativar)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var sucesso = ativar
+                ? await _seguroService.Ativar(id)
+                : await _seguroService.Desativar(id);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Seguro {(ativar ? "ativado" : "desativado")} com sucesso!", "Sucesso");
+                await CarregarSeguro();
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"Não foi possível {(ativar ? "ativar" : "desativar")} o seguro", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao alterar situação: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Voltar() => Navegacao.NavigateTo("/seguros");
+}

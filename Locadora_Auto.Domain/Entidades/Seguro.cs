@@ -46,6 +46,7 @@
             if (string.IsNullOrWhiteSpace(cobertura))
                 throw new InvalidOperationException("Cobertura do seguro é obrigatória.");
             Nome = nome;
+            Descricao = descricao;
             ValorDiaria = valorDiaria;
             Franquia = franquia;
             Cobertura = cobertura;

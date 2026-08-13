@@ -12,8 +12,10 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdSeguro = entidade.IdSeguro,
                 Nome = entidade.Nome,
                 ValorDiaria = entidade.ValorDiaria,
+                Franquia = entidade.Franquia,
                 Descricao = entidade.Descricao,
-                Cobertura = entidade.Cobertura
+                Cobertura = entidade.Cobertura,
+                Ativo = entidade.Ativo
             };
         }
 

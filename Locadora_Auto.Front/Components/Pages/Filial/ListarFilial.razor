@@ -26,7 +26,7 @@
         </div>
     </div>
 
-    <!-- Tabela genérica de categorias -->
+    <!-- Tabela genérica de filiais -->
     <TabelaGenerica TItem="FilialResponse"
                     @bind-PaginaAtual="paginaAtual"
                     @bind-ItensPorPagina="itensPorPagina"
@@ -79,15 +79,25 @@
         {
             Titulo = "Nome",
             Propriedade = "Nome",
-            Largura = "350",
+            Largura = "300",
             Ordenavel = true
         },
         new()
         {
             Titulo = "Cidade",
             Propriedade = "Cidade",
-             Largura = "350",
+            Largura = "250",
             Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Situação",
+            Propriedade = "Ativo",
+            Largura = "120",
+            Ordenavel = true,
+            Template = filial => @<span class="badge @(filial.Ativo ? "bg-success" : "bg-danger")">
+                @(filial.Ativo ? "Ativa" : "Inativa")
+            </span>
         }
     };
 
@@ -114,6 +124,13 @@
             Icone = "bi-camera",
             Cor = "success",
             Acao = async (c) => Navegacao.NavigateTo($"/filial/{c.IdFilial}/fotos")
+        },
+        new()
+        {
+            Titulo = "Ativar/Desativar",
+            Icone = "bi-toggle-on",
+            Cor = "secondary",
+            Acao = async (c) => await AlternarSituacao(c)
         },
         new()
         {
@@ -181,6 +198,39 @@
     }
 
     // ===== AÇÕES INDIVIDUAIS =====
+    private async Task AlternarSituacao(FilialResponse filial)
+    {
+        var acao = filial.Ativo ? "desativar" : "ativar";
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente {acao} a filial '{filial.Nome}'?",
+            "Confirmar Alteração");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = filial.Ativo
+                ? await _filialService.Desativar(filial.IdFilial)
+                : await _filialService.Ativar(filial.IdFilial);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Filial {filial.Nome} {(filial.Ativo ? "desativada" : "ativada")} com sucesso!", "Sucesso");
+                await CarregarFiliais();
+            }
+            else
+            {
+                NotificacaoService.ShowError($"Erro ao {acao} a filial.", "Erro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao {acao} a filial: {ex.Message}", "Erro");
+        }
+    }
+
     private async Task ExcluirFiliais(string id, string nome)
     {
         var confirmado = await ConfirmService.ConfirmAsync(

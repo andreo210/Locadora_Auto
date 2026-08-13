@@ -1,0 +1,458 @@
+﻿@page "/filial/editar/{id:int}"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request
+@using Locadora_Auto.Front.Models.Request.Filial
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IFilialService _filialService
+@inject IConfirmDialogService _confirmService
+@inject IConfiguration Configuracao
+@inject ILogger<EditarFilial> Logger
+@inject IJSRuntime JS
+
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Editar Filial</h2>
+            </div>
+            <p class="text-muted mt-2">Altere os dados da filial e gerencie as fotos</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados da filial...</p>
+        </div>
+    }
+    else if (filialOriginal == null || filialEdit == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Filial não encontrada ou não existe.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Coluna do formulário de edição -->
+            <div class="col-md-6">
+                <EditForm Model="@filialEdit" OnValidSubmit="@ManipularEnvio">
+                    <FluentValidationValidator @ref="validadorFluent" />
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Dados da Filial</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Nome -->
+                            <div class="mb-3">
+                                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="filialEdit.Nome" class="form-control" placeholder="Digite o nome da filial" />
+                                <ValidationMessage For="@(() => filialEdit.Nome)" />
+                            </div>
+
+                            <!-- Situação -->
+                            <div class="mb-0">
+                                <label class="form-label d-block">Situação</label>
+                                <span class="badge @(filialOriginal.Ativo ? "bg-success" : "bg-danger")">
+                                    @(filialOriginal.Ativo ? "Ativa" : "Inativa")
+                                </span>
+                                @if (filialOriginal.Ativo)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="Desativar" disabled="@processando">
+                                        <i class="bi bi-slash-circle me-1"></i>Desativar
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-success ms-2" @onclick="Ativar" disabled="@processando">
+                                        <i class="bi bi-check-circle me-1"></i>Ativar
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Endereço -->
+                    <EnderecoForm @bind-Endereco="filialEdit.Endereco" Titulo="Endereço da Filial" />
+
+                    <div class="row mt-4">
+                        <div class="col">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@processando">
+                                    @if (processando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        <span>Salvando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        <span>Salvar Alterações</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Coluna de gerenciamento de fotos -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-images me-2"></i>
+                            Fotos da Filial
+                        </h5>
+                        <a href="/filial/@id/fotos" class="btn btn-sm btn-light">
+                            <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (filialOriginal.Fotos == null || !filialOriginal.Fotos.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-camera fs-1 text-muted"></i>
+                                <p class="mt-2 text-muted">Nenhuma foto cadastrada</p>
+                                <a href="/filial/@id/fotos" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fotos-grid">
+                                @foreach (var foto in filialOriginal.Fotos)
+                                {
+                                    <div class="foto-item">
+                                        <div class="foto-imagem-container">
+                                            <img src="@ObterUrlImagem(foto)"
+                                                 alt="@foto.NomeArquivo"
+                                                 class="foto-imagem"
+                                                 @onclick="() => VisualizarFoto(foto)" />
+                                            <div class="foto-overlay">
+                                                <button class="btn btn-sm btn-danger btn-excluir-foto" @onclick="() => ExcluirFoto(foto.IdFoto, foto.NomeArquivo)" title="Excluir foto">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="foto-info">
+                                            <span class="foto-nome" title="@foto.NomeArquivo">@foto.NomeArquivo</span>
+                                            <span class="foto-tamanho">@foto.TamanhoFormatado</span>
+                                            <span class="foto-data">@foto.DataUpload.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal para visualizar imagem em tamanho grande -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-image me-2"></i>
+                    Visualizar Imagem
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                @if (fotoSelecionada != null)
+                {
+                    <img src="@ObterUrlImagem(fotoSelecionada)"
+                         alt="@fotoSelecionada.NomeArquivo"
+                         class="img-fluid rounded" style="max-height: 60vh;" />
+
+                    <div class="mt-3 text-start">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Nome do arquivo:</small>
+                                <p><strong>@fotoSelecionada.NomeArquivo</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Tamanho:</small>
+                                <p><strong>@fotoSelecionada.TamanhoFormatado</strong></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Data do Upload:</small>
+                                <p><strong>@fotoSelecionada.DataUpload.ToString("dd/MM/yyyy HH:mm")</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Extensão:</small>
+                                <p><strong>@fotoSelecionada.Extensao?.ToUpper()</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private EditarFilialRequest? filialEdit;
+    private FilialResponse? filialOriginal;
+    private bool carregando = true;
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+    private FotoResponse? fotoSelecionada;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarDadosFilial();
+    }
+
+    // ===== MÉTODO DE CARREGAMENTO =====
+    private async Task CarregarDadosFilial()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            filialOriginal = await _filialService.ObterPorId(id.ToString());
+
+            if (filialOriginal == null)
+            {
+                Logger.LogWarning("Filial não encontrada: {FilialId}", id);
+                NotificacaoService.ShowWarning("Filial não encontrada", "Atenção");
+                return;
+            }
+
+            filialEdit = new EditarFilialRequest
+            {
+                Nome = filialOriginal.Nome,
+                Cidade = filialOriginal.Cidade,
+                Endereco = new EnderecoRequest
+                {
+                    Logradouro = filialOriginal.Endereco?.Logradouro,
+                    Numero = filialOriginal.Endereco?.Numero,
+                    Complemento = filialOriginal.Endereco?.Complemento,
+                    Bairro = filialOriginal.Endereco?.Bairro,
+                    Cidade = filialOriginal.Endereco?.Cidade,
+                    Estado = filialOriginal.Endereco?.Estado,
+                    Cep = filialOriginal.Endereco?.Cep
+                }
+            };
+
+            Logger.LogInformation("Dados da filial {FilialId} carregados com sucesso", id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar filial {FilialId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados da filial", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODO PARA OBTER URL DA IMAGEM =====
+    private string ObterUrlImagem(FotoResponse foto)
+    {
+        var baseUrl = Configuracao["ApiConfig:BaseUrlApiLocacao"]?.TrimEnd('/');
+        return $"{baseUrl}/api/v1/filiais/{id}/fotos/{foto.IdFoto}";
+    }
+
+    // ===== MÉTODO PARA VISUALIZAR FOTO =====
+    private async Task VisualizarFoto(FotoResponse foto)
+    {
+        fotoSelecionada = foto;
+        await JS.InvokeVoidAsync("eval", @"var modal = new bootstrap.Modal(document.getElementById('imageModal')); modal.show();");
+        StateHasChanged();
+    }
+
+    // ===== MÉTODO PARA EXCLUIR FOTO =====
+    private async Task ExcluirFoto(int fotoId, string nomeArquivo)
+    {
+        var confirmado = await _confirmService.ConfirmAsync(
+            $"Deseja realmente excluir a foto '{nomeArquivo}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = await _filialService.ExcluirFoto(id, fotoId);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Foto '{nomeArquivo}' excluída com sucesso!", "Exclusão");
+
+                // Recarrega os dados para atualizar a lista de fotos
+                await CarregarDadosFilial();
+            }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao excluir a foto.", "Erro");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao excluir foto {FotoId} da filial {FilialId}", fotoId, id);
+            NotificacaoService.ShowError($"Erro ao excluir foto: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== MÉTODO PRINCIPAL DE ENVIO =====
+    private async Task ManipularEnvio()
+    {
+        if (filialEdit == null || filialOriginal == null) return;
+
+        if (!ValidarDados())
+            return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            Logger.LogInformation("Atualizando filial ID: {FilialId}", id);
+
+            var sucesso = await _filialService.Atualizar(id, filialEdit);
+
+            if (sucesso == true)
+            {
+                NotificacaoService.ShowSuccess("Filial atualizada com sucesso!", "Sucesso");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo($"/filial/visualizar/{id}");
+            }
+            else
+            {
+                Logger.LogWarning("Falha ao atualizar filial {FilialId}", id);
+                NotificacaoService.ShowWarning("Não foi possível atualizar a filial", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ERRO ao editar filial {FilialId}", id);
+            NotificacaoService.ShowError($"Erro ao atualizar filial: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== ATIVAR / DESATIVAR =====
+    private async Task Ativar()
+    {
+        await AlterarSituacao(ativar: true);
+    }
+
+    private async Task Desativar()
+    {
+        await AlterarSituacao(ativar: false);
+    }
+
+    private async Task AlterarSituacao(bool ativar)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var sucesso = ativar
+                ? await _filialService.Ativar(id)
+                : await _filialService.Desativar(id);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Filial {(ativar ? "ativada" : "desativada")} com sucesso!", "Sucesso");
+                await CarregarDadosFilial();
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"Não foi possível {(ativar ? "ativar" : "desativar")} a filial", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao alterar situação da filial {FilialId}", id);
+            NotificacaoService.ShowError($"Erro ao alterar situação: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== VALIDAÇÃO ADICIONAL =====
+    private bool ValidarDados()
+    {
+        if (filialEdit == null) return false;
+
+        if (string.IsNullOrWhiteSpace(filialEdit.Nome))
+        {
+            NotificacaoService.ShowWarning("O nome da filial é obrigatório", "Validação");
+            return false;
+        }
+
+        if (filialEdit.Endereco == null || string.IsNullOrWhiteSpace(filialEdit.Endereco.Cidade))
+        {
+            NotificacaoService.ShowWarning("A cidade do endereço é obrigatória", "Validação");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(filialEdit.Endereco.Logradouro))
+        {
+            NotificacaoService.ShowWarning("O logradouro é obrigatório", "Validação");
+            return false;
+        }
+
+        return true;
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Voltar()
+    {
+        Navegacao.NavigateTo($"/filial/visualizar/{id}");
+    }
+
+    private void Cancelar() => Voltar();
+}

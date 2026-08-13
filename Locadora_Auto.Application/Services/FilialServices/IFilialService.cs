@@ -13,7 +13,7 @@ namespace Locadora_Auto.Application.Services.FilialServices
         Task<FilialDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         //Task<FilialDto?> ObterPorIdComVeiculosAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<FilialDto>> ObterTodasAsync(CancellationToken ct = default);
-        Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, CancellationToken ct = default);
+        Task<PaginatedResult<FilialDto>> ObterTodosPaginadoAsync(int pagina, int itemPorPagina, string? nome = null, CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterAtivasAsync(CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterPorCidadeAsync(string cidade, CancellationToken ct = default);
         //Task<IReadOnlyList<FilialDto>> ObterPorEstadoAsync(string estado, CancellationToken ct = default);
@@ -38,6 +38,7 @@ namespace Locadora_Auto.Application.Services.FilialServices
         Task<bool> AtivarFilialAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarFilialAsync(int id, CancellationToken ct = default);
         Task<bool> RegistarFotoFilialAsync(int id, List<IFormFile> fotos, CancellationToken ct = default);
+        Task<bool> ExluirFotoFilialAsync(int id, int idFoto, CancellationToken ct = default);
         //#endregion
 
         //#region Operações Específicas

@@ -3,6 +3,7 @@ using Locadora_Auto.Api.Controllers;
 using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto.Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.FilialServices;
+using Locadora_Auto.Application.Services.ImageService;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
@@ -13,13 +14,16 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
     public class FiliaisController : MainController
     {
         private readonly IFilialService _filialService;
+        private readonly IImageService _imageService;
 
         public FiliaisController(
             IFilialService filialService,
-            INotificadorService notificador)
+            INotificadorService notificador,
+            IImageService imageService)
             : base(notificador)
         {
             _filialService = filialService;
+            _imageService = imageService;
         }
 
         // ========================= CONSULTAS =========================
@@ -27,9 +31,9 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> ObterTodas(CancellationToken ct = default, [FromQuery] int pagina = 1, [FromQuery] int itensPorPagina = 10)
+        public async Task<IActionResult> ObterTodas(CancellationToken ct = default, [FromQuery] int pagina = 1, [FromQuery] int itensPorPagina = 10, [FromQuery] string? nome = null)
         {
-            var result = await _filialService.ObterTodosPaginadoAsync(pagina, itensPorPagina, ct);
+            var result = await _filialService.ObterTodosPaginadoAsync(pagina, itensPorPagina, nome, ct);
             return CustomResponse(result);
         }
 
@@ -38,6 +42,36 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
         {
             var filial = await _filialService.ObterPorIdAsync(id, ct);
             return CustomResponse(filial);
+        }
+
+        [HttpGet("{id:int}/fotos/{idFoto:int}")]
+        public async Task<IActionResult> GetFoto(CancellationToken ct, int idFoto, int id, int? width = null, int? height = null)
+        {
+            var filial = await _filialService.ObterPorIdAsync(id, ct);
+            if (filial == null)
+                return NotFound();
+
+            var foto = filial.Fotos?.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (foto == null)
+                return NotFound();
+
+            var caminho = Path.Combine(foto.Diretorio, foto.NomeArquivo);
+            if (!System.IO.File.Exists(caminho))
+                return NotFound();
+
+            // Redimensiona a imagem
+            var bytes = await _imageService.RedimensionarAsync(caminho, width, height);
+
+            var contentType = foto.Extensao?.ToLower() switch
+            {
+                "jpg" or "jpeg" => "image/jpeg",
+                "png" => "image/png",
+                "gif" => "image/gif",
+                "webp" => "image/webp",
+                _ => "application/octet-stream"
+            };
+
+            return File(bytes, contentType);
         }
 
         // ========================= CRIAÇÃO =========================
@@ -101,6 +135,13 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
 
             var filial = await _filialService.RegistarFotoFilialAsync(id,fotos, ct);
             return CustomResponse(filial, HttpStatusCode.Created);
+        }
+
+        [HttpDelete("{id:int}/excluir-foto/{idFoto:int}")]
+        public async Task<IActionResult> ExcluirFoto(int id, int idFoto, CancellationToken ct)
+        {
+            var sucesso = await _filialService.ExluirFotoFilialAsync(id, idFoto, ct);
+            return CustomResponse(sucesso);
         }
     }
 

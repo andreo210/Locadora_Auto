@@ -1,0 +1,355 @@
+﻿@page "/veiculos/editar/{id:int}"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Models.Enum
+@using Locadora_Auto.Front.Models.Request.Veiculo
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Veiculo
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IVeiculoService _veiculoService
+@inject IFilialService _filialService
+@inject ILogger<EditarVeiculo> Logger
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Editar Veículo</h2>
+            </div>
+            <p class="text-muted mt-2">Altere os dados do veículo</p>
+        </div>
+    </div>
+
+    @if (carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando dados do veículo...</p>
+        </div>
+    }
+    else if (veiculoOriginal == null || veiculoEdit == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Veículo não encontrado ou não existe.
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@veiculoEdit" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator @ref="validadorFluent" />
+
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <!-- Dados imutáveis -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">Identificação</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="fw-bold text-muted small">Placa</label>
+                                    <p class="mb-0 fs-5">@veiculoOriginal.Placa</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="fw-bold text-muted small">Chassi</label>
+                                    <p class="mb-0">@veiculoOriginal.Chassi</p>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="fw-bold text-muted small">Categoria</label>
+                                    <p class="mb-0">@veiculoOriginal.Categoria</p>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                Placa, chassi e categoria não são alteráveis após o cadastro.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dados editáveis -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Dados do Veículo</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Marca <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="veiculoEdit.Marca" class="form-control" />
+                                    <ValidationMessage For="@(() => veiculoEdit.Marca)" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Modelo <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="veiculoEdit.Modelo" class="form-control" />
+                                    <ValidationMessage For="@(() => veiculoEdit.Modelo)" />
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Ano <span class="text-danger">*</span></label>
+                                    <InputNumber @bind-Value="veiculoEdit.Ano" class="form-control" />
+                                    <ValidationMessage For="@(() => veiculoEdit.Ano)" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Quilometragem <span class="text-danger">*</span></label>
+                                    <InputNumber @bind-Value="veiculoEdit.KmAtual" class="form-control" />
+                                    <ValidationMessage For="@(() => veiculoEdit.KmAtual)" />
+                                    <div class="form-text">Não pode ser menor que @veiculoOriginal.KmAtual.ToString("N0") km.</div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Filial <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="veiculoEdit.IdFilialAtual" class="form-select">
+                                        <option value="">Selecione a filial</option>
+                                        @foreach (var filial in filiais)
+                                        {
+                                            <option value="@filial.IdFilial">@filial.Nome</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => veiculoEdit.IdFilialAtual)" />
+                                </div>
+                            </div>
+
+                            <!-- Situação -->
+                            <div class="mb-0">
+                                <label class="form-label d-block">Situação</label>
+                                <span class="badge @(((StatusVeiculoEnum)veiculoOriginal.IdStatus).GetCorBadge())">
+                                    @(((StatusVeiculoEnum)veiculoOriginal.IdStatus).GetDisplayName())
+                                </span>
+                                <span class="badge @(veiculoOriginal.Ativo ? "bg-success" : "bg-danger") ms-1">
+                                    @(veiculoOriginal.Ativo ? "Ativo" : "Inativo")
+                                </span>
+                                @if (veiculoOriginal.Ativo)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="Desativar" disabled="@processando">
+                                        <i class="bi bi-slash-circle me-1"></i>Desativar
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-success ms-2" @onclick="Ativar" disabled="@processando">
+                                        <i class="bi bi-check-circle me-1"></i>Ativar
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="/veiculos/@id/manutencao" class="btn btn-outline-warning">
+                                    <i class="bi bi-tools me-1"></i>Manutenção
+                                </a>
+                                <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@processando">
+                                    @if (processando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        <span>Salvando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        <span>Salvar Alterações</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    // ===== PARÂMETROS DA ROTA =====
+    [Parameter] public int id { get; set; }
+
+    // ===== VARIÁVEIS DE ESTADO DO COMPONENTE =====
+    private EditarVeiculoRequest? veiculoEdit;
+    private VeiculoResponse? veiculoOriginal;
+    private List<FilialResponse> filiais = new();
+    private bool carregando = true;
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnParametersSetAsync()
+    {
+        await CarregarFiliais();
+        await CarregarDadosVeiculo();
+    }
+
+    private async Task CarregarFiliais()
+    {
+        try
+        {
+            var resultado = await _filialService.ObterTodos(itensPorPagina: 100);
+            filiais = resultado?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar filiais");
+            NotificacaoService.ShowError("Erro ao carregar as filiais", "Erro");
+        }
+    }
+
+    // ===== MÉTODO DE CARREGAMENTO =====
+    private async Task CarregarDadosVeiculo()
+    {
+        try
+        {
+            carregando = true;
+            StateHasChanged();
+
+            veiculoOriginal = await _veiculoService.ObterPorId(id);
+
+            if (veiculoOriginal == null)
+            {
+                Logger.LogWarning("Veículo não encontrado: {VeiculoId}", id);
+                NotificacaoService.ShowWarning("Veículo não encontrado", "Atenção");
+                return;
+            }
+
+            veiculoEdit = new EditarVeiculoRequest
+            {
+                Marca = veiculoOriginal.Marca,
+                Modelo = veiculoOriginal.Modelo,
+                Ano = veiculoOriginal.Ano,
+                KmAtual = veiculoOriginal.KmAtual,
+                IdFilialAtual = veiculoOriginal.IdFilialAtual
+            };
+
+            Logger.LogInformation("Dados do veículo {VeiculoId} carregados com sucesso", id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao carregar veículo {VeiculoId}", id);
+            NotificacaoService.ShowError("Erro ao carregar dados do veículo", "Erro");
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODO PRINCIPAL DE ENVIO =====
+    private async Task ManipularEnvio()
+    {
+        if (veiculoEdit == null || veiculoOriginal == null) return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var validador = new EditarVeiculoValidator();
+            var resultado = await validador.ValidateAsync(veiculoEdit);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                return;
+            }
+
+            // a Api também recusa, mas avisar aqui evita um round-trip
+            if (veiculoEdit.KmAtual < veiculoOriginal.KmAtual)
+            {
+                NotificacaoService.ShowWarning(
+                    $"A quilometragem não pode ser menor que a atual ({veiculoOriginal.KmAtual:N0} km)", "Validação");
+                return;
+            }
+
+            Logger.LogInformation("Atualizando veículo ID: {VeiculoId}", id);
+
+            var sucesso = await _veiculoService.Atualizar(id, veiculoEdit);
+
+            if (sucesso == true)
+            {
+                NotificacaoService.ShowSuccess("Veículo atualizado com sucesso!", "Sucesso");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo($"/veiculos/visualizar/{id}");
+            }
+            else
+            {
+                Logger.LogWarning("Falha ao atualizar veículo {VeiculoId}", id);
+                NotificacaoService.ShowWarning("Não foi possível atualizar o veículo", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ERRO ao editar veículo {VeiculoId}", id);
+            NotificacaoService.ShowError($"Erro ao atualizar veículo: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== ATIVAR / DESATIVAR =====
+    private async Task Ativar() => await AlterarSituacao(ativar: true);
+
+    private async Task Desativar() => await AlterarSituacao(ativar: false);
+
+    private async Task AlterarSituacao(bool ativar)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var sucesso = ativar
+                ? await _veiculoService.Ativar(id)
+                : await _veiculoService.Desativar(id);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Veículo {(ativar ? "ativado" : "desativado")} com sucesso!", "Sucesso");
+                await CarregarDadosVeiculo();
+            }
+            else
+            {
+                NotificacaoService.ShowWarning($"Não foi possível {(ativar ? "ativar" : "desativar")} o veículo", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao alterar situação do veículo {VeiculoId}", id);
+            NotificacaoService.ShowError($"Erro ao alterar situação: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Voltar()
+    {
+        Navegacao.NavigateTo($"/veiculos/visualizar/{id}");
+    }
+
+    private void Cancelar() => Voltar();
+}

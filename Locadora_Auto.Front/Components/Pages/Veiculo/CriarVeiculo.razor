@@ -1,0 +1,230 @@
+﻿@page "/veiculos/novo"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Models.Request.Veiculo
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Veiculo
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IVeiculoService _veiculoService
+@inject IFilialService _filialService
+@inject ICategoriaService _categoriaService
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Cancelar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Novo Veículo</h2>
+            </div>
+            <p class="text-muted mt-2">Preencha os dados para cadastrar um novo veículo na frota</p>
+        </div>
+    </div>
+
+    <EditForm Model="@veiculo" OnValidSubmit="@ManipularEnvio">
+        <FluentValidationValidator @ref="validadorFluent" />
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <!-- Identificação -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Identificação</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Placa <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="veiculo.Placa" class="form-control text-uppercase" placeholder="ABC1D23" />
+                                <ValidationMessage For="@(() => veiculo.Placa)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Chassi <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="veiculo.Chassi" class="form-control text-uppercase" placeholder="Número do chassi" />
+                                <ValidationMessage For="@(() => veiculo.Chassi)" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dados do veículo -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Dados do Veículo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Marca <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="veiculo.Marca" class="form-control" placeholder="Ex.: Fiat" />
+                                <ValidationMessage For="@(() => veiculo.Marca)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Modelo <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="veiculo.Modelo" class="form-control" placeholder="Ex.: Argo" />
+                                <ValidationMessage For="@(() => veiculo.Modelo)" />
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ano <span class="text-danger">*</span></label>
+                                <InputNumber @bind-Value="veiculo.Ano" class="form-control" />
+                                <ValidationMessage For="@(() => veiculo.Ano)" />
+                            </div>
+                            <div class="col-md-6 mb-0">
+                                <label class="form-label">Quilometragem inicial</label>
+                                <InputNumber @bind-Value="veiculo.KmInicial" class="form-control" />
+                                <ValidationMessage For="@(() => veiculo.KmInicial)" />
+                                <div class="form-text">Use 0 para veículo zero quilômetro.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alocação -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Categoria e Filial</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                                <InputSelect @bind-Value="veiculo.IdCategoria" class="form-select">
+                                    <option value="0">Selecione a categoria</option>
+                                    @foreach (var categoria in categorias)
+                                    {
+                                        <option value="@categoria.Id">@categoria.Nome</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => veiculo.IdCategoria)" />
+                            </div>
+                            <div class="col-md-6 mb-0">
+                                <label class="form-label">Filial <span class="text-danger">*</span></label>
+                                <InputSelect @bind-Value="veiculo.IdFilialAtual" class="form-select">
+                                    <option value="0">Selecione a filial</option>
+                                    @foreach (var filial in filiais)
+                                    {
+                                        <option value="@filial.IdFilial">@filial.Nome</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => veiculo.IdFilialAtual)" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@processando">
+                                @if (processando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Salvando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    <span>Salvar Veículo</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private CriarVeiculoRequest veiculo = new();
+    private List<CategoriaResponse> categorias = new();
+    private List<FilialResponse> filiais = new();
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarListasAuxiliares();
+    }
+
+    private async Task CarregarListasAuxiliares()
+    {
+        try
+        {
+            var resultadoCategorias = await _categoriaService.ObterTodos(itensPorPagina: 100);
+            categorias = resultadoCategorias?.Items?.ToList() ?? new();
+
+            var resultadoFiliais = await _filialService.ObterTodos(itensPorPagina: 100);
+            filiais = resultadoFiliais?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias e filiais: {ex.Message}", "Erro");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Valida o modelo usando FluentValidation
+            var validador = new VeiculoValidator();
+            var resultado = await validador.ValidateAsync(veiculo);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                processando = false;
+                StateHasChanged();
+                return;
+            }
+
+            var veiculoCriado = await _veiculoService.Inserir(veiculo);
+
+            if (veiculoCriado != null)
+            {
+                NotificacaoService.ShowSuccess("Veículo cadastrado com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/veiculos");
+            }
+            else
+            {
+                NotificacaoService.ShowError("Erro ao cadastrar veículo.", "Erro no Cadastro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar veículo: {ex.Message}", "Erro no Cadastro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ===== MÉTODOS DE NAVEGAÇÃO =====
+    private void Cancelar()
+    {
+        Navegacao.NavigateTo("/veiculos");
+    }
+}

@@ -1,0 +1,7 @@
+2026-08-13 07:08:21.246 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-13 07:08:21.311 -03:00 [INF] Hosting environment: Development
+2026-08-13 07:08:21.312 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-13 07:10:50.726 -03:00 [ERR] ❌ ERRO SERVIDOR: "InternalServerError" - /api/v1/Users/autenticar - {"Type":null,"Title":"InternalServerError","Status":500,"Detail":"The maximum number of retries (5) was exceeded while executing database operations with 'NpgsqlRetryingExecutionStrategy'. See the inner exception for the most recent failure.","Instance":"/api/v1/Users/autenticar","Extensions":{"traceId":"4000001a-000c-ff00-b63f-84710c7967bb"}}
+2026-08-13 09:14:56.126 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-13 09:14:56.204 -03:00 [INF] Hosting environment: Development
+2026-08-13 09:14:56.206 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front

@@ -1,0 +1,167 @@
+﻿@page "/seguros/novo"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Components.Forms
+@using Locadora_Auto.Front.Models.Request.Seguro
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Seguro
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject ISeguroService _seguroService
+@* @attribute [Authorize(Roles = "Administrador")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Novo Seguro</h2>
+            </div>
+            <p class="text-muted mt-2">Preencha os dados para cadastrar um novo seguro</p>
+        </div>
+    </div>
+
+    <EditForm Model="@seguro" OnValidSubmit="@ManipularEnvio">
+        <FluentValidationValidator @ref="validadorFluent" />
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shield-check me-2"></i>
+                            Dados do Seguro
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label class="form-label">Nome <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="seguro.Nome" class="form-control" placeholder="Ex: Proteção Total" />
+                            <ValidationMessage For="@(() => seguro.Nome)" />
+                        </div>
+
+                        <!-- Descrição -->
+                        <div class="mb-3">
+                            <label class="form-label">Descrição <span class="text-danger">*</span></label>
+                            <InputTextArea @bind-Value="seguro.Descricao" class="form-control" rows="2"
+                                           placeholder="Descreva resumidamente o seguro" />
+                            <ValidationMessage For="@(() => seguro.Descricao)" />
+                            <small class="form-text text-muted">Máximo de 100 caracteres.</small>
+                        </div>
+
+                        <div class="row">
+                            <!-- Valor da diária -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Valor da diária <span class="text-danger">*</span></label>
+                                <InputMoeda @bind-Value="seguro.ValorDiaria"
+                                            class="form-control"
+                                            placeholder="R$ 0,00" />
+                                <ValidationMessage For="@(() => seguro.ValorDiaria)" />
+                                <small class="form-text text-muted">Digite apenas números. Ex: 3500 = R$ 35,00</small>
+                            </div>
+
+                            <!-- Franquia -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Franquia</label>
+                                <InputMoeda @bind-Value="seguro.Franquia"
+                                            class="form-control"
+                                            placeholder="R$ 0,00" />
+                                <ValidationMessage For="@(() => seguro.Franquia)" />
+                                <small class="form-text text-muted">Valor que o cliente paga em caso de sinistro.</small>
+                            </div>
+                        </div>
+
+                        <!-- Cobertura -->
+                        <div class="mb-0">
+                            <label class="form-label">Cobertura <span class="text-danger">*</span></label>
+                            <InputTextArea @bind-Value="seguro.Cobertura" class="form-control" rows="3"
+                                           placeholder="Ex: Colisão, roubo, furto e danos a terceiros" />
+                            <ValidationMessage For="@(() => seguro.Cobertura)" />
+                            <small class="form-text text-muted">Máximo de 200 caracteres.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col">
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Salvar Seguro</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private CriarSeguroRequest seguro = new();
+    private bool processando;
+    private FluentValidationValidator? validadorFluent;
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var validador = new SeguroValidator();
+            var resultado = await validador.ValidateAsync(seguro);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                return;
+            }
+
+            var seguroCriado = await _seguroService.Inserir(seguro);
+
+            if (seguroCriado != null)
+            {
+                NotificacaoService.ShowSuccess("Seguro cadastrado com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/seguros");
+            }
+            else
+            {
+                NotificacaoService.ShowWarning("Não foi possível cadastrar o seguro", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar seguro: {ex.Message}", "Erro no Cadastro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Voltar() => Navegacao.NavigateTo("/seguros");
+
+    private void Cancelar() => Voltar();
+}

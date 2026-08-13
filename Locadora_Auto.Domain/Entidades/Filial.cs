@@ -61,6 +61,14 @@
                 _fotos.Add(FotoFilial.Criar(foto.NomeArquivo, foto.Raiz, foto.Diretorio, foto.Extensao, foto.QuantidadeBytes.Value));
             }                
         }
+        public void RemoverFoto(int idFoto)
+        {
+            var foto = _fotos.FirstOrDefault(f => f.IdFoto == idFoto);
+            if (foto == null)
+                throw new DomainException("Foto não encontrada");
+            _fotos.Remove(foto);
+        }
+
         public void Ativar()
         {
             Ativo = true;

@@ -7,6 +7,7 @@
 @inject NavigationManager Navegacao
 @inject INotificationService NotificacaoService
 @inject IFilialService _filialService
+@inject IConfiguration Configuracao
 @inject IJSRuntime JSRuntime
 @* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
 @rendermode InteractiveServer
@@ -37,13 +38,13 @@
     {
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Categoria não encontrada ou não existe.
+            Filial não encontrada ou não existe.
         </div>
     }
     else
     {
         <div class="row">
-            <!-- Coluna dos dados da categoria -->
+            <!-- Coluna dos dados da filial -->
             <div class="col-md-6">
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
@@ -72,31 +73,31 @@
                             </div>
                         </div>
                         <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="fw-bold text-muted small">Endereço</label>
+                                <p class="mb-0">@ObterEnderecoFormatado()</p>
+                            </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Total de veiculos</label>
+                                <label class="fw-bold text-muted small">Total de veículos</label>
                                 <p class="mb-0 fs-5 text-success">
-                                    @(filial.TotalVeiculos.ToString("N0") ?? "0")
+                                    @filial.TotalVeiculos.ToString("N0")
                                 </p>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Total de veiculos</label>
-                                <p class="mb-0 fs-5 text-success">
-                                    @(filial.TotalVeiculos.ToString("N0") ?? "0")
-                                </p>
+                                <label class="fw-bold text-muted small">Veículos disponíveis</label>
+                                <p class="mb-0 fs-5">@filial.VeiculosDisponiveis.ToString("N0")</p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="fw-bold text-muted small">Total de locações no mês</label>
                                 <p class="mb-0">
-                                    @(filial.TotalLocacoesMes.ToString("N0") ?? "0") 
+                                    @filial.TotalLocacoesMes.ToString("N0")
                                 </p>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="fw-bold text-muted small">Veiculo disponível</label>
-                                <p class="mb-0 fs-5">@filial.VeiculosDisponivel</p>
-                            </div>
-                        </div>                        
+                        </div>
                     </div>
                 </div>
             </div>
@@ -195,13 +196,19 @@
             </div>
         }
 
-        <!-- Botão Voltar -->
+        <!-- Ações -->
         <div class="row mt-4">
             <div class="col">
                 <div class="d-flex gap-2 justify-content-end">
                     <button type="button" class="btn btn-secondary" @onclick="Voltar">
                         <i class="bi bi-arrow-left me-1"></i>Voltar
                     </button>
+                    <a href="/filial/@id/fotos" class="btn btn-outline-primary">
+                        <i class="bi bi-cloud-upload me-1"></i>Adicionar Fotos
+                    </a>
+                    <a href="/filial/editar/@id" class="btn btn-primary">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
                 </div>
             </div>
         </div>
@@ -271,11 +278,11 @@
     // ===== MÉTODOS DO CICLO DE VIDA =====
     protected override async Task OnParametersSetAsync()
     {
-        await CarregarCategoria();
+        await CarregarFilial();
     }
 
     // ===== MÉTODOS DE CARREGAMENTO =====
-    private async Task CarregarCategoria()
+    private async Task CarregarFilial()
     {
         try
         {
@@ -286,7 +293,7 @@
         }
         catch (Exception ex)
         {
-            NotificacaoService.ShowError($"Erro ao carregar categoria: {ex.Message}");
+            NotificacaoService.ShowError($"Erro ao carregar filial: {ex.Message}");
             filial = null;
         }
         finally
@@ -299,7 +306,8 @@
     // ===== MÉTODOS DE IMAGEM =====
     private string ObterUrlImagem(FotoResponse foto, int? width = null, int? height = null, string? tamanho = null)
     {
-        var url = $"https://localhost:44310/api/v1/categorias-veiculos/{id}/fotos/{foto.IdFoto}";
+        var baseUrl = Configuracao["ApiConfig:BaseUrlApiLocacao"]?.TrimEnd('/');
+        var url = $"{baseUrl}/api/v1/filiais/{id}/fotos/{foto.IdFoto}";
 
         var parametros = new List<string>();
 
@@ -332,15 +340,39 @@
     // ===== MÉTODOS DE NAVEGAÇÃO =====
     private void Voltar()
     {
-        Navegacao.NavigateTo("/categorias");
+        Navegacao.NavigateTo("/filiais");
     }
 
     private string ObterBadgeStatus()
     {
-        string status;
-        if (filial?.Ativo == null) return "bg-secondary";
-        if (filial?.Ativo == true) return "bg-success";
-        if (filial?.Ativo == false) return "bg-bg-danger";
-        return "bg-secondary";
+        if (filial == null) return "bg-secondary";
+        return filial.Ativo ? "bg-success" : "bg-danger";
+    }
+
+    private string ObterEnderecoFormatado()
+    {
+        var endereco = filial?.Endereco;
+        if (endereco == null)
+            return "Não informado";
+
+        var partes = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(endereco.Logradouro))
+            partes.Add(string.IsNullOrWhiteSpace(endereco.Numero)
+                ? endereco.Logradouro
+                : $"{endereco.Logradouro}, {endereco.Numero}");
+
+        if (!string.IsNullOrWhiteSpace(endereco.Complemento))
+            partes.Add(endereco.Complemento);
+        if (!string.IsNullOrWhiteSpace(endereco.Bairro))
+            partes.Add(endereco.Bairro);
+        if (!string.IsNullOrWhiteSpace(endereco.Cidade))
+            partes.Add(string.IsNullOrWhiteSpace(endereco.Estado)
+                ? endereco.Cidade
+                : $"{endereco.Cidade}/{endereco.Estado}");
+        if (!string.IsNullOrWhiteSpace(endereco.Cep))
+            partes.Add($"CEP {endereco.Cep}");
+
+        return partes.Any() ? string.Join(" - ", partes) : "Não informado";
     }
 }

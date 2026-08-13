@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Models.Dto;
+using Locadora_Auto.Domain;
 
 namespace Locadora_Auto.Application.Services.SeguroServices
 {
@@ -7,6 +8,14 @@ namespace Locadora_Auto.Application.Services.SeguroServices
         #region Consultas
         Task<SeguroDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<SeguroDto>> ObterTodosAsync(CancellationToken ct = default);
+        Task<PaginatedResult<SeguroDto>> ObterTodosPaginadoAsync(
+            int pagina,
+            int itensPorPagina,
+            string? termo = null,
+            bool? ativo = null,
+            string? ordenarPor = null,
+            string? direcao = null,
+            CancellationToken ct = default);
         Task<IReadOnlyList<SeguroDto>> ObterSeguroAtivoAsync(CancellationToken ct = default);
 
         #endregion Consultas
@@ -14,6 +23,7 @@ namespace Locadora_Auto.Application.Services.SeguroServices
         #region Gravacao
         Task<SeguroDto?> CriarAsync(CriarOuAtualizarSeguroDto dto, CancellationToken ct = default);
         Task<bool> AtualizarAsync(int id, CriarOuAtualizarSeguroDto dto, CancellationToken ct = default);
+        Task<bool> ExcluirAsync(int id, CancellationToken ct = default);
         Task<bool> AtivarAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarAsync(int id, CancellationToken ct = default);
         #endregion Gravacao

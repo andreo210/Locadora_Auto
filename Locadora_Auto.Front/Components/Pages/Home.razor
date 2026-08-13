@@ -1,11 +1,82 @@
 ﻿@attribute [Authorize]
 
-
 @page "/"
 @using Microsoft.AspNetCore.Authorization
+@using Locadora_Auto.Front.Models.Layout
+@using Locadora_Auto.Front.Services.Usuarios
+@inject MenuService ServicoMenu
+@inject IUsuarioAsp Usuario
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Início · Locadora Auto</PageTitle>
 
-<h1>Hello, world!</h1>
+<section class="painel-hero">
+    <div class="hero-texto">
+        <span class="rotulo">Painel operacional</span>
+        <h1 class="hero-titulo">@Saudacao</h1>
+        <p class="hero-linha">
+            Abra uma locação, cadastre um veículo ou encontre um cliente.
+            O que o balcão usa todo dia está a um clique.
+        </p>
+        <div class="hero-acoes">
+            <a href="/locacoes/nova" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Nova locação
+            </a>
+            <a href="/veiculos" class="btn btn-linha-clara">
+                <i class="bi bi-car-front me-1"></i>Ver frota
+            </a>
+            <a href="/clientes" class="btn btn-linha-clara">
+                <i class="bi bi-people me-1"></i>Clientes
+            </a>
+        </div>
+    </div>
 
-Welcome to your new app.
+    <div class="hero-marca">
+        @* A placa é a marca do sistema. Muda junto com a cor, no mesmo lugar. *@
+        <span class="placa placa-grande">@NomeNaPlaca</span>
+        <span class="hero-marca-legenda">Frota · Balcão · Filiais</span>
+    </div>
+</section>
+
+<div class="secao-cabecalho">
+    <h2 class="secao-titulo">Módulos</h2>
+    <span class="rotulo">@ServicoMenu.GetMenuItems().Count áreas</span>
+</div>
+
+<div class="modulos">
+    @foreach (var modulo in ServicoMenu.GetMenuItems())
+    {
+        <article class="modulo">
+            <div class="modulo-topo">
+                <span class="modulo-icone"><i class="bi @modulo.Icone"></i></span>
+                <a class="modulo-titulo" href="@modulo.Url">@modulo.Titulo</a>
+            </div>
+
+            @if (modulo.SubItens is not null && modulo.SubItens.Any())
+            {
+                <div class="modulo-atalhos">
+                    @foreach (var atalho in modulo.SubItens.Take(3))
+                    {
+                        <a class="modulo-atalho" href="@atalho.Url">@atalho.Titulo</a>
+                    }
+                </div>
+            }
+        </article>
+    }
+</div>
+
+@code {
+    // Nome mostrado na placa. Trocar junto com --marca ao entregar para outro proprietário.
+    private const string NomeNaPlaca = "LOCADORA";
+
+    private string Saudacao
+    {
+        get
+        {
+            var nome = (Usuario.ObterNome() ?? string.Empty)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault();
+
+            return string.IsNullOrEmpty(nome) ? "Bem-vindo ao painel." : $"Bem-vindo, {nome}.";
+        }
+    }
+}

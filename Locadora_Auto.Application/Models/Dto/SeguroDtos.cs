@@ -11,6 +11,7 @@
     public class SeguroDto : SeguroBaseDto
     {
         public int IdSeguro { get; set; }
+        public bool Ativo { get; set; }
     }
 
     public class CriarOuAtualizarSeguroDto : SeguroBaseDto
