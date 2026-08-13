@@ -1,0 +1,434 @@
+﻿@page "/seguros"
+@using Locadora_Auto.Front.Components.Notificacao
+@using Locadora_Auto.Front.Components.UI
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Tabelas
+@using Locadora_Auto.Front.Services.Servicos.Seguro
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject ISeguroService _seguroService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<!-- Componente de confirmação -->
+<ConfirmDialog @ref="confirmDialog" />
+
+<div class="container-fluid py-4">
+    <!-- Cabeçalho da página -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Seguros</h2>
+            <p class="text-muted">Gerencie os seguros oferecidos nas locações</p>
+        </div>
+    </div>
+
+    <!-- Tabela genérica de seguros -->
+    <TabelaGenerica TItem="SeguroResponse"
+                    @bind-PaginaAtual="paginaAtual"
+                    @bind-ItensPorPagina="itensPorPagina"
+                    @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                    @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                    @bind-TermoBusca="termoBuscaGlobal"
+                    Items="seguros"
+                    TotalItens="totalItems"
+                    Colunas="colunas"
+                    Carregando="carregando"
+                    OnCarregarDados="CarregarSeguros"
+                    Titulo="Seguros"
+                    PlaceholderBusca="Pesquisar por nome, descrição ou cobertura..."
+                    SelecaoHabilitada="true"
+                    LarguraColunaAcoes="200"
+                    Acoes="acoes"
+                    AcoesEmMassa="acoesEmMassa"
+                    ObterId="@(s => s.IdSeguro.ToString())"
+                    IconeVazio="bi-shield-check"
+                    MensagemVazio="Nenhum seguro encontrado"
+                    MensagemVazioDetalhe="Clique em 'Novo Seguro' para começar">
+
+        <!-- Ações no cabeçalho -->
+        <AcoesCabecalho>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        title="Atualizar lista" disabled="@carregando" @onclick="CarregarSeguros">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <a href="/seguros/novo" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i>Novo Seguro
+                </a>
+            </div>
+        </AcoesCabecalho>
+
+        <!-- Filtros adicionais -->
+        <FiltrosAdicionais>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select" value="@filtroSituacao" @onchange="AlterarFiltroSituacao">
+                        <option value="">Todas as situações</option>
+                        <option value="true">Somente ativos</option>
+                        <option value="false">Somente inativos</option>
+                    </select>
+                </div>
+            </div>
+        </FiltrosAdicionais>
+    </TabelaGenerica>
+</div>
+
+@code {
+    // ===== REFERÊNCIA PARA O COMPONENTE DE CONFIRMAÇÃO =====
+    private ConfirmDialog? confirmDialog;
+
+    // ===== VARIÁVEIS DE ESTADO =====
+    private List<SeguroResponse> seguros = new();
+    private bool carregando;
+    private int totalItems;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    // ===== FILTROS =====
+    private string filtroSituacao = string.Empty;
+
+    // ===== DEFINIÇÃO DAS COLUNAS DA TABELA =====
+    private List<ColunaTabela<SeguroResponse>> colunas = new()
+    {
+        new()
+        {
+            Titulo = "Nome",
+            Propriedade = "Nome",
+            Largura = "180",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Descrição",
+            Propriedade = "Descricao",
+            Largura = "260",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Valor Diária",
+            Propriedade = "ValorDiaria",
+            Largura = "120",
+            Alinhamento = "right",
+            Ordenavel = true,
+            Valor = s => s.ValorDiaria.ToString("C2")
+        },
+        new()
+        {
+            Titulo = "Franquia",
+            Propriedade = "Franquia",
+            Largura = "120",
+            Alinhamento = "right",
+            Ordenavel = true,
+            Valor = s => s.Franquia.ToString("C2")
+        },
+        new()
+        {
+            Titulo = "Cobertura",
+            Propriedade = "Cobertura",
+            Largura = "260",
+            Ordenavel = true
+        },
+        new()
+        {
+            Titulo = "Situação",
+            Propriedade = "Ativo",
+            Largura = "110",
+            Ordenavel = true,
+            Template = seguro => @<span class="badge @(seguro.Ativo ? "bg-success" : "bg-danger")">
+                @(seguro.Ativo ? "Ativo" : "Inativo")
+            </span>
+        }
+    };
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private List<AcaoTabela<SeguroResponse>> acoes => new()
+    {
+        new()
+        {
+            Titulo = "Visualizar",
+            Icone = "bi-eye",
+            Cor = "info",
+            Acao = async (s) => Navegacao.NavigateTo($"/seguros/visualizar/{s.IdSeguro}")
+        },
+        new()
+        {
+            Titulo = "Editar",
+            Icone = "bi-pencil",
+            Cor = "primary",
+            Acao = async (s) => Navegacao.NavigateTo($"/seguros/editar/{s.IdSeguro}")
+        },
+        new()
+        {
+            Titulo = "Ativar/Desativar",
+            Icone = "bi-toggle-on",
+            Cor = "secondary",
+            Acao = async (s) => await AlternarSituacao(s)
+        },
+        new()
+        {
+            Titulo = "Excluir",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (s) => await ExcluirSeguro(s)
+        }
+    };
+
+    // ===== AÇÕES EM MASSA =====
+    private List<AcaoEmMassa> acoesEmMassa => new()
+    {
+        new()
+        {
+            Titulo = "Ativar selecionados",
+            Icone = "bi-check-circle",
+            Cor = "success",
+            Acao = async (ids) => await AlterarSituacaoSelecionados(ids, ativar: true),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Desativar selecionados",
+            Icone = "bi-slash-circle",
+            Cor = "warning",
+            Acao = async (ids) => await AlterarSituacaoSelecionados(ids, ativar: false),
+            MostrarQuantidade = true
+        },
+        new()
+        {
+            Titulo = "Excluir selecionados",
+            Icone = "bi-trash",
+            Cor = "danger",
+            Acao = async (ids) => await ExcluirSelecionados(ids),
+            MostrarQuantidade = true
+        }
+    };
+
+    // ===== MÉTODOS DO CICLO DE VIDA =====
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarSeguros();
+    }
+
+    // ===== MÉTODO PRINCIPAL DE CARREGAMENTO =====
+    private async Task CarregarSeguros()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await _seguroService.ObterTodos(
+                termo: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                ativo: ConverterFiltroSituacao(),
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                ordenarPor: ordenacaoPropriedade,
+                direcao: ordenacaoDirecao);
+
+            seguros = resultado?.Items?.ToList() ?? new();
+            totalItems = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar seguros: {ex.Message}", "Erro");
+            seguros = new();
+            totalItems = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool? ConverterFiltroSituacao() =>
+        bool.TryParse(filtroSituacao, out var ativo) ? ativo : null;
+
+    // ===== FILTROS =====
+    private async Task AlterarFiltroSituacao(ChangeEventArgs e)
+    {
+        filtroSituacao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarSeguros();
+    }
+
+    // ===== AÇÕES INDIVIDUAIS =====
+    private async Task AlternarSituacao(SeguroResponse seguro)
+    {
+        var acao = seguro.Ativo ? "desativar" : "ativar";
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente {acao} o seguro '{seguro.Nome}'?",
+            "Confirmar Alteração");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = seguro.Ativo
+                ? await _seguroService.Desativar(seguro.IdSeguro)
+                : await _seguroService.Ativar(seguro.IdSeguro);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Seguro {seguro.Nome} {(seguro.Ativo ? "desativado" : "ativado")} com sucesso!", "Sucesso");
+                await CarregarSeguros();
+            }
+            else
+            {
+                NotificacaoService.ShowError($"Erro ao {acao} o seguro.", "Erro");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao {acao} o seguro: {ex.Message}", "Erro");
+        }
+    }
+
+    private async Task ExcluirSeguro(SeguroResponse seguro)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir o seguro '{seguro.Nome}'? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var sucesso = await _seguroService.Excluir(seguro.IdSeguro);
+
+            if (sucesso)
+            {
+                NotificacaoService.ShowSuccess($"Seguro {seguro.Nome} excluído com sucesso!", "Exclusão");
+
+                // era o último item da página: volta uma para não cair numa página vazia
+                if (seguros.Count == 1 && paginaAtual > 1)
+                    paginaAtual--;
+
+                await CarregarSeguros();
+            }
+            // quando a Api recusa (seguro com locações) a própria notificação da Api é exibida
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao excluir: {ex.Message}", "Erro");
+        }
+    }
+
+    // ===== AÇÕES EM MASSA =====
+    private async Task ExcluirSelecionados(List<string> ids)
+    {
+        if (!ids.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum seguro selecionado", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir {ids.Count} seguro(s)? Esta ação não pode ser desfeita.",
+            "Confirmar Exclusão em Massa");
+
+        if (!confirmado)
+            return;
+
+        var sucessos = 0;
+        var erros = 0;
+
+        foreach (var id in ids)
+        {
+            if (!int.TryParse(id, out var idSeguro))
+            {
+                erros++;
+                continue;
+            }
+
+            try
+            {
+                if (await _seguroService.Excluir(idSeguro))
+                    sucessos++;
+                else
+                    erros++;
+            }
+            catch
+            {
+                erros++;
+            }
+        }
+
+        if (erros == 0)
+        {
+            NotificacaoService.ShowSuccess($"{sucessos} seguro(s) excluído(s) com sucesso!", "Sucesso");
+
+            if (seguros.Count == ids.Count && paginaAtual > 1)
+                paginaAtual--;
+        }
+        else
+        {
+            NotificacaoService.ShowWarning($"{sucessos} excluído(s), {erros} falha(s)", "Atenção");
+        }
+
+        await CarregarSeguros();
+    }
+
+    private async Task AlterarSituacaoSelecionados(List<string> ids, bool ativar)
+    {
+        if (!ids.Any())
+        {
+            NotificacaoService.ShowWarning("Nenhum seguro selecionado", "Atenção");
+            return;
+        }
+
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente {(ativar ? "ativar" : "desativar")} {ids.Count} seguro(s)?",
+            "Confirmar Alteração em Massa");
+
+        if (!confirmado)
+            return;
+
+        var sucessos = 0;
+        var erros = 0;
+
+        foreach (var id in ids)
+        {
+            if (!int.TryParse(id, out var idSeguro))
+            {
+                erros++;
+                continue;
+            }
+
+            try
+            {
+                var sucesso = ativar
+                    ? await _seguroService.Ativar(idSeguro)
+                    : await _seguroService.Desativar(idSeguro);
+
+                if (sucesso)
+                    sucessos++;
+                else
+                    erros++;
+            }
+            catch
+            {
+                erros++;
+            }
+        }
+
+        if (erros == 0)
+        {
+            NotificacaoService.ShowSuccess($"{sucessos} seguro(s) {(ativar ? "ativado(s)" : "desativado(s)")} com sucesso!", "Sucesso");
+        }
+        else
+        {
+            NotificacaoService.ShowWarning($"{sucessos} alterado(s), {erros} falha(s)", "Atenção");
+        }
+
+        await CarregarSeguros();
+    }
+}

@@ -22,9 +22,18 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult> ObterTodos(CancellationToken ct)
+        public async Task<ActionResult> ObterTodos(
+            CancellationToken ct,
+            [FromQuery] int pagina = 1,
+            [FromQuery] int itensPorPagina = 10,
+            [FromQuery] string? termo = null,
+            [FromQuery] bool? ativo = null,
+            [FromQuery] string? ordenarPor = null,
+            [FromQuery] string? direcao = null)
         {
-            var result = await _seguroService.ObterTodosAsync(ct);
+            var result = await _seguroService.ObterTodosPaginadoAsync(
+                pagina, itensPorPagina, termo, ativo, ordenarPor, direcao, ct);
+
             return CustomResponse(result);
         }
 
@@ -39,7 +48,7 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
         }
 
         [HttpGet("obter-ativos")]
-        public async Task<ActionResult> ObterDisponiveis([FromQuery] int? idFilial, CancellationToken ct)
+        public async Task<ActionResult> ObterAtivos(CancellationToken ct)
         {
             var result = await _seguroService.ObterSeguroAtivoAsync(ct);
             return CustomResponse(result);
@@ -64,6 +73,16 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
                 return ValidationResponse(ModelState);
 
             var sucesso = await _seguroService.AtualizarAsync(id, dto, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Excluir(int id, CancellationToken ct)
+        {
+            var sucesso = await _seguroService.ExcluirAsync(id, ct);
             if (!sucesso)
                 return CustomResponse();
 
