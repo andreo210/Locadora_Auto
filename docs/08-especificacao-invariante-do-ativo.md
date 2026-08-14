@@ -45,11 +45,34 @@ não era alcançada por nenhum endpoint:
 | RN-38, RN-43 | `LocacaoService.CriarAsync` carrega o veículo com `rastreado: true`, sem o que o `Locar()` do domínio não vira UPDATE — o EF pinta o grafo de `Added` e tentaria inserir o veículo de novo |
 | RN-45 | `PATCH api/v1/veiculos/{id}/liberar-preparacao` → `VeiculoService.LiberarDaPreparacaoAsync`: é a porta pela qual o pátio devolve o carro à oferta |
 | — | Os serviços repetem as guardas de `Veiculo` (`Ativo`, `Status`, km) **antes** de chamar o domínio, para a recusa sair como `ProblemDetails` 4xx. `DomainException` é `internal`, não deriva de `InvalidOperationException` e não é mapeada no `ExceptionProblemFactory`: se escapar, é 500 |
+| RN-40, RN-43 | `LocacaoService.CriarAsync` recusa abertura com contrato sobreposto, pelo filtro `Locacao.Sobrepostas` — a guarda de status é um retrato de agora e não enxerga período |
+| RN-42 | `LocacaoService.AtualizarAsync` revalida a sobreposição antes de estender, ignorando a própria locação |
+| RN-41 | A constraint `ex_locacao_sem_sobreposicao` está na migration `SobreposicaoDeContrato` (SQL bruto, sem modelo por trás), e a violação — SQLSTATE `23P01` — vira **409** no `ExceptionProblemFactory` |
+
+A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
+`btree_gist` 1.7). O que o banco confirmou:
+
+| Caso | Resultado |
+|---|---|
+| Contrato sobreposto, contido ou englobando o existente | recusado, `SQLSTATE 23P01` |
+| Contrato encostado (começa no instante em que o outro termina) | aceito — `tstzrange` é meio-aberto |
+| Mesmo período com o outro contrato em `Finalizada` | aceito — terminal não ocupa a placa |
+| **Duas transações abrindo o mesmo período ao mesmo tempo** | a segunda **bloqueia** até a primeira decidir e então leva `23P01`: exatamente uma grava |
+
+O último é o critério de aceite "concorrência é barrada pelo banco" da seção 11, e é a razão de a
+constraint existir — nenhum `if` no serviço produz esse bloqueio.
+
+> **Ao aplicar em base que já tem dados:** a constraint valida o que já está gravado, e o
+> `ALTER TABLE` falha se houver sobreposição pré-existente. A migration traz comentada a consulta
+> que encontra os pares em conflito.
+>
+> A verificação acima foi feita por script descartável, fora do repositório: **não há teste de
+> integração** que a repita. Os dois testes que ficaram (`SobreposicaoDeContratoTests`) leem o SQL
+> da própria migration e o comparam com `Locacao.StatusTerminais` e `Locacao.Sobrepostas` — eles
+> pegam a lista de status divergindo, não uma regressão no banco.
 
 Ainda **não** implementado:
 
-- **RN-40, RN-41, RN-42** — sobreposição de contrato no mesmo veículo, a constraint `EXCLUDE`
-  e a tradução de `23P01` para 409. É o item mais grave da lista.
 - **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. A liberação manual já
   existe; a automática depende de job agendado, e o Hangfire está comentado no `Program.cs`
   (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
@@ -222,13 +245,20 @@ ALTER TABLE tb_locacao ADD CONSTRAINT ex_locacao_sem_sobreposicao
   EXCLUDE USING gist (
     id_veiculo WITH =,
     tstzrange(data_inicio, COALESCE(data_fim_real, data_fim_prevista)) WITH &&
-  ) WHERE (status NOT IN ( /* valores de StatusLocacao terminais */ ));
+  ) WHERE (status NOT IN ('Finalizada'));
 ```
 
-> **Atenção aos inteiros do predicado.** `StatusLocacao` é gravado como `int`, e a lista de
-> estados terminais muda quando a especificação `07` acrescentar `Fechada`, `ComSaldoResidual`
-> e o `Cancelada` que hoje não existe. Confira os valores do enum **no momento de escrever a
-> migration** — um número errado aqui desliga a constraint em silêncio.
+> **Atenção ao predicado.** `tb_locacao.status` é **`character varying(20)`**, não `int`:
+> `LocacaoConfig` aplica `HasConversion<string>()`, então os terminais entram **entre aspas** e
+> escrever os inteiros do enum ali compila, não dá erro e desliga a constraint em silêncio.
+> (Cuidado: `tb_reserva.status` e `tb_veiculo.status` **são** `int` — a inconsistência é do
+> modelo, não deste documento.)
+>
+> A lista de terminais vive em `Locacao.StatusTerminais`; hoje é só `Finalizada`, porque
+> `Cancelar()` também grava `Finalizada`. Ela muda quando a especificação `07` acrescentar
+> `Fechada`, `ComSaldoResidual` e uma `Cancelada` de verdade — mexeu lá, mexa aqui.
+> `SobreposicaoDeContratoTests.Status_terminal_chega_ao_banco_como_texto` fixa exatamente os
+> literais que este `NOT IN` precisa conter.
 
 A migration precisa de SQL bruto (o EF não gera `EXCLUDE`), na mesma linha da
 `ConcorrenciaOtimista`, que já é escrita à mão. A violação chega como `PostgresException` com

@@ -123,7 +123,18 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             if (!cliente!.PodeLocar())
                 _notificador.Add("Cliente não está habilitado para locar");
 
-            if (dto.DataFimPrevista <= dto.DataInicio) _notificador.Add("Data fim prevista deve ser posterior à data início");
+            if (dto.DataFimPrevista <= dto.DataInicio)
+            {
+                _notificador.Add("Data fim prevista deve ser posterior à data início");
+            }
+            else if (await ExisteContratoSobrepostoAsync(
+                         veiculo.IdVeiculo, dto.DataInicio!.Value, dto.DataFimPrevista!.Value, ct: ct))
+            {
+                // RN-40: a guarda de status acima é um retrato de agora, e contrato é período. Um
+                // carro que voltou à oferta (cancelamento, correção de status, linha antiga) pode
+                // ter contrato futuro já vendido — é essa colisão que só a consulta enxerga.
+                _notificador.Add("Veículo já possui contrato no período");
+            }
 
             if (_notificador.TemNotificacao())
                 return null;
@@ -152,6 +163,16 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
 
+            // RN-42: estender é vender período novo do mesmo carro, então revalida como se fosse
+            // abertura. Extensão aceita sem checar disponibilidade é o gerador nº 1 de falta de
+            // carro na filial: o contrato seguinte já foi vendido e ninguém avisa o balcão.
+            if (await ExisteContratoSobrepostoAsync(
+                    locacao.IdVeiculo, locacao.DataInicio, dto.DataFimPrevista, locacao.IdLocacao, ct))
+            {
+                _notificador.Add("Veículo já possui contrato no período");
+                return null;
+            }
+
             try
             {
                 locacao.AtualizarDados(dto.DataFimPrevista, dto.KmInicial, dto.ValorPrevisto);
@@ -164,6 +185,23 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
         }
+
+        /// <summary>
+        /// RN-40/RN-41: isto é a <b>mensagem amigável</b>, não a garantia. Duas requisições
+        /// simultâneas passam pelas duas consultas antes de qualquer uma gravar — nenhum <c>if</c>
+        /// no serviço resolve isso. Quem garante é a constraint <c>EXCLUDE</c> em
+        /// <c>tb_locacao</c>, cuja violação chega como 409 pelo <c>ExceptionProblemFactory</c>.
+        /// A consulta existe para o atendente ver a recusa antes de digitar o contrato inteiro.
+        /// </summary>
+        private Task<bool> ExisteContratoSobrepostoAsync(
+            int idVeiculo,
+            DateTime inicio,
+            DateTime fim,
+            int idLocacaoIgnorada = 0,
+            CancellationToken ct = default)
+            => _locacaoRepository.ExisteAsync(
+                Locacao.Sobrepostas(idVeiculo, inicio, fim, idLocacaoIgnorada), ct);
+
         public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(x=>x.IdLocacao == id,incluir: q => q.Include(c => c.Veiculo),rastreado:true);

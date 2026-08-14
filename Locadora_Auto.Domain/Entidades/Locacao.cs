@@ -1,4 +1,5 @@
-﻿using System.Runtime.Intrinsics.X86;
+﻿using System.Linq.Expressions;
+using System.Runtime.Intrinsics.X86;
 
 namespace Locadora_Auto.Domain.Entidades
 {
@@ -52,6 +53,45 @@ namespace Locadora_Auto.Domain.Entidades
 
 
 
+
+        /// <summary>
+        /// Status que encerram o contrato. Só eles soltam a placa: enquanto a locação não estiver
+        /// em um destes, ela continua ocupando o veículo no período dela (RN-40).
+        ///
+        /// Hoje <c>Cancelar()</c> também grava <c>Finalizada</c> — não existe <c>Cancelada</c>.
+        /// Esta lista é repetida pela constraint EXCLUDE no banco; ao acrescentar status terminal
+        /// aqui, a migration correspondente precisa mudar junto, ou a garantia se desliga em
+        /// silêncio. A coluna <c>status</c> de <c>tb_locacao</c> é <c>varchar(20)</c>
+        /// (<c>HasConversion&lt;string&gt;</c>), então lá os valores vão entre aspas, não como int.
+        /// </summary>
+        public static readonly StatusLocacao[] StatusTerminais = { StatusLocacao.Finalizada };
+
+        /// <summary>
+        /// RN-40: contratos que ocupam <paramref name="idVeiculo"/> em algum instante de
+        /// <c>[inicio, fim)</c>. Mora aqui, e não no serviço, porque é a regra em si — o serviço
+        /// só a leva ao repositório, e o teste de tradução e a constraint do banco repetem a
+        /// mesma forma.
+        ///
+        /// O intervalo é meio-aberto de propósito: contrato que começa no instante exato em que o
+        /// outro termina é aceito, porque devolver e retirar no mesmo horário é operação normal de
+        /// balcão. <c>DataFimReal ?? DataFimPrevista</c> vira <c>COALESCE</c> no SQL — enquanto o
+        /// contrato está aberto vale a previsão; depois de fechado, o que de fato aconteceu.
+        /// </summary>
+        /// <param name="idLocacaoIgnorada">
+        /// A própria locação, quando a checagem é de extensão (RN-42): sem isso ela colidiria
+        /// consigo mesma. Zero não casa com nenhum id gerado pelo banco, então o padrão não ignora
+        /// ninguém.
+        /// </param>
+        public static Expression<Func<Locacao, bool>> Sobrepostas(
+            int idVeiculo,
+            DateTime inicio,
+            DateTime fim,
+            int idLocacaoIgnorada = 0)
+            => l => l.IdVeiculo == idVeiculo
+                    && l.IdLocacao != idLocacaoIgnorada
+                    && !StatusTerminais.Contains(l.Status)
+                    && l.DataInicio < fim
+                    && (l.DataFimReal ?? l.DataFimPrevista) > inicio;
 
         private Locacao() { }
 

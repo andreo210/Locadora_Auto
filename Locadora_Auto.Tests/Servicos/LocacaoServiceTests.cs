@@ -191,6 +191,188 @@ namespace Locadora_Auto.Tests.Servicos
             Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("Reserva não encontrada"));
         }
 
+        // ======================= sobreposição de período =======================
+
+        /// <summary>
+        /// Põe no armazém um contrato do mesmo veículo e devolve a placa à oferta. O estado
+        /// resultante — carro disponível com contrato não encerrado em aberto — é exatamente o que
+        /// a guarda de status <b>não</b> vê: ele aparece por linha anterior à regra, por correção
+        /// de status à mão e pelas duas requisições simultâneas que passam juntas pela checagem.
+        ///
+        /// Com <paramref name="encerrado"/>, o contrato é cancelado pelo caminho do domínio, que
+        /// grava status terminal e devolve a placa na mesma chamada.
+        /// </summary>
+        private static Locacao SemearContrato(Cenario cenario, DateTime inicio, DateTime fim, bool encerrado = false)
+        {
+            var contrato = Fabrica.Locacao(
+                cliente: cenario.Cliente,
+                veiculo: cenario.Veiculo,
+                funcionario: cenario.Funcionario,
+                dataInicio: inicio,
+                dataFimPrevista: fim,
+                idFilialRetirada: cenario.Filial.IdFilial);
+
+            cenario.Locacoes.Armazem.Semear(contrato);
+
+            // Fabrica.Locacao passa por Locacao.Criar, que consome a placa: sem devolvê-la, quem
+            // recusaria a abertura seguinte seria o status, e não a regra em teste.
+            if (encerrado) contrato.Cancelar();
+            else cenario.Veiculo.ReverterLocacao();
+
+            return contrato;
+        }
+
+        [Fact]
+        public async Task Criar_com_contrato_sobreposto_no_mesmo_veiculo_e_recusado()
+        {
+            // RN-40: é o defeito que gera cliente no balcão sem carro
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio, inicio.AddDays(4));
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio.AddDays(2);
+            dto.DataFimPrevista = inicio.AddDays(3);
+
+            var resultado = await cenario.Service.CriarAsync(dto);
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("já possui contrato no período"));
+            Assert.Equal(0, cenario.Locacoes.Salvamentos);
+
+            // a tentativa recusada não pode ter consumido a placa
+            Assert.Equal(StatusVeiculo.Disponivel, cenario.Veiculo.Status);
+        }
+
+        [Theory]
+        // começa dentro do contrato existente e termina depois
+        [InlineData(2, 6)]
+        // engole o contrato existente por inteiro
+        [InlineData(-1, 9)]
+        // cabe inteiro dentro do contrato existente
+        [InlineData(1, 2)]
+        public async Task Criar_recusa_qualquer_forma_de_cruzamento(int diasParaInicio, int diasParaFim)
+        {
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio, inicio.AddDays(4));
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio.AddDays(diasParaInicio);
+            dto.DataFimPrevista = inicio.AddDays(diasParaFim);
+
+            var resultado = await cenario.Service.CriarAsync(dto);
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("já possui contrato no período"));
+        }
+
+        [Fact]
+        public async Task Criar_contrato_encostado_no_anterior_e_aceito()
+        {
+            // intervalo meio-aberto: devolver e retirar no mesmo instante é operação normal de balcão
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio, inicio.AddDays(4));
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio.AddDays(4);
+            dto.DataFimPrevista = inicio.AddDays(6);
+
+            var resultado = await cenario.Service.CriarAsync(dto);
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+            Assert.Equal(StatusVeiculo.Locado, cenario.Veiculo.Status);
+        }
+
+        [Fact]
+        public async Task Criar_ignora_contrato_ja_encerrado_no_mesmo_periodo()
+        {
+            // contrato encerrado soltou a placa: não ocupa período nenhum
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio, inicio.AddDays(4), encerrado: true);
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio.AddDays(1);
+            dto.DataFimPrevista = inicio.AddDays(3);
+
+            var resultado = await cenario.Service.CriarAsync(dto);
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Estender_por_cima_do_contrato_seguinte_e_recusado()
+        {
+            // RN-42: o contrato seguinte do mesmo carro já foi vendido; esticar este invade aquele
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio.AddDays(5), inicio.AddDays(8));
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio;
+            dto.DataFimPrevista = inicio.AddDays(3);
+            var criada = await cenario.Service.CriarAsync(dto);
+
+            var resultado = await cenario.Service.AtualizarAsync(criada!.IdLocacao, new AtualizarLocacaoDto
+            {
+                DataFimPrevista = inicio.AddDays(6),
+                KmInicial = KmDoVeiculo,
+                ValorPrevisto = 900m
+            });
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("já possui contrato no período"));
+
+            // só a abertura gravou: a extensão recusada não pode ter chegado ao banco
+            Assert.Equal(1, cenario.Locacoes.Salvamentos);
+        }
+
+        [Fact]
+        public async Task Estender_sem_invadir_o_contrato_seguinte_e_aceito()
+        {
+            var cenario = Montar();
+            var inicio = DateTime.UtcNow;
+            SemearContrato(cenario, inicio.AddDays(5), inicio.AddDays(8));
+
+            var dto = Dto(cenario);
+            dto.DataInicio = inicio;
+            dto.DataFimPrevista = inicio.AddDays(3);
+            var criada = await cenario.Service.CriarAsync(dto);
+
+            var resultado = await cenario.Service.AtualizarAsync(criada!.IdLocacao, new AtualizarLocacaoDto
+            {
+                DataFimPrevista = inicio.AddDays(4),
+                KmInicial = KmDoVeiculo,
+                ValorPrevisto = 600m
+            });
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+            Assert.Equal(2, cenario.Locacoes.Salvamentos);
+        }
+
+        [Fact]
+        public async Task Estender_nao_colide_com_o_proprio_contrato()
+        {
+            // sem ignorar a própria locação, toda extensão se recusaria sozinha
+            var cenario = Montar();
+            var criada = await cenario.Service.CriarAsync(Dto(cenario));
+
+            var resultado = await cenario.Service.AtualizarAsync(criada!.IdLocacao, new AtualizarLocacaoDto
+            {
+                DataFimPrevista = Fabrica.DaquiADias(5),
+                KmInicial = KmDoVeiculo,
+                ValorPrevisto = 750m
+            });
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
         // ======================= fechamento =======================
 
         [Fact]
