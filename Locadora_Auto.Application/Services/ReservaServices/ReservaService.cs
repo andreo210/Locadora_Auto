@@ -261,23 +261,62 @@ namespace Locadora_Auto.Application.Services.ReservaServices
         /// A frota da categoria naquela filial precisa cobrir as locações em aberto mais as reservas
         /// cujo período se sobrepõe ao solicitado.
         /// </summary>
+        /// <summary>
+        /// RN-46 e seção 9 de <c>docs/08-especificacao-invariante-do-ativo.md</c>:
+        ///
+        /// <code>
+        /// frota ativa da categoria na filial
+        ///   − a que está fora da oferta por impedimento estrutural (oficina, bloqueio)
+        ///   − contratos não encerrados que atravessam o período
+        ///   − reservas ativas que atravessam o período
+        /// </code>
+        ///
+        /// Três defeitos que a versão anterior tinha:
+        ///
+        /// 1. <b>Desconto dobrado.</b> A base era `Disponivel`, que depois da RN-35/36 é derivado do
+        ///    status e já exclui os locados — e as locações abertas eram subtraídas outra vez logo
+        ///    abaixo. Todo carro na rua saía da conta duas vezes, e a venda era recusada com carro
+        ///    livre no pátio.
+        ///
+        /// 2. <b>Locação sem período.</b> Bastava não estar finalizada. Contrato encerrado semana
+        ///    passada, ou contrato atrasado que ninguém fechou no sistema, tirava o carro da oferta
+        ///    para sempre.
+        ///
+        /// 3. <b>Estado de agora contra intervalo no futuro.</b> `Disponivel` é retrato do instante;
+        ///    a reserva é um intervalo, e o serviço só aceita início no futuro. Carro cujo contrato
+        ///    acaba antes do período pedido conta como disponível para aquele período.
+        ///
+        /// Por isso `EmPreparacao` <b>não</b> é subtraído: o contrato dele já está encerrado, a fila
+        /// do pátio se resolve em horas e a reserva é sempre futura.
+        ///
+        /// Fica de fora, por depender de `TempoPreparacaoMinutos` — que ainda não existe no modelo:
+        /// somar as devoluções previstas dentro do período, deslocadas pelo tempo de preparo. Sem
+        /// esse termo a conta é conservadora, nunca otimista: a devolução prevista simplesmente não
+        /// entra na oferta.
+        /// </summary>
         private async Task ValidarDisponibilidade(CriarReservaDto dto, DateTime inicio, DateTime fim, CancellationToken ct)
         {
-            var veiculosDisponiveis = await _veiculoRepository.ContarAsync(
+            var frota = await _veiculoRepository.ContarAsync(
                 v => v.IdCategoria == dto.IdCategoriaVeiculo
                      && v.FilialAtualId == dto.IdFilial
-                     && v.Disponivel, ct);
+                     && v.Ativo
+                     && v.Status != StatusVeiculo.EmManutencao
+                     && v.Status != StatusVeiculo.Indisponivel, ct);
 
-            if (veiculosDisponiveis == 0)
+            if (frota == 0)
             {
                 _notificador.Add("Não há veículos disponíveis para a categoria e filial selecionadas.");
                 return;
             }
 
-            var locacoesAbertas = await _locacaoRepository.ContarAsync(
+            // mesma álgebra de datas de Locacao.Sobrepostas: intervalo meio-aberto, e o fim do
+            // contrato é o real depois da devolução, o previsto enquanto ele está aberto
+            var contratosNoPeriodo = await _locacaoRepository.ContarAsync(
                 l => l.Veiculo.IdCategoria == dto.IdCategoriaVeiculo
                      && l.Veiculo.FilialAtualId == dto.IdFilial
-                     && l.Status != StatusLocacao.Finalizada, ct);
+                     && !Locacao.StatusTerminais.Contains(l.Status)
+                     && l.DataInicio < fim
+                     && (l.DataFimReal ?? l.DataFimPrevista) > inicio, ct);
 
             var reservasNoPeriodo = await _reservaRepository.ContarAsync(
                 r => r.IdCategoria == dto.IdCategoriaVeiculo
@@ -286,7 +325,7 @@ namespace Locadora_Auto.Application.Services.ReservaServices
                      && r.DataInicio < fim
                      && r.DataFim > inicio, ct);
 
-            if (veiculosDisponiveis <= locacoesAbertas + reservasNoPeriodo)
+            if (frota <= contratosNoPeriodo + reservasNoPeriodo)
                 _notificador.Add("Não há veículos disponíveis para a categoria e filial selecionadas no período informado.");
         }
 

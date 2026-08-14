@@ -37,18 +37,58 @@ A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Lo
 | RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
 | RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
 
+E o que está **ligado à Application e à Api** — sem isso a máquina de estados acima existia mas
+não era alcançada por nenhum endpoint:
+
+| RN | O que passou a valer |
+|---|---|
+| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega o veículo com `rastreado: true`, sem o que o `Locar()` do domínio não vira UPDATE — o EF pinta o grafo de `Added` e tentaria inserir o veículo de novo |
+| RN-45 | `PATCH api/v1/veiculos/{id}/liberar-preparacao` → `VeiculoService.LiberarDaPreparacaoAsync`: é a porta pela qual o pátio devolve o carro à oferta |
+| — | Os serviços repetem as guardas de `Veiculo` (`Ativo`, `Status`, km) **antes** de chamar o domínio, para a recusa sair como `ProblemDetails` 4xx. `DomainException` é `internal`, não deriva de `InvalidOperationException` e não é mapeada no `ExceptionProblemFactory`: se escapar, é 500 |
+| RN-40, RN-43 | `LocacaoService.CriarAsync` recusa abertura com contrato sobreposto, pelo filtro `Locacao.Sobrepostas` — a guarda de status é um retrato de agora e não enxerga período |
+| RN-42 | `LocacaoService.AtualizarAsync` revalida a sobreposição antes de estender, ignorando a própria locação |
+| RN-41 | A constraint `ex_locacao_sem_sobreposicao` está na migration `SobreposicaoDeContrato` (SQL bruto, sem modelo por trás), e a violação — SQLSTATE `23P01` — vira **409** no `ExceptionProblemFactory` |
+| RN-46 (parcial) | `ReservaService.ValidarDisponibilidade` passou a usar a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período. Falta o termo do tempo de preparo |
+
+A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
+`btree_gist` 1.7). O que o banco confirmou:
+
+| Caso | Resultado |
+|---|---|
+| Contrato sobreposto, contido ou englobando o existente | recusado, `SQLSTATE 23P01` |
+| Contrato encostado (começa no instante em que o outro termina) | aceito — `tstzrange` é meio-aberto |
+| Mesmo período com o outro contrato em `Finalizada` | aceito — terminal não ocupa a placa |
+| **Duas transações abrindo o mesmo período ao mesmo tempo** | a segunda **bloqueia** até a primeira decidir e então leva `23P01`: exatamente uma grava |
+
+O último é o critério de aceite "concorrência é barrada pelo banco" da seção 11, e é a razão de a
+constraint existir — nenhum `if` no serviço produz esse bloqueio.
+
+> **Ao aplicar em base que já tem dados:** a constraint valida o que já está gravado, e o
+> `ALTER TABLE` falha se houver sobreposição pré-existente. A migration traz comentada a consulta
+> que encontra os pares em conflito.
+>
+> A verificação acima foi feita por script descartável, fora do repositório: **não há teste de
+> integração** que a repita. Os dois testes que ficaram (`SobreposicaoDeContratoTests`) leem o SQL
+> da própria migration e o comparam com `Locacao.StatusTerminais` e `Locacao.Sobrepostas` — eles
+> pegam a lista de status divergindo, não uma regressão no banco.
+
 Ainda **não** implementado:
 
-- **RN-40, RN-41, RN-42** — sobreposição de contrato no mesmo veículo, a constraint `EXCLUDE`
-  e a tradução de `23P01` para 409. É o item mais grave da lista.
-- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos` e o endpoint que o
-  pátio usa para liberar. Sem eles o carro devolvido **fica preso em `EmPreparacao`**.
-- **RN-46** — o cálculo de disponibilidade ainda não desconta o tempo de preparação, e
-  `ReservaService.ValidarDisponibilidade` continua com a subtração dobrada.
+- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. A liberação manual já
+  existe; a automática depende de job agendado, e o Hangfire está comentado no `Program.cs`
+  (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
+- **RN-46 (parte do preparo)** — o cálculo de disponibilidade já foi corrigido (ver abaixo), mas
+  ainda **não soma as devoluções previstas dentro do período, deslocadas pelo tempo de preparo**:
+  isso depende de `TempoPreparacaoMinutos`, que não existe no modelo. Sem esse termo a conta é
+  conservadora, nunca otimista — a devolução prevista simplesmente não entra na oferta.
 - **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
   e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
   **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
   a versão mínima da seção 4.
+
+  Consequência prática da RN-37 estar aberta: a liberação da preparação **não registra quem
+  liberou**. `Veiculo` não implementa `IAuditoria`, então não há nem o autor da última alteração
+  — todo movimento de status do ativo hoje é anônimo, o que é buraco de auditoria de frota.
 
 ---
 
@@ -208,13 +248,20 @@ ALTER TABLE tb_locacao ADD CONSTRAINT ex_locacao_sem_sobreposicao
   EXCLUDE USING gist (
     id_veiculo WITH =,
     tstzrange(data_inicio, COALESCE(data_fim_real, data_fim_prevista)) WITH &&
-  ) WHERE (status NOT IN ( /* valores de StatusLocacao terminais */ ));
+  ) WHERE (status NOT IN ('Finalizada'));
 ```
 
-> **Atenção aos inteiros do predicado.** `StatusLocacao` é gravado como `int`, e a lista de
-> estados terminais muda quando a especificação `07` acrescentar `Fechada`, `ComSaldoResidual`
-> e o `Cancelada` que hoje não existe. Confira os valores do enum **no momento de escrever a
-> migration** — um número errado aqui desliga a constraint em silêncio.
+> **Atenção ao predicado.** `tb_locacao.status` é **`character varying(20)`**, não `int`:
+> `LocacaoConfig` aplica `HasConversion<string>()`, então os terminais entram **entre aspas** e
+> escrever os inteiros do enum ali compila, não dá erro e desliga a constraint em silêncio.
+> (Cuidado: `tb_reserva.status` e `tb_veiculo.status` **são** `int` — a inconsistência é do
+> modelo, não deste documento.)
+>
+> A lista de terminais vive em `Locacao.StatusTerminais`; hoje é só `Finalizada`, porque
+> `Cancelar()` também grava `Finalizada`. Ela muda quando a especificação `07` acrescentar
+> `Fechada`, `ComSaldoResidual` e uma `Cancelada` de verdade — mexeu lá, mexa aqui.
+> `SobreposicaoDeContratoTests.Status_terminal_chega_ao_banco_como_texto` fixa exatamente os
+> literais que este `NOT IN` precisa conter.
 
 A migration precisa de SQL bruto (o EF não gera `EXCLUDE`), na mesma linha da
 `ConcorrenciaOtimista`, que já é escrita à mão. A violação chega como `PostgresException` com
@@ -225,9 +272,12 @@ A checagem em memória continua existindo — mas como **mensagem amigável**, n
 
 ## 9. Correção do cálculo de disponibilidade
 
-`ReservaService.ValidarDisponibilidade` hoje conta veículos com `Disponivel = true` — que já
-exclui os locados — e **subtrai as locações abertas de novo**, além de ignorar sobreposição de
-período. Com RN-35/RN-36 a fórmula correta fica:
+> **Implementado**, menos a última linha da fórmula. O que havia antes: `ValidarDisponibilidade`
+> contava veículos com `Disponivel = true` — que depois da RN-35/RN-36 já exclui os locados — e
+> **subtraía as locações abertas de novo**, sem nenhum filtro de período. Cada carro na rua saía
+> da conta duas vezes, e contrato encerrado ou atrasado bloqueava a venda para sempre.
+
+Com RN-35/RN-36 a fórmula correta fica:
 
 ```
 disponível(categoria, filial, [início, fim)) =
@@ -240,6 +290,11 @@ disponível(categoria, filial, [início, fim)) =
 
 O status deixa de ser subtraído duas vezes, e contrato que termina antes do início da reserva
 deixa de bloquear a venda.
+
+Note que `EmPreparacao` **não** está na lista de subtração, e isso é deliberado: o contrato do
+carro devolvido já está encerrado, a fila do pátio se resolve em horas e a reserva é sempre
+futura (o serviço recusa início no passado). Quem trata a dimensão de tempo da preparação é a
+última linha da fórmula, não a subtração de estado.
 
 ## 10. Impacto
 

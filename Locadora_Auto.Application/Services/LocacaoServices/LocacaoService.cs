@@ -54,8 +54,36 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         #region Locacao
         public async Task<LocacaoDto?> CriarAsync(CriarLocacaoDto dto, CancellationToken ct = default)
         {
-            var reserva = await _reservaRepository.ObterPrimeiroAsync(r=>r.IdReserva == dto.idReserva.Value,null, true, ct);
-            var veiculo = await _veiculoRepository.ObterPorIdAsync(dto.IdVeiculo, false, ct);
+            if (dto.IdCliente == null) _notificador.Add("Cliente é obrigatório");
+            if (dto.IdVeiculo == null) _notificador.Add("Veículo é obrigatório");
+            if (dto.IdFilialRetirada == null) _notificador.Add("Filial de retirada é obrigatória");
+            if (dto.DataInicio == null) _notificador.Add("Data de início é obrigatória");
+            if (dto.DataFimPrevista == null) _notificador.Add("Data fim prevista é obrigatória");
+            if (dto.KmInicial == null) _notificador.Add("Km inicial é obrigatório");
+
+            if (_notificador.TemNotificacao())
+                return null;
+
+            // locação de balcão não nasce de reserva: só procura quando veio um id de verdade
+            var idReserva = dto.idReserva.GetValueOrDefault();
+            var reserva = idReserva > 0
+                ? await _reservaRepository.ObterPrimeiroAsync(r => r.IdReserva == idReserva, null, true, ct)
+                : null;
+
+            // rastreado: Locacao.Criar chama veiculo.Locar(), e a saída do ativo da oferta só chega
+            // ao banco se esta instância estiver sendo rastreada pelo contexto
+            var veiculo = await _veiculoRepository.ObterPorIdAsync(dto.IdVeiculo.Value, true, ct);
+            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente.Value, false, ct);
+            var funcionario = await _funcionarioRepository.ObterPorIdAsync(dto.IdFuncionario, false, ct);
+
+            if (cliente == null) _notificador.Add("Cliente não encontrado");
+            if (veiculo == null) _notificador.Add("Veículo não encontrado");
+            if (funcionario == null) _notificador.Add("Funcionário não encontrado");
+            if (idReserva > 0 && reserva == null) _notificador.Add("Reserva não encontrada");
+
+            if (_notificador.TemNotificacao())
+                return null;
+
             if (reserva != null)
             {
                 if (reserva.Ativo == false)
@@ -82,18 +110,31 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 dto.IdCliente = reserva.IdCliente;
             }
 
-            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente, false, ct);
-            var filial = await _filialRepository.ObterPorIdAsync(dto.IdFilialRetirada, false, ct);
-            var funcionario = await _funcionarioRepository.ObterPorIdAsync(dto.IdFuncionario, false, ct);
-            
-            
+            if (!await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilialRetirada.Value, ct))
+                _notificador.Add("Filial de retirada não encontrada");
 
+            // RN-38/RN-43: quem decide é o status do ativo, não o booleano. Repetir aqui a guarda de
+            // Veiculo.Locar() é o que transforma a invariante em ProblemDetails 4xx em vez de 500
+            if (!veiculo!.Ativo)
+                _notificador.Add("Veículo inativo não pode ser locado");
+            else if (veiculo.Status != StatusVeiculo.Disponivel)
+                _notificador.Add($"Veículo não está disponível para locação (situação atual: {veiculo.Status})");
 
-            if (cliente == null) _notificador.Add("Cliente não encontrado");
-            if (veiculo == null) _notificador.Add("Veículo não encontrado");
-            if (funcionario == null) _notificador.Add("Funcionário não encontrado");
-            if (veiculo != null && !veiculo.Disponivel) _notificador.Add("Veículo não disponível");
-            if (dto.DataFimPrevista <= dto.DataInicio) _notificador.Add("Data fim prevista deve ser posterior à data início");
+            if (!cliente!.PodeLocar())
+                _notificador.Add("Cliente não está habilitado para locar");
+
+            if (dto.DataFimPrevista <= dto.DataInicio)
+            {
+                _notificador.Add("Data fim prevista deve ser posterior à data início");
+            }
+            else if (await ExisteContratoSobrepostoAsync(
+                         veiculo.IdVeiculo, dto.DataInicio!.Value, dto.DataFimPrevista!.Value, ct: ct))
+            {
+                // RN-40: a guarda de status acima é um retrato de agora, e contrato é período. Um
+                // carro que voltou à oferta (cancelamento, correção de status, linha antiga) pode
+                // ter contrato futuro já vendido — é essa colisão que só a consulta enxerga.
+                _notificador.Add("Veículo já possui contrato no período");
+            }
 
             if (_notificador.TemNotificacao())
                 return null;
@@ -122,6 +163,16 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
 
+            // RN-42: estender é vender período novo do mesmo carro, então revalida como se fosse
+            // abertura. Extensão aceita sem checar disponibilidade é o gerador nº 1 de falta de
+            // carro na filial: o contrato seguinte já foi vendido e ninguém avisa o balcão.
+            if (await ExisteContratoSobrepostoAsync(
+                    locacao.IdVeiculo, locacao.DataInicio, dto.DataFimPrevista, locacao.IdLocacao, ct))
+            {
+                _notificador.Add("Veículo já possui contrato no período");
+                return null;
+            }
+
             try
             {
                 locacao.AtualizarDados(dto.DataFimPrevista, dto.KmInicial, dto.ValorPrevisto);
@@ -134,6 +185,23 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return null;
             }
         }
+
+        /// <summary>
+        /// RN-40/RN-41: isto é a <b>mensagem amigável</b>, não a garantia. Duas requisições
+        /// simultâneas passam pelas duas consultas antes de qualquer uma gravar — nenhum <c>if</c>
+        /// no serviço resolve isso. Quem garante é a constraint <c>EXCLUDE</c> em
+        /// <c>tb_locacao</c>, cuja violação chega como 409 pelo <c>ExceptionProblemFactory</c>.
+        /// A consulta existe para o atendente ver a recusa antes de digitar o contrato inteiro.
+        /// </summary>
+        private Task<bool> ExisteContratoSobrepostoAsync(
+            int idVeiculo,
+            DateTime inicio,
+            DateTime fim,
+            int idLocacaoIgnorada = 0,
+            CancellationToken ct = default)
+            => _locacaoRepository.ExisteAsync(
+                Locacao.Sobrepostas(idVeiculo, inicio, fim, idLocacaoIgnorada), ct);
+
         public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
         {
             var locacao = await _locacaoRepository.ObterPrimeiroAsync(x=>x.IdLocacao == id,incluir: q => q.Include(c => c.Veiculo),rastreado:true);
@@ -142,6 +210,20 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add("Locação não encontrada");
                 return false;
             }
+
+            // RN-44/RN-54: Locacao.Finalizar delega a devolução ao ativo, e as guardas de
+            // Veiculo.RegistrarDevolucao são DomainException. Repetidas aqui, viram 4xx e não 500
+            if (locacao.Veiculo.Status != StatusVeiculo.Locado)
+                _notificador.Add($"Veículo da locação não está locado (situação atual: {locacao.Veiculo.Status})");
+
+            if (kmFinal < locacao.Veiculo.KmAtual)
+                _notificador.Add($"Quilometragem não pode retroceder: o veículo está com {locacao.Veiculo.KmAtual} km e foi informado {kmFinal} km");
+
+            if (!await _filialRepository.ExisteAsync(f => f.IdFilial == filialDevolucao, ct))
+                _notificador.Add("Filial de devolução não encontrada");
+
+            if (_notificador.TemNotificacao())
+                return false;
 
             try
             {
@@ -161,6 +243,14 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             if (locacao == null)
             {
                 _notificador.Add("Locação não encontrada");
+                return false;
+            }
+
+            // Locacao.Cancelar devolve o carro à oferta por Veiculo.ReverterLocacao, que exige o
+            // ativo locado — sem esta guarda a inconsistência viraria 500 em vez de mensagem
+            if (locacao.Veiculo.Status != StatusVeiculo.Locado)
+            {
+                _notificador.Add($"Veículo da locação não está locado (situação atual: {locacao.Veiculo.Status})");
                 return false;
             }
 

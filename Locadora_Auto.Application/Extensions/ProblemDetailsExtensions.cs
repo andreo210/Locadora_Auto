@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
+using System.Data.Common;
 using System.Linq.Expressions;
 using System.Net;
 
@@ -134,12 +135,43 @@ namespace Locadora_Auto.Application.Extensions
                         title: "Conflito de concorrência"));
             }
 
+            /*
+             * Sobreposição de contrato no mesmo veículo (RN-40/RN-41). A checagem no serviço é
+             * mensagem amigável; a garantia é a constraint EXCLUDE de tb_locacao, que barra as
+             * duas requisições simultâneas que passaram pelo mesmo `if`. Como o conflito é entre
+             * usuários — e não defeito — o status é 409, igual ao de concorrência otimista.
+             */
+            if (EhSobreposicaoDeIntervalo(exception))
+            {
+                return ApplyHttpContext(context,
+                    ProblemFactory.Create(
+                        HttpStatusCode.Conflict,
+                        "Este veículo já possui contrato em parte do período selecionado. Atualize a tela e escolha outro veículo ou outro período.",
+                        title: "Conflito de agenda do veículo"));
+            }
+
             return ApplyHttpContext(context,
                 ProblemFactory.Create(
                     HttpStatusCode.InternalServerError,
                     exception?.Message ?? "Erro inesperado"
                 )
             );
+        }
+
+        /// <summary>
+        /// SQLSTATE 23P01 (<c>exclusion_violation</c>). A exceção chega embrulhada no
+        /// <c>DbUpdateException</c> do EF, então é preciso olhar a de dentro também.
+        ///
+        /// O tipo consultado é <see cref="DbException"/>, e não <c>PostgresException</c>: o
+        /// <c>SqlState</c> existe na classe base desde o .NET 5, e assim a camada de Application
+        /// não passa a depender do driver.
+        /// </summary>
+        private static bool EhSobreposicaoDeIntervalo(Exception? exception)
+        {
+            const string ExclusionViolation = "23P01";
+
+            return (exception as DbException ?? exception?.InnerException as DbException)
+                ?.SqlState == ExclusionViolation;
         }
 
         private static ProblemDetails ApplyHttpContext(HttpContext context, ProblemDetails problem)
