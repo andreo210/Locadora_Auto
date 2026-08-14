@@ -31,8 +31,12 @@ namespace Locadora_Auto.Tests.Fabricas
         public static CategoriaVeiculo Categoria(string nome = "Hatch")
             => CategoriaVeiculo.Criar(nome, valorDiaria: 150m, limiteKm: 200, valorKmExcedente: 2m);
 
-        public static Filial Filial(string nome = "Filial Centro")
-            => Domain.Entidades.Filial.Criar(nome, "São Paulo", Endereco());
+        /// <param name="tempoPreparacaoMinutos">
+        /// <c>null</c> deixa o padrão da casa (<c>Filial.PreparacaoPadraoMinutos</c>). Informe só
+        /// nos testes em que o tempo de preparação é o objeto da verificação.
+        /// </param>
+        public static Filial Filial(string nome = "Filial Centro", int? tempoPreparacaoMinutos = null)
+            => Domain.Entidades.Filial.Criar(nome, "São Paulo", Endereco(), tempoPreparacaoMinutos);
 
         public static Veiculo Veiculo(int idCategoria = 1, int idFilial = 1, string placa = "ABC1D23")
             => Domain.Entidades.Veiculo.Criar(placa, "Fiat", "Argo", 2022, "9BWZZZ377VT004251", 15_000, idCategoria, idFilial);
