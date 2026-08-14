@@ -48,6 +48,7 @@ não era alcançada por nenhum endpoint:
 | RN-40, RN-43 | `LocacaoService.CriarAsync` recusa abertura com contrato sobreposto, pelo filtro `Locacao.Sobrepostas` — a guarda de status é um retrato de agora e não enxerga período |
 | RN-42 | `LocacaoService.AtualizarAsync` revalida a sobreposição antes de estender, ignorando a própria locação |
 | RN-41 | A constraint `ex_locacao_sem_sobreposicao` está na migration `SobreposicaoDeContrato` (SQL bruto, sem modelo por trás), e a violação — SQLSTATE `23P01` — vira **409** no `ExceptionProblemFactory` |
+| RN-46 (parcial) | `ReservaService.ValidarDisponibilidade` passou a usar a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período. Falta o termo do tempo de preparo |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
 `btree_gist` 1.7). O que o banco confirmou:
@@ -76,8 +77,10 @@ Ainda **não** implementado:
 - **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. A liberação manual já
   existe; a automática depende de job agendado, e o Hangfire está comentado no `Program.cs`
   (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
-- **RN-46** — o cálculo de disponibilidade ainda não desconta o tempo de preparação, e
-  `ReservaService.ValidarDisponibilidade` continua com a subtração dobrada.
+- **RN-46 (parte do preparo)** — o cálculo de disponibilidade já foi corrigido (ver abaixo), mas
+  ainda **não soma as devoluções previstas dentro do período, deslocadas pelo tempo de preparo**:
+  isso depende de `TempoPreparacaoMinutos`, que não existe no modelo. Sem esse termo a conta é
+  conservadora, nunca otimista — a devolução prevista simplesmente não entra na oferta.
 - **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
   e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
   **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
@@ -269,9 +272,12 @@ A checagem em memória continua existindo — mas como **mensagem amigável**, n
 
 ## 9. Correção do cálculo de disponibilidade
 
-`ReservaService.ValidarDisponibilidade` hoje conta veículos com `Disponivel = true` — que já
-exclui os locados — e **subtrai as locações abertas de novo**, além de ignorar sobreposição de
-período. Com RN-35/RN-36 a fórmula correta fica:
+> **Implementado**, menos a última linha da fórmula. O que havia antes: `ValidarDisponibilidade`
+> contava veículos com `Disponivel = true` — que depois da RN-35/RN-36 já exclui os locados — e
+> **subtraía as locações abertas de novo**, sem nenhum filtro de período. Cada carro na rua saía
+> da conta duas vezes, e contrato encerrado ou atrasado bloqueava a venda para sempre.
+
+Com RN-35/RN-36 a fórmula correta fica:
 
 ```
 disponível(categoria, filial, [início, fim)) =
@@ -284,6 +290,11 @@ disponível(categoria, filial, [início, fim)) =
 
 O status deixa de ser subtraído duas vezes, e contrato que termina antes do início da reserva
 deixa de bloquear a venda.
+
+Note que `EmPreparacao` **não** está na lista de subtração, e isso é deliberado: o contrato do
+carro devolvido já está encerrado, a fila do pátio se resolve em horas e a reserva é sempre
+futura (o serviço recusa início no passado). Quem trata a dimensão de tempo da preparação é a
+última linha da fórmula, não a subtração de estado.
 
 ## 10. Impacto
 

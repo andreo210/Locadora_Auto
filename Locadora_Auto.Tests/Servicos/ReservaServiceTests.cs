@@ -167,6 +167,140 @@ namespace Locadora_Auto.Tests.Servicos
             Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("período"));
         }
 
+        // ======================= disponibilidade (RN-46 / seção 9) =======================
+
+        /// <summary>
+        /// Contrato aberto no veículo indicado. Passa por <c>Locacao.Criar</c>, então o carro sai da
+        /// oferta de verdade — é justamente essa a armadilha que a fórmula antiga não via: o veículo
+        /// já não conta como disponível, e ainda assim a locação era subtraída de novo.
+        /// </summary>
+        private static Locacao SemearContrato(Cenario cenario, Veiculo veiculo, int diasAteInicio, int diasAteFim)
+        {
+            var contrato = Fabrica.Locacao(
+                cliente: cenario.Cliente,
+                veiculo: veiculo,
+                dataInicio: Fabrica.DaquiADias(diasAteInicio),
+                dataFimPrevista: Fabrica.DaquiADias(diasAteFim),
+                idFilialRetirada: IdFilial);
+
+            cenario.Reservas.Armazem.Semear(contrato);
+            return contrato;
+        }
+
+        private static List<Veiculo> Frota(Cenario cenario) => cenario.Reservas.Armazem.Tabela<Veiculo>();
+
+        [Fact]
+        public async Task Disponibilidade_nao_desconta_o_mesmo_carro_duas_vezes()
+        {
+            // critério de aceite da seção 11: 5 veículos na categoria/filial, 2 em contrato aberto
+            // que atravessa o período, nenhuma reserva — o resultado tem de ser 3, não 1
+            var cenario = Montar(veiculosDisponiveis: 5);
+
+            SemearContrato(cenario, Frota(cenario)[0], diasAteInicio: 2, diasAteFim: 8);
+            SemearContrato(cenario, Frota(cenario)[1], diasAteInicio: 2, diasAteFim: 8);
+
+            for (var i = 0; i < 3; i++)
+                Assert.NotNull(await cenario.Service.CriarAsync(Dto()));
+
+            var quarta = await cenario.Service.CriarAsync(Dto());
+
+            Assert.Null(quarta);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("período"));
+        }
+
+        [Fact]
+        public async Task Contrato_que_termina_antes_do_periodo_nao_bloqueia_a_venda()
+        {
+            // critério de aceite da seção 11: 1 veículo, contrato aberto que já passou, consulta
+            // para daqui a 3 dias — resultado 1. É o contrato atrasado que ninguém fechou no
+            // sistema e que, na fórmula antiga, tirava o carro da oferta para sempre.
+            var cenario = Montar(veiculosDisponiveis: 1);
+
+            SemearContrato(cenario, Frota(cenario).Single(), diasAteInicio: -9, diasAteFim: -5);
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Contrato_encerrado_no_periodo_nao_bloqueia_a_venda()
+        {
+            var cenario = Montar(veiculosDisponiveis: 1);
+            var contrato = SemearContrato(cenario, Frota(cenario).Single(), diasAteInicio: 2, diasAteFim: 8);
+
+            contrato.Finalizar(Fabrica.DaquiADias(4), kmFinal: 16_000, valorFinal: 500m, filialDevolucao: IdFilial);
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Veiculo_em_preparacao_continua_contando_para_periodo_futuro()
+        {
+            // a fila do pátio se resolve em horas e a reserva é sempre futura (início no passado já
+            // foi recusado antes daqui), então o carro devolvido não sai da oferta do período
+            var cenario = Montar(veiculosDisponiveis: 1);
+            var veiculo = Frota(cenario).Single();
+
+            veiculo.Locar();
+            veiculo.RegistrarDevolucao(16_000, IdFilial);
+            Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Veiculo_em_manutencao_sai_da_frota_ofertavel()
+        {
+            // impedimento estrutural: não tem data para voltar, então não é vendável no período
+            var cenario = Montar(veiculosDisponiveis: 1);
+
+            Frota(cenario).Single().IniciarManutencao(TipoManutencao.Preventiva, "revisão de 10.000 km");
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("disponíveis"));
+        }
+
+        [Fact]
+        public async Task Veiculo_inativo_sai_da_frota_ofertavel()
+        {
+            var cenario = Montar(veiculosDisponiveis: 1);
+
+            Frota(cenario).Single().Desativar();
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("disponíveis"));
+        }
+
+        [Fact]
+        public async Task Contrato_de_outra_filial_nao_consome_a_oferta_desta()
+        {
+            var cenario = Montar(veiculosDisponiveis: 1);
+
+            var outraFilial = Fabrica.Filial("Filial Aeroporto");
+            cenario.Reservas.Armazem.Semear(outraFilial);
+
+            var veiculoDeFora = Fabrica.Veiculo(IdCategoria, outraFilial.IdFilial, "XYZ9K88");
+            cenario.Reservas.Armazem.Semear(veiculoDeFora);
+            SemearContrato(cenario, veiculoDeFora, diasAteInicio: 2, diasAteFim: 8);
+
+            var resultado = await cenario.Service.CriarAsync(Dto());
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
         [Fact]
         public async Task Cancelar_reserva_ativa_encerra_e_grava()
         {
