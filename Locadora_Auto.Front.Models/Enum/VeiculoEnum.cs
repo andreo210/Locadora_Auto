@@ -8,7 +8,8 @@
         Disponivel = 1,
         Indisponivel = 2,
         Locado = 3,
-        EmManutencao = 4
+        EmManutencao = 4,
+        EmPreparacao = 5
     }
 
     /// <summary>
@@ -44,6 +45,7 @@
                 StatusVeiculoEnum.Indisponivel => "Indisponível",
                 StatusVeiculoEnum.Locado => "Locado",
                 StatusVeiculoEnum.EmManutencao => "Em manutenção",
+                StatusVeiculoEnum.EmPreparacao => "Em preparação",
                 _ => status.ToString()
             };
         }
@@ -56,6 +58,7 @@
                 StatusVeiculoEnum.Indisponivel => "bg-secondary",
                 StatusVeiculoEnum.Locado => "bg-primary",
                 StatusVeiculoEnum.EmManutencao => "bg-warning text-dark",
+                StatusVeiculoEnum.EmPreparacao => "bg-info text-dark",
                 _ => "bg-secondary"
             };
         }

@@ -67,24 +67,22 @@ namespace Locadora_Auto.Domain.Entidades
             int kmInicial,
             decimal valorPrevisto)
         {
-            if (!cliente.PodeLocar())
-                throw new ArgumentNullException("Cliente não pode locar");
-
-            if (!veiculo.Disponivel)
-                throw new ArgumentNullException("Veículo indisponível");
-
             if (veiculo == null)
                 throw new ArgumentNullException(nameof(veiculo), "Veículo é obrigatório");
 
-        
             if (cliente == null)
                 throw new ArgumentNullException(nameof(cliente), "Cliente é obrigatório");
+
+            if (!cliente.PodeLocar())
+                throw new ArgumentNullException("Cliente não pode locar");
 
             if (dataFimPrevista <= dataInicio)
                 throw new InvalidOperationException("Data fim prevista deve ser posterior à data de início");
 
-            if (!veiculo.Disponivel)
-                throw new InvalidOperationException("Veículo não está disponível para locação");
+            // quem decide é o status do ativo, não o booleano `Disponivel` — e a mesma chamada que
+            // valida é a que consome a placa. Contrato sobreposto no mesmo veículo não cabe aqui:
+            // depende de consulta às outras locações, então é validação do serviço.
+            veiculo.Locar();
 
             var locacao = new Locacao
             {
@@ -105,9 +103,6 @@ namespace Locadora_Auto.Domain.Entidades
             {
                 reserva.Finalizar();
             }
-
-            // Marca veículo como indisponível
-            veiculo.Indisponibilizar();
 
             return locacao;
         }
@@ -133,8 +128,29 @@ namespace Locadora_Auto.Domain.Entidades
             IdFilialDevolucao = filialDevolucao;
             Status = StatusLocacao.Finalizada;
 
-            // Libera veículo
-            Veiculo.Disponibilizar();
+            // o carro entra na fila do pátio, e o odômetro e a filial do ativo avançam com o que a
+            // devolução informou — sem isso a frota fica registrada na filial errada
+            Veiculo.RegistrarDevolucao(kmFinal, filialDevolucao);
+
+            AbrirManutencaoPorAvaria();
+        }
+
+        /// <summary>
+        /// Avaria vira ordem corretiva no fechamento, não no ato do registro da vistoria: com o
+        /// contrato aberto o veículo está locado e não pode entrar em oficina.
+        /// </summary>
+        private void AbrirManutencaoPorAvaria()
+        {
+            var houveAvaria = _vistorias
+                .Where(v => v.Tipo == TipoVistoria.Devolucao)
+                .Any(v => v.PossuiDanos());
+
+            if (!houveAvaria)
+                return;
+
+            Veiculo.IniciarManutencao(
+                TipoManutencao.Corretiva,
+                "Manutenção gerada automaticamente por dano em vistoria");
         }
 
 
@@ -145,8 +161,8 @@ namespace Locadora_Auto.Domain.Entidades
 
             Status = StatusLocacao.Finalizada;
 
-            // Libera veículo
-            Veiculo.Disponibilizar();
+            // contrato anulado: o carro não rodou, então volta à oferta sem passar pela preparação
+            Veiculo.ReverterLocacao();
         }
 
         #region pagamento
@@ -328,12 +344,9 @@ namespace Locadora_Auto.Domain.Entidades
             if (vistoria == null)
                 throw new DomainException("Vistoria não encontrada");  
 
+            // a ordem corretiva não abre aqui: o veículo ainda está locado. Quem abre é o
+            // fechamento, em AbrirManutencaoPorAvaria.
             vistoria.RegistrarDano(descricao, tipo, valor);
-
-            if (vistoria.Danos.Any())
-            {
-                Veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Manutenção gerada automaticamente por dano em vistoria");
-            }
         }
 
         public void RemoverDanoVistoria(int idDano, int idVistoria)

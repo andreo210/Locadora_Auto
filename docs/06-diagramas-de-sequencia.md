@@ -144,25 +144,34 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor Cli as Cliente ou Atendente
-    participant Ctl as ClientesController
-    participant Svc as ClienteService
+    participant Ctl as ReservaController
+    participant Svc as ReservaService
     participant Rep as IClienteRepository
-    participant Cliente as Clientes (agregado)
+    participant Cliente as Clientes (raiz do agregado)
     participant Db as PostgreSQL
 
-    Cli->>Ctl: POST api/v1/Clientes/reserva<br/>{ idCliente, idFilial, idCategoria, início, fim }
-    Ctl->>Svc: CriarReservaAsync(dto, ct)
+    Cli->>Ctl: POST api/v1/reservas<br/>{ idCliente, idFilial, idCategoriaVeiculo, início, fim }
+    Ctl->>Svc: CriarAsync(dto, ct)
+    Svc->>Svc: normaliza datas para UTC
     Svc->>Rep: ObterPrimeiroAsync(idCliente, rastreado: true)
     Rep->>Db: SELECT tb_cliente
     Db-->>Rep: cliente
+    Note over Svc: valida cliente ativo, categoria e filial existentes,<br/>datas futuras e disponibilidade da frota no período
     Svc->>Cliente: ReservarVeiculo(idCliente, inicio, fim,<br/>idFilial, idCategoria)
-    Cliente->>Cliente: Reserva.Criar(...)
+    Cliente->>Cliente: Reserva.Criar(...) — internal, só a raiz cria
     Note over Cliente: valida idCliente, idCategoria,<br/>início e fim futuros, fim > início<br/>Status = Reservado, Ativo = true
-    Svc->>Rep: AtualizarSalvarAsync(cliente, ct)
+    Svc->>Rep: SalvarAsync(ct)
     Rep->>Db: INSERT tb_reserva
-    Svc-->>Ctl: true
-    Ctl-->>Cli: 200 OK
+    Svc-->>Ctl: ReservaDto
+    Ctl-->>Cli: 201 Created
 ```
+
+O cancelamento segue o mesmo caminho: `ReservaService.CancelarAsync` carrega o cliente dono da
+reserva com `Include(Reservas)` rastreado e chama `Clientes.CancelarReservar(reserva)`.
+
+Duas operações **não** passam pela raiz, por motivos que já existiam no projeto: `Finalizar` é
+disparado por `Locacao.Criar` (outro agregado, ver §4) e a expiração em lote é uma varredura por
+tempo sobre `tb_reserva`, que carregaria todos os clientes se fosse pela raiz.
 
 ---
 

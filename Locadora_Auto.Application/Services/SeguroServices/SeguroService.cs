@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Models.Consultas;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain;
@@ -40,17 +41,24 @@ namespace Locadora_Auto.Application.Services.SeguroServices
             return seguros.ToDtoList();
         }
 
+        /// <summary>
+        /// Colunas que a listagem aceita ordenar. Coluna desconhecida cai no nome.
+        /// </summary>
+        private static readonly OrdenacaoDeConsulta<Seguro> Ordenacoes =
+            OrdenacaoDeConsulta<Seguro>.Padrao(s => s.Nome)
+                .Com("nome", s => s.Nome)
+                .Com("descricao", s => s.Descricao)
+                .Com("valordiaria", s => s.ValorDiaria)
+                .Com("franquia", s => s.Franquia)
+                .Com("cobertura", s => s.Cobertura)
+                .Com("ativo", s => s.Ativo);
+
         public async Task<PaginatedResult<SeguroDto>> ObterTodosPaginadoAsync(
-            int pagina,
-            int itensPorPagina,
-            string? termo = null,
+            ConsultaPaginadaRequest consulta,
             bool? ativo = null,
-            string? ordenarPor = null,
-            string? direcao = null,
             CancellationToken ct = default)
         {
-            // No Postgres o LIKE é sensível a maiúsculas: comparar em minúsculas dos dois lados
-            var busca = string.IsNullOrWhiteSpace(termo) ? null : termo.Trim().ToLower();
+            var busca = consulta.TermoNormalizado;
 
             Expression<Func<Seguro, bool>> filtro = s =>
                 (busca == null
@@ -61,38 +69,13 @@ namespace Locadora_Auto.Application.Services.SeguroServices
 
             var seguros = await _seguroRepository.ObterPaginadoComFiltroAsync(
                 filtro: filtro,
-                ordenarPor: MontarOrdenacao(ordenarPor, direcao),
-                pagina: pagina,
-                itensPorPagina: itensPorPagina,
+                ordenarPor: Ordenacoes.Montar(consulta),
+                pagina: consulta.Pagina,
+                itensPorPagina: consulta.ItensPorPagina,
                 asNoTracking: true,
                 ct: ct);
 
-            return new PaginatedResult<SeguroDto>
-            {
-                Items = seguros.Items.ToDtoList(),
-                Total = seguros.Total,
-                Pagina = seguros.Pagina,
-                TotalPaginas = seguros.TotalPaginas,
-                ItensPorPagina = seguros.ItensPorPagina
-            };
-        }
-
-        /// <summary>
-        /// Traduz a coluna clicada na tela para o OrderBy correspondente. Coluna desconhecida cai no nome.
-        /// </summary>
-        private static Func<IQueryable<Seguro>, IOrderedQueryable<Seguro>> MontarOrdenacao(string? ordenarPor, string? direcao)
-        {
-            var descendente = string.Equals(direcao, "desc", StringComparison.OrdinalIgnoreCase);
-
-            return (ordenarPor?.ToLower()) switch
-            {
-                "descricao" => q => descendente ? q.OrderByDescending(s => s.Descricao) : q.OrderBy(s => s.Descricao),
-                "valordiaria" => q => descendente ? q.OrderByDescending(s => s.ValorDiaria) : q.OrderBy(s => s.ValorDiaria),
-                "franquia" => q => descendente ? q.OrderByDescending(s => s.Franquia) : q.OrderBy(s => s.Franquia),
-                "cobertura" => q => descendente ? q.OrderByDescending(s => s.Cobertura) : q.OrderBy(s => s.Cobertura),
-                "ativo" => q => descendente ? q.OrderByDescending(s => s.Ativo) : q.OrderBy(s => s.Ativo),
-                _ => q => descendente ? q.OrderByDescending(s => s.Nome) : q.OrderBy(s => s.Nome)
-            };
+            return seguros.ParaDto(SeguroMapper.ToDtoList);
         }
 
         public async Task<IReadOnlyList<SeguroDto>> ObterSeguroAtivoAsync(CancellationToken ct = default)

@@ -1,0 +1,181 @@
+@* Monte UMA vez no MainLayout, fora do fluxo do conteúdo.
+   Mostra uma notificação por vez: cada nova substitui a anterior — é por isso que
+   ação em massa junta o resultado num toast só, em vez de notificar item a item. *@
+@namespace {{RootNamespace}}.Front.Components.Notificacao
+@using {{RootNamespace}}.Front.Models.Notificacao
+@using {{RootNamespace}}.Front.Services.Utils.Notificacao
+@inject INotificationService NotificationService
+@implements IDisposable
+
+<div class="notification-container">
+    @if (_notificacaoAtual is not null)
+    {
+        <div class="toast-notification @ClasseDoTipo()" @onclick="Fechar">
+            <div class="toast-header">
+                <strong class="me-auto">@_notificacaoAtual.Title</strong>
+                <button type="button" class="btn-close" @onclick="Fechar" @onclick:stopPropagation="true"></button>
+            </div>
+
+            <div class="toast-body">
+                @if (_notificacaoAtual.Type == NotificationType.Validation && _notificacaoAtual.ValidationErrors is not null)
+                {
+                    <div class="validation-errors">
+                        @foreach (var erro in _notificacaoAtual.ValidationErrors)
+                        {
+                            <div class="mb-2">
+                                <strong class="text-danger">@erro.Key:</strong>
+                                <ul class="mb-0 mt-1">
+                                    @foreach (var mensagem in erro.Value)
+                                    {
+                                        <li>@mensagem</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="mb-0">@_notificacaoAtual.Message</p>
+                }
+            </div>
+
+            @if (_notificacaoAtual.Type == NotificationType.Validation)
+            {
+                @* Validação lista vários campos: fica até o usuário dizer que leu. *@
+                <div class="toast-footer">
+                    <button class="btn btn-sm btn-primary" @onclick="Fechar" @onclick:stopPropagation="true">
+                        Entendi
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+    }
+
+    .toast-notification {
+        background: var(--superficie, #fff);
+        color: var(--texto, #111);
+        border: 1px solid var(--borda, #dee2e6);
+        border-left: 4px solid var(--borda, #dee2e6);
+        border-radius: .5rem;
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+        margin-bottom: 10px;
+        overflow: hidden;
+        animation: slideIn .3s ease;
+        cursor: pointer;
+    }
+
+    .toast-success { border-left-color: var(--sucesso, #198754); }
+    .toast-error { border-left-color: var(--perigo, #dc3545); }
+    .toast-warning { border-left-color: var(--alerta, #ffc107); }
+    .toast-info { border-left-color: var(--info, #0dcaf0); }
+
+    .toast-validation {
+        border-left-color: var(--alerta, #ffc107);
+        max-width: 500px;
+    }
+
+    .toast-header {
+        padding: 10px 14px;
+        background: var(--superficie-2, #f8f9fa);
+        border-bottom: 1px solid var(--borda, #dee2e6);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+    }
+
+    .toast-body { padding: 14px; }
+
+    .toast-footer {
+        padding: 10px 14px;
+        background: var(--superficie-2, #f8f9fa);
+        border-top: 1px solid var(--borda, #dee2e6);
+        text-align: right;
+    }
+
+    .validation-errors ul {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+
+    .validation-errors li {
+        padding: 4px 0;
+        border-bottom: 1px solid var(--borda, #dee2e6);
+    }
+
+    .validation-errors li:last-child { border-bottom: none; }
+
+    @@keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+
+@code {
+    private NotificationEventArgs? _notificacaoAtual;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized() => NotificationService.OnNotification += Exibir;
+
+    private void Exibir(NotificationEventArgs notificacao)
+    {
+        _cts?.Cancel();
+
+        _notificacaoAtual = notificacao;
+
+        // O evento pode vir de fora do circuito (continuação de uma chamada HTTP):
+        // InvokeAsync garante o render na thread do Blazor.
+        _ = InvokeAsync(StateHasChanged);
+
+        if (notificacao.Type == NotificationType.Validation)
+            return;
+
+        _cts = new CancellationTokenSource();
+        _ = FecharDepois(notificacao.Duration, _cts.Token);
+    }
+
+    private async Task FecharDepois(int duracao, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(duracao, ct);
+            await InvokeAsync(() =>
+            {
+                if (ct.IsCancellationRequested) return;
+                _notificacaoAtual = null;
+                StateHasChanged();
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            // outra notificação chegou antes do tempo acabar
+        }
+    }
+
+    private void Fechar()
+    {
+        _cts?.Cancel();
+        _notificacaoAtual = null;
+    }
+
+    public void Dispose()
+    {
+        // Sem desassinar, o serviço (que vive o circuito inteiro) continua
+        // chamando um componente já destruído.
+        NotificationService.OnNotification -= Exibir;
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

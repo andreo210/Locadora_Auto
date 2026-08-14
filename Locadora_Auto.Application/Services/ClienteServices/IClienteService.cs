@@ -51,11 +51,6 @@ namespace Locadora_Auto.Application.Services.ClienteServices
             Task<bool> DesativarClienteAsync(int id, CancellationToken ct = default);
         #endregion
 
-        #region Reservar e Cancelar Reserva
-        Task<bool> CriarReservaAsync(CriarReservaDto dto, CancellationToken ct = default);
-        Task<bool> CancelarReservaAsync(int idReserva,int id, CancellationToken ct = default);
-        #endregion Reservar e Cancelar Reserva
-
         #region Validações e Regras de Negócio
         //Task<bool> ValidarClienteParaLocacaoAsync(int id, CancellationToken ct = default);
         //Task<bool> ClientePossuiLocacoesAtivasAsync(int id, CancellationToken ct = default);

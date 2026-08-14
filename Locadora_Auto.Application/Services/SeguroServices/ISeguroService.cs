@@ -9,12 +9,8 @@ namespace Locadora_Auto.Application.Services.SeguroServices
         Task<SeguroDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<SeguroDto>> ObterTodosAsync(CancellationToken ct = default);
         Task<PaginatedResult<SeguroDto>> ObterTodosPaginadoAsync(
-            int pagina,
-            int itensPorPagina,
-            string? termo = null,
+            ConsultaPaginadaRequest consulta,
             bool? ativo = null,
-            string? ordenarPor = null,
-            string? direcao = null,
             CancellationToken ct = default);
         Task<IReadOnlyList<SeguroDto>> ObterSeguroAtivoAsync(CancellationToken ct = default);
 

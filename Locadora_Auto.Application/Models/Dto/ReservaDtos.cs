@@ -14,13 +14,17 @@
         public int IdReserva { get; set; }
         public bool Ativo { get; set; }
 
+        /// <summary>
+        /// Valor numérico de <see cref="Domain.Entidades.StatusReserva"/>, para o Front comparar sem depender do Domain.
+        /// </summary>
+        public int IdStatus { get; set; }
+        public string? Status { get; set; }
 
+        // nomes desnormalizados: evitam uma chamada por linha na listagem
+        public string? NomeCliente { get; set; }
+        public string? NomeFilial { get; set; }
+        public string? NomeCategoriaVeiculo { get; set; }
     }
 
     public class CriarReservaDto : ReservaBaseDto { }
-
-    public class CancelarReservaDto
-    {
-        public int IdReserva { get; set; }
-    }
 }

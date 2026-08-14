@@ -14,6 +14,7 @@ using Locadora_Auto.Application.Services.MultaServices;
 using Locadora_Auto.Application.Services.OAuth.Roles;
 using Locadora_Auto.Application.Services.OAuth.Token;
 using Locadora_Auto.Application.Services.OAuth.Users;
+using Locadora_Auto.Application.Services.ReservaServices;
 using Locadora_Auto.Application.Services.SeguroServices;
 using Locadora_Auto.Application.Services.VeiculoServices;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +57,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<ILocacaoService, LocacaoService>();
             services.AddScoped<IMultaService, MultaService>();
             services.AddScoped<IAdicionalService, AdicionalService>();
+            services.AddScoped<IReservaService, ReservaService>();
 
             //redimensionamento de imagens
             services.AddScoped<IImageService, ImageService>();

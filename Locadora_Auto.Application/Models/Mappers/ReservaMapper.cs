@@ -5,6 +5,10 @@ namespace Locadora_Auto.Application.Models.Mappers
 {
     public static class ReservaMapper
     {
+        /// <summary>
+        /// Os nomes de cliente, filial e categoria só vêm preenchidos quando a consulta usou os Includes
+        /// correspondentes; sem eles o Dto sai apenas com os ids.
+        /// </summary>
         public static ReservaDto ToDto(this Reserva entidade)
         {
             return new ReservaDto
@@ -13,10 +17,14 @@ namespace Locadora_Auto.Application.Models.Mappers
                 DataInicio = entidade.DataInicio,
                 DataFim = entidade.DataFim,
                 Ativo = entidade.Ativo,
-                IdCategoriaVeiculo =entidade.IdCategoria,
-                IdFilial = entidade.IdFilial
-                //Cliente = entidade.Cliente?.ToDto(),
-                //Categoria = entidade.Categoria?.ToDto()
+                IdCliente = entidade.IdCliente,
+                IdCategoriaVeiculo = entidade.IdCategoria,
+                IdFilial = entidade.IdFilial,
+                IdStatus = (int)entidade.Status,
+                Status = entidade.Status.ToString(),
+                NomeCliente = entidade.Cliente?.Usuario?.NomeCompleto,
+                NomeFilial = entidade.Filial?.Nome,
+                NomeCategoriaVeiculo = entidade.CategoriaVeiculo?.Nome
             };
         }
 

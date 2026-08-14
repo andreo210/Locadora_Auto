@@ -19,4 +19,9 @@
     <Folder Include="ValueObjects\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- DomainException e as fábricas internal dos agregados precisam ser visíveis para os testes -->
+    <InternalsVisibleTo Include="Locadora_Auto.Tests" />
+  </ItemGroup>
+
 </Project>

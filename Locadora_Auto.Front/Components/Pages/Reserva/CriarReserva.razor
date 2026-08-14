@@ -1,0 +1,240 @@
+﻿@page "/reservas/nova"
+@using Blazored.FluentValidation
+@using Locadora_Auto.Front.Models.Request.Reserva
+@using Locadora_Auto.Front.Models.Response
+@using Locadora_Auto.Front.Models.Validadores
+@using Locadora_Auto.Front.Services.Servicos.Filial
+@using Locadora_Auto.Front.Services.Servicos.Funcionario
+@using Locadora_Auto.Front.Services.Servicos.Reserva
+@using Locadora_Auto.Front.Services.Utils.Notificacao
+@inject NavigationManager Navegacao
+@inject INotificationService NotificacaoService
+@inject IReservaService _reservaService
+@inject IClienteService _clienteService
+@inject IFilialService _filialService
+@inject ICategoriaService _categoriaService
+@* @attribute [Authorize(Roles = "Administrador, Gerente")] *@
+@rendermode InteractiveServer
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="Voltar">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h2 class="mb-0">Nova Reserva</h2>
+            </div>
+            <p class="text-muted mt-2">Reserve uma categoria de veículo para um cliente em uma filial</p>
+        </div>
+    </div>
+
+    @if (carregandoListas)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando clientes, filiais e categorias...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@reserva" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator @ref="validadorFluent" />
+
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-bookmark-check me-2"></i>
+                                Dados da Reserva
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Cliente -->
+                            <div class="mb-3">
+                                <label class="form-label">Cliente <span class="text-danger">*</span></label>
+                                <InputSelect @bind-Value="reserva.IdCliente" class="form-select">
+                                    <option value="0">Selecione o cliente</option>
+                                    @foreach (var cliente in clientes)
+                                    {
+                                        <option value="@cliente.IdCliente">@cliente.Nome — @cliente.Cpf</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => reserva.IdCliente)" />
+                            </div>
+
+                            <div class="row">
+                                <!-- Filial -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Filial de retirada <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="reserva.IdFilial" class="form-select">
+                                        <option value="0">Selecione a filial</option>
+                                        @foreach (var filial in filiais)
+                                        {
+                                            <option value="@filial.IdFilial">@filial.Nome</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => reserva.IdFilial)" />
+                                </div>
+
+                                <!-- Categoria -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Categoria de veículo <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="reserva.IdCategoriaVeiculo" class="form-select">
+                                        <option value="0">Selecione a categoria</option>
+                                        @foreach (var categoria in categorias)
+                                        {
+                                            <option value="@categoria.Id">@categoria.Nome</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => reserva.IdCategoriaVeiculo)" />
+                                    <small class="form-text text-muted">A reserva é por categoria, não por veículo específico.</small>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <!-- Data de início -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Retirada <span class="text-danger">*</span></label>
+                                    <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="reserva.DataInicio" class="form-control" />
+                                    <ValidationMessage For="@(() => reserva.DataInicio)" />
+                                </div>
+
+                                <!-- Data de entrega -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Entrega <span class="text-danger">*</span></label>
+                                    <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="reserva.DataFim" class="form-control" />
+                                    <ValidationMessage For="@(() => reserva.DataFim)" />
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                A reserva só é aceita se a filial ainda tiver veículos livres da categoria no período escolhido.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                            <i class="bi bi-x-circle me-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@processando">
+                            @if (processando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Salvando...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                                <span>Salvar Reserva</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private CriarReservaRequest reserva = new();
+    private bool processando;
+    private bool carregandoListas = true;
+    private FluentValidationValidator? validadorFluent;
+
+    private List<ClienteResponse> clientes = new();
+    private List<FilialResponse> filiais = new();
+    private List<CategoriaResponse> categorias = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarListas();
+    }
+
+    /// <summary>
+    /// Os selects não são paginados: puxa uma página grande de cada cadastro de uma vez.
+    /// </summary>
+    private async Task CarregarListas()
+    {
+        carregandoListas = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultadoClientes = await _clienteService.ObterTodos(ativos: true, itensPorPagina: 500);
+            clientes = resultadoClientes?.Items?.ToList() ?? new();
+
+            var resultadoFiliais = await _filialService.ObterTodos(itensPorPagina: 500);
+            filiais = resultadoFiliais?.Items?.ToList() ?? new();
+
+            var resultadoCategorias = await _categoriaService.ObterTodos(itensPorPagina: 500);
+            categorias = resultadoCategorias?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar os dados do formulário: {ex.Message}", "Erro");
+        }
+        finally
+        {
+            carregandoListas = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var validador = new ReservaValidator();
+            var resultado = await validador.ValidateAsync(reserva);
+
+            if (!resultado.IsValid)
+            {
+                var erros = resultado.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                NotificacaoService.ShowValidationErrors(erros);
+                return;
+            }
+
+            var reservaCriada = await _reservaService.Inserir(reserva);
+
+            if (reservaCriada != null)
+            {
+                NotificacaoService.ShowSuccess("Reserva cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/reservas");
+            }
+            else
+            {
+                NotificacaoService.ShowWarning("Não foi possível cadastrar a reserva", "Atenção");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar reserva: {ex.Message}", "Erro no Cadastro");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Voltar() => Navegacao.NavigateTo("/reservas");
+
+    private void Cancelar() => Voltar();
+}

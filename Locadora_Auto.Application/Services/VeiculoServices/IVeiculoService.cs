@@ -8,15 +8,11 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
         Task<VeiculoDto?> ObterPorIdAsync(int id, CancellationToken ct = default);
         Task<IReadOnlyList<VeiculoDto>> ObterTodosAsync(CancellationToken ct = default);
         Task<PaginatedResult<VeiculoDto>> ObterTodosPaginadoAsync(
-            int pagina,
-            int itensPorPagina,
-            string? termo = null,
+            ConsultaPaginadaRequest consulta,
             int? idCategoria = null,
             int? idFilial = null,
             int? idStatus = null,
             bool? ativo = null,
-            string? ordenarPor = null,
-            string? direcao = null,
             CancellationToken ct = default);
         Task<IReadOnlyList<VeiculoDto>> ObterDisponiveisAsync(int? idFilial = null, CancellationToken ct = default);
 

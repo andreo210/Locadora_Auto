@@ -25,10 +25,11 @@
             if (idCategoria == 0)
                 throw new InvalidOperationException("Id veiculo não pode ser nulo");
 
-            if (inicio <= DateTime.Now)
+            // as datas são gravadas em UTC (timestamp with time zone): comparar com Now erraria por 3h
+            if (inicio <= DateTime.UtcNow)
                 throw new InvalidOperationException("data do inicio não pode ser menor que data atual");
 
-            if (fim <= DateTime.Now)
+            if (fim <= DateTime.UtcNow)
                 throw new InvalidOperationException("data do final não pode ser menor que data atual");
 
             if (fim <= inicio)

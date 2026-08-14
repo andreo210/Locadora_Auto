@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Net;
 
@@ -113,6 +114,24 @@ namespace Locadora_Auto.Application.Extensions
             if (exception is ProblemException problemException)
             {
                 return ApplyHttpContext(context, problemException.ProblemDetails);
+            }
+
+            /*
+             * Conflito de concorrência otimista: entre a leitura e a gravação, outra pessoa
+             * alterou a mesma linha (o xmin não bate mais). É condição esperada, não defeito,
+             * então vira 409 com mensagem que o usuário entende — e não 500.
+             *
+             * O tratamento fica aqui, e não em cada serviço, porque vale para qualquer entidade.
+             * Serviço que queira reagir de outro jeito (recarregar e reaplicar, por exemplo)
+             * captura a exceção antes e notifica normalmente.
+             */
+            if (exception is DbUpdateConcurrencyException)
+            {
+                return ApplyHttpContext(context,
+                    ProblemFactory.Create(
+                        HttpStatusCode.Conflict,
+                        "O registro foi alterado por outro usuário enquanto você editava. Recarregue a tela e refaça a operação.",
+                        title: "Conflito de concorrência"));
             }
 
             return ApplyHttpContext(context,

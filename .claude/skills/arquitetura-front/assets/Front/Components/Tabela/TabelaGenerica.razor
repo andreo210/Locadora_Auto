@@ -1,0 +1,484 @@
+@* Listagem paginada pelo servidor.
+   A tabela não conhece a Api: ela atualiza os parâmetros de consulta (@bind) e
+   dispara OnCarregarDados. Quem refaz a chamada é a página. *@
+@namespace {{RootNamespace}}.Front.Components.Tabela
+@using {{RootNamespace}}.Front.Models.Tabelas
+@typeparam TItem
+@implements IDisposable
+
+<div class="card shadow-sm">
+    @if (!string.IsNullOrEmpty(Titulo) || AcoesCabecalho is not null)
+    {
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">@Titulo</h5>
+            @AcoesCabecalho
+        </div>
+    }
+
+    @if (MostrarFiltros)
+    {
+        <div class="card-body border-bottom">
+            <div class="row g-3">
+                @if (MostrarBuscaGlobal)
+                {
+                    <div class="col-md-@(ColunasFiltro ?? 4)">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text"
+                                   class="form-control"
+                                   placeholder="@PlaceholderBusca"
+                                   value="@_termoBuscaLocal"
+                                   @oninput="OnBuscaChanged" />
+                        </div>
+                    </div>
+                }
+
+                @if (FiltrosAdicionais is not null)
+                {
+                    <div class="col-md-@(12 - (MostrarBuscaGlobal ? ColunasFiltro ?? 4 : 0))">
+                        @FiltrosAdicionais
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Carregando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">@MensagemCarregando</p>
+        </div>
+    }
+    else if (Items is null || !Items.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi @IconeVazio fs-1 text-muted"></i>
+            <h5 class="mt-3">@MensagemVazio</h5>
+            <p class="text-muted">@MensagemVazioDetalhe</p>
+            @if (AcaoVazio is not null)
+            {
+                <div class="mt-3">@AcaoVazio</div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 @ClasseTabela">
+                <thead class="bg-light">
+                    <tr>
+                        @if (SelecaoHabilitada)
+                        {
+                            <th width="50" class="ps-4">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       @onclick="AlternarSelecaoTodos"
+                                       @onclick:stopPropagation="true"
+                                       checked="@TodosSelecionados" />
+                            </th>
+                        }
+
+                        @foreach (var coluna in Colunas)
+                        {
+                            <th style="cursor: @(coluna.Ordenavel ? "pointer" : "default"); width: @(coluna.Largura ?? "auto"); text-align: @coluna.Alinhamento"
+                                @onclick="@(coluna.Ordenavel ? () => OrdenarPor(coluna.Propriedade) : null)">
+                                @coluna.Titulo
+                                @if (coluna.Ordenavel && coluna.Propriedade == OrdenacaoPropriedade)
+                                {
+                                    <i class="bi @(OrdenacaoDirecao == "asc" ? "bi-arrow-up" : "bi-arrow-down") ms-1"></i>
+                                }
+                            </th>
+                        }
+
+                        @if (Acoes is not null || AcoesTemplate is not null)
+                        {
+                            <th width="@LarguraColunaAcoes">Ações</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Items)
+                    {
+                        var itemId = SelecaoHabilitada ? ObterIdItem(item) : string.Empty;
+
+                        <tr class="@(SelecaoHabilitada && EstaSelecionado(itemId) ? "table-primary" : "")">
+                            @if (SelecaoHabilitada)
+                            {
+                                <td class="ps-4">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           @onclick="@(() => AlternarSelecaoIndividual(itemId))"
+                                           @onclick:stopPropagation="true"
+                                           checked="@EstaSelecionado(itemId)" />
+                                </td>
+                            }
+
+                            @foreach (var coluna in Colunas)
+                            {
+                                <td style="text-align: @coluna.Alinhamento">
+                                    @if (coluna.Template is not null)
+                                    {
+                                        @coluna.Template(item)
+                                    }
+                                    else
+                                    {
+                                        @coluna.ObterValorTexto(item)
+                                    }
+                                </td>
+                            }
+
+                            @if (Acoes is not null || AcoesTemplate is not null)
+                            {
+                                <td>
+                                    @if (AcoesTemplate is not null)
+                                    {
+                                        @AcoesTemplate(item)
+                                    }
+                                    else
+                                    {
+                                        <div class="btn-group" role="group">
+                                            @foreach (var acao in Acoes!)
+                                            {
+                                                <button class="btn btn-sm btn-outline-@acao.Cor"
+                                                        title="@acao.Titulo"
+                                                        @onclick="@(() => acao.Acao(item))">
+                                                    <i class="bi @acao.Icone"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card-footer bg-white">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted small">
+                            Mostrando @PrimeiroItem - @UltimoItem de @TotalItens itens
+                        </span>
+
+                        @if (SelecaoHabilitada && QuantidadeSelecionados > 0 && AcoesEmMassa is not null)
+                        {
+                            @* O dropdown depende do bootstrap.bundle.min.js (traz o Popper). *@
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                        type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-check-all me-1"></i>
+                                    @QuantidadeSelecionados selecionados
+                                </button>
+                                <ul class="dropdown-menu">
+                                    @foreach (var acao in AcoesEmMassa)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item text-@acao.Cor" href="#"
+                                               @onclick="@(() => ExecutarAcaoEmMassa(acao))"
+                                               @onclick:preventDefault="true">
+                                                <i class="bi @acao.Icone me-2"></i>
+                                                @acao.Titulo
+                                                @if (acao.MostrarQuantidade)
+                                                {
+                                                    <span class="badge bg-@acao.Cor ms-2">@QuantidadeSelecionados</span>
+                                                }
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end align-items-center gap-3">
+                        @if (MostrarSeletorItensPorPagina)
+                        {
+                            <select class="form-select form-select-sm w-auto" @bind="ItensPorPagina">
+                                <option value="10">10 por página</option>
+                                <option value="25">25 por página</option>
+                                <option value="50">50 por página</option>
+                                <option value="100">100 por página</option>
+                            </select>
+                        }
+
+                        <nav aria-label="Navegação de páginas">
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item @(PaginaAtual == 1 ? "disabled" : "")">
+                                    <a class="page-link" href="#" @onclick="@(() => MudarPagina(1))" @onclick:preventDefault="true">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item @(PaginaAtual == 1 ? "disabled" : "")">
+                                    <a class="page-link" href="#" @onclick="@(() => MudarPagina(PaginaAtual - 1))" @onclick:preventDefault="true">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+
+                                @foreach (var pagina in PaginasExibidas)
+                                {
+                                    <li class="page-item @(pagina == PaginaAtual ? "active" : "")">
+                                        <a class="page-link" href="#" @onclick="@(() => MudarPagina(pagina))" @onclick:preventDefault="true">
+                                            @pagina
+                                        </a>
+                                    </li>
+                                }
+
+                                <li class="page-item @(PaginaAtual >= TotalPaginas ? "disabled" : "")">
+                                    <a class="page-link" href="#" @onclick="@(() => MudarPagina(PaginaAtual + 1))" @onclick:preventDefault="true">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item @(PaginaAtual >= TotalPaginas ? "disabled" : "")">
+                                    <a class="page-link" href="#" @onclick="@(() => MudarPagina(TotalPaginas))" @onclick:preventDefault="true">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    // ===== OBRIGATÓRIOS =====
+    [Parameter, EditorRequired] public List<TItem> Items { get; set; } = new();
+    [Parameter, EditorRequired] public int TotalItens { get; set; }
+    [Parameter, EditorRequired] public List<ColunaTabela<TItem>> Colunas { get; set; } = new();
+
+    // ===== ESTADO DA CONSULTA (use sempre com @bind-) =====
+    [Parameter] public int PaginaAtual { get; set; } = 1;
+    [Parameter] public EventCallback<int> PaginaAtualChanged { get; set; }
+
+    private int _itensPorPagina = 10;
+
+    [Parameter]
+    public int ItensPorPagina
+    {
+        get => _itensPorPagina;
+        set
+        {
+            if (_itensPorPagina == value) return;
+
+            _itensPorPagina = value;
+            _ = AtualizarItensPorPagina(value);
+        }
+    }
+
+    [Parameter] public EventCallback<int> ItensPorPaginaChanged { get; set; }
+
+    [Parameter] public string? OrdenacaoPropriedade { get; set; }
+    [Parameter] public EventCallback<string?> OrdenacaoPropriedadeChanged { get; set; }
+    [Parameter] public string OrdenacaoDirecao { get; set; } = "asc";
+    [Parameter] public EventCallback<string> OrdenacaoDirecaoChanged { get; set; }
+
+    [Parameter] public string TermoBusca { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> TermoBuscaChanged { get; set; }
+
+    // ===== COMPORTAMENTO =====
+    [Parameter] public EventCallback OnCarregarDados { get; set; }
+    [Parameter] public bool Carregando { get; set; }
+    [Parameter] public bool MostrarFiltros { get; set; } = true;
+    [Parameter] public bool MostrarBuscaGlobal { get; set; } = true;
+    [Parameter] public int? ColunasFiltro { get; set; }
+    [Parameter] public RenderFragment? FiltrosAdicionais { get; set; }
+    [Parameter] public bool MostrarSeletorItensPorPagina { get; set; } = true;
+    [Parameter] public int DelayBusca { get; set; } = 500;
+
+    // ===== SELEÇÃO =====
+    [Parameter] public bool SelecaoHabilitada { get; set; } = true;
+
+    /// <summary>Identificador estável do item. Informe sempre que a seleção estiver ligada.</summary>
+    [Parameter] public Func<TItem, string>? ObterId { get; set; }
+
+    // ===== AÇÕES =====
+    [Parameter] public List<AcaoTabela<TItem>>? Acoes { get; set; }
+    [Parameter] public RenderFragment<TItem>? AcoesTemplate { get; set; }
+    [Parameter] public List<AcaoEmMassa>? AcoesEmMassa { get; set; }
+    [Parameter] public string LarguraColunaAcoes { get; set; } = "120";
+
+    // ===== APARÊNCIA =====
+    [Parameter] public string Titulo { get; set; } = "";
+    [Parameter] public RenderFragment? AcoesCabecalho { get; set; }
+    [Parameter] public string ClasseTabela { get; set; } = "";
+    [Parameter] public string PlaceholderBusca { get; set; } = "Pesquisar...";
+    [Parameter] public string IconeVazio { get; set; } = "bi-inbox";
+    [Parameter] public string MensagemVazio { get; set; } = "Nenhum item encontrado";
+    [Parameter] public string MensagemVazioDetalhe { get; set; } = "";
+    [Parameter] public RenderFragment? AcaoVazio { get; set; }
+    [Parameter] public string MensagemCarregando { get; set; } = "Carregando itens...";
+
+    // ===== ESTADO INTERNO =====
+    private string _termoBuscaLocal = "";
+    private Dictionary<string, bool> _selecionados = new();
+    private Timer? _debounceTimer;
+    private Func<TItem, string>? _obterIdResolvido;
+
+    // ===== CALCULADAS =====
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(TotalItens / (double)ItensPorPagina));
+    private int PrimeiroItem => TotalItens == 0 ? 0 : ((PaginaAtual - 1) * ItensPorPagina) + 1;
+    private int UltimoItem => Math.Min(PaginaAtual * ItensPorPagina, TotalItens);
+    private int QuantidadeSelecionados => _selecionados.Count(x => x.Value);
+
+    private bool TodosSelecionados =>
+        SelecaoHabilitada && Items.Any() && Items.All(item => EstaSelecionado(ObterIdItem(item)));
+
+    private List<int> PaginasExibidas
+    {
+        get
+        {
+            var paginas = new List<int>();
+
+            for (int i = 1; i <= TotalPaginas; i++)
+            {
+                if (i == 1 || i == TotalPaginas || (i >= PaginaAtual - 2 && i <= PaginaAtual + 2))
+                    paginas.Add(i);
+            }
+
+            return paginas;
+        }
+    }
+
+    // ===== CICLO DE VIDA =====
+    protected override void OnParametersSet()
+    {
+        if (_termoBuscaLocal != TermoBusca)
+            _termoBuscaLocal = TermoBusca;
+
+        if (!SelecaoHabilitada)
+            return;
+
+        // A seleção é por página: o dicionário é reconstruído a partir dos itens
+        // visíveis, então trocar de página descarta o que estava marcado.
+        var atualizados = new Dictionary<string, bool>();
+
+        foreach (var item in Items)
+        {
+            var id = ObterIdItem(item);
+            atualizados[id] = _selecionados.TryGetValue(id, out var marcado) && marcado;
+        }
+
+        _selecionados = atualizados;
+    }
+
+    // ===== BUSCA =====
+    private void OnBuscaChanged(ChangeEventArgs e)
+    {
+        _termoBuscaLocal = e.Value?.ToString() ?? "";
+
+        // Debounce: sem isso cada tecla vira uma chamada à Api.
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(_ =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await TermoBuscaChanged.InvokeAsync(_termoBuscaLocal);
+                PaginaAtual = 1;
+                await PaginaAtualChanged.InvokeAsync(1);
+                await OnCarregarDados.InvokeAsync();
+            });
+        }, null, DelayBusca, Timeout.Infinite);
+    }
+
+    // ===== SELEÇÃO =====
+    private string ObterIdItem(TItem item)
+    {
+        if (ObterId is not null)
+            return ObterId(item);
+
+        _obterIdResolvido ??= ResolverObterId();
+        return _obterIdResolvido(item);
+    }
+
+    // Falhar alto e uma vez só. O fallback silencioso (gerar Guid por render)
+    // quebra a seleção sem nenhum sinal de que o ObterId faltou.
+    private Func<TItem, string> ResolverObterId()
+    {
+        var tipo = typeof(TItem);
+        var propriedade = tipo.GetProperty("Id")
+                          ?? tipo.GetProperties().FirstOrDefault(p => p.Name.StartsWith("Id", StringComparison.Ordinal));
+
+        if (propriedade is null)
+            throw new InvalidOperationException(
+                $"TabelaGenerica<{tipo.Name}>: informe ObterId ou use SelecaoHabilitada=\"false\". " +
+                "Sem identificador estável a seleção não sobrevive ao render.");
+
+        return item => propriedade.GetValue(item)?.ToString() ?? string.Empty;
+    }
+
+    private bool EstaSelecionado(string id) =>
+        _selecionados.TryGetValue(id, out var marcado) && marcado;
+
+    private void AlternarSelecaoTodos()
+    {
+        var marcarTodos = !TodosSelecionados;
+
+        foreach (var item in Items)
+            _selecionados[ObterIdItem(item)] = marcarTodos;
+    }
+
+    private void AlternarSelecaoIndividual(string id)
+    {
+        if (_selecionados.ContainsKey(id))
+            _selecionados[id] = !_selecionados[id];
+    }
+
+    private async Task ExecutarAcaoEmMassa(AcaoEmMassa acao)
+    {
+        var ids = _selecionados.Where(x => x.Value).Select(x => x.Key).ToList();
+        await acao.Acao(ids);
+    }
+
+    // ===== ORDENAÇÃO =====
+    private async Task OrdenarPor(string? propriedade)
+    {
+        if (string.IsNullOrEmpty(propriedade))
+            return;
+
+        if (OrdenacaoPropriedade == propriedade)
+        {
+            OrdenacaoDirecao = OrdenacaoDirecao == "asc" ? "desc" : "asc";
+        }
+        else
+        {
+            OrdenacaoPropriedade = propriedade;
+            OrdenacaoDirecao = "asc";
+        }
+
+        await OrdenacaoPropriedadeChanged.InvokeAsync(OrdenacaoPropriedade);
+        await OrdenacaoDirecaoChanged.InvokeAsync(OrdenacaoDirecao);
+        await OnCarregarDados.InvokeAsync();
+    }
+
+    // ===== PAGINAÇÃO =====
+    private async Task MudarPagina(int pagina)
+    {
+        if (pagina < 1 || pagina > TotalPaginas || pagina == PaginaAtual)
+            return;
+
+        PaginaAtual = pagina;
+        await PaginaAtualChanged.InvokeAsync(PaginaAtual);
+        await OnCarregarDados.InvokeAsync();
+    }
+
+    // Trocar o tamanho da página volta para a primeira: manter a página 7 com
+    // 100 itens por página cai fora do total e devolve tela vazia.
+    private async Task AtualizarItensPorPagina(int valor)
+    {
+        await ItensPorPaginaChanged.InvokeAsync(valor);
+
+        PaginaAtual = 1;
+        await PaginaAtualChanged.InvokeAsync(1);
+        await OnCarregarDados.InvokeAsync();
+    }
+
+    public void Dispose() => _debounceTimer?.Dispose();
+}

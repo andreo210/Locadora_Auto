@@ -45,7 +45,7 @@
             if (!int.IsPositive(idFilialAtual))
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
 
-            return new Veiculo
+            var veiculo = new Veiculo
             {
                 Placa = placa.Trim().ToUpper(),
                 Marca = marca.Trim().ToUpper(),
@@ -55,20 +55,20 @@
                 KmAtual = kmAtual,
                 IdCategoria = idCategoria,
                 FilialAtualId = idFilialAtual,
-                Ativo = true,
-                Disponivel = true,
-                Status = StatusVeiculo.Disponivel
+                Ativo = true
             };
+
+            veiculo.AplicarStatus(StatusVeiculo.Disponivel);
+
+            return veiculo;
         }
 
         public void Atualizar(int kmAtual,int idFilialAtual, string? marca = null, string? modelo = null, int? ano = null)
         {
 
-            if (kmAtual < 0)
-                throw new InvalidOperationException("kmAtual não pode ser negativo");
             if (!int.IsPositive(idFilialAtual))
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
-            KmAtual = kmAtual;
+            RegistrarKm(kmAtual);
             FilialAtualId = idFilialAtual;
 
             // marca/modelo/ano são opcionais: só mudam quando vêm preenchidos
@@ -88,31 +88,17 @@
         {
             Ativo = true;
 
-            // só volta a ficar disponível se não estiver locado nem em manutenção
-            if (Status == StatusVeiculo.Indisponivel)
-            {
-                Status = StatusVeiculo.Disponivel;
-                Disponibilizar();
-            }
+            // o bloqueio administrativo cai junto com a reativação; locado, em preparação ou em
+            // oficina continuam onde estão até a transição própria de cada um
+            AplicarStatus(Status == StatusVeiculo.Indisponivel ? StatusVeiculo.Disponivel : Status);
         }
         public void Desativar()
         {
             Ativo = false;
 
-            // veículo inativo nunca é ofertado para locação
-            Indisponibilizar();
-
-            if (Status == StatusVeiculo.Disponivel)
-                Status = StatusVeiculo.Indisponivel;
-        }
-
-        public void Disponibilizar()
-        {
-            Disponivel = true;
-        }
-        public void Indisponibilizar()
-        {
-            Disponivel = false;
+            // desativar um carro que está na rua não o traz de volta: ele sai da oferta agora
+            // (Disponivel é derivado de Ativo) e o status só muda na devolução
+            AplicarStatus(Status == StatusVeiculo.Disponivel ? StatusVeiculo.Indisponivel : Status);
         }
 
 
@@ -136,6 +122,102 @@
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
         }
 
+        #region Ciclo do ativo
+
+        /// <summary>
+        /// Abrir contrato consome a placa. Só sai da oferta quem estava nela — é aqui que o
+        /// veículo passa a <see cref="StatusVeiculo.Locado"/>.
+        /// </summary>
+        public void Locar()
+        {
+            if (!Ativo)
+                throw new DomainException("Veículo inativo não pode ser locado");
+
+            if (Status != StatusVeiculo.Disponivel)
+                throw new DomainException($"Veículo não está disponível para locação (status atual: {Status})");
+
+            AplicarStatus(StatusVeiculo.Locado);
+        }
+
+        /// <summary>
+        /// Devolução leva à preparação, nunca direto à oferta: o carro devolvido às 10h ainda
+        /// precisa de vistoria, limpeza e abastecimento. O odômetro e a filial do ativo avançam
+        /// aqui, que é o único ponto em que a devolução é conhecida.
+        /// </summary>
+        public void RegistrarDevolucao(int kmFinal, int idFilialDevolucao)
+        {
+            if (Status != StatusVeiculo.Locado)
+                throw new DomainException($"Só veículo locado pode ser devolvido (status atual: {Status})");
+
+            if (!int.IsPositive(idFilialDevolucao))
+                throw new DomainException("idFilialDevolucao tem que ser um numero positivo");
+
+            RegistrarKm(kmFinal);
+            FilialAtualId = idFilialDevolucao;
+
+            AplicarStatus(StatusVeiculo.EmPreparacao);
+        }
+
+        /// <summary>
+        /// O pátio declara o carro pronto. Como toda saída de indisponibilidade, só devolve à
+        /// oferta se o veículo estiver ativo.
+        /// </summary>
+        public void LiberarDaPreparacao()
+        {
+            if (Status != StatusVeiculo.EmPreparacao)
+                throw new DomainException($"Veículo não está em preparação (status atual: {Status})");
+
+            SairParaOferta();
+        }
+
+        /// <summary>
+        /// Cancelamento da abertura: o contrato foi anulado e o carro não rodou, então volta à
+        /// oferta sem passar pela preparação.
+        /// </summary>
+        public void ReverterLocacao()
+        {
+            if (Status != StatusVeiculo.Locado)
+                throw new DomainException($"Veículo não está locado (status atual: {Status})");
+
+            SairParaOferta();
+        }
+
+        /// <summary>
+        /// Única escrita de <see cref="Status"/> e <see cref="Disponivel"/>. O booleano continua
+        /// existindo porque o filtro de disponibilidade precisa traduzir para SQL, mas é
+        /// derivado — quem manda é o status, e assim os dois nunca divergem.
+        /// </summary>
+        private void AplicarStatus(StatusVeiculo novoStatus)
+        {
+            Status = novoStatus;
+            Disponivel = Ativo && novoStatus == StatusVeiculo.Disponivel;
+        }
+
+        /// <summary>
+        /// Hodômetro não anda para trás: km menor que o registrado é adulteração ou erro de
+        /// digitação, e nos dois casos o caso é de apuração, não de gravação.
+        /// </summary>
+        private void RegistrarKm(int km)
+        {
+            if (km < 0)
+                throw new InvalidOperationException("kmAtual não pode ser negativo");
+
+            if (km < KmAtual)
+                throw new DomainException($"Quilometragem não pode retroceder: atual {KmAtual}, informada {km}");
+
+            KmAtual = km;
+        }
+
+        /// <summary>
+        /// Saída de manutenção, preparação ou bloqueio. O veículo inativo não volta para a oferta.
+        /// </summary>
+        private void SairParaOferta()
+        {
+            AplicarStatus(Ativo ? StatusVeiculo.Disponivel : StatusVeiculo.Indisponivel);
+        }
+
+        #endregion Ciclo do ativo
+
         #region Manutenção do veiculo
         public void IniciarManutencao(TipoManutencao tipo, string descricao)
         {
@@ -144,8 +226,7 @@
 
             _manutencoes.Add(Manutencao.Criar(tipo, descricao));
 
-            Status = StatusVeiculo.EmManutencao;
-            Indisponibilizar();
+            AplicarStatus(StatusVeiculo.EmManutencao);
         }
         public void TerminaManutencao(decimal custo, int idManutencao)
         {
@@ -154,7 +235,7 @@
 
             var manutencao = ObterManutencao(idManutencao);
             manutencao.Encerrar(custo);
-            SairDaManutencao();
+            SairParaOferta();
         }
 
         public void CancelarManutencao(int idManutencao)
@@ -164,7 +245,7 @@
 
             var manutencao = ObterManutencao(idManutencao);
             manutencao.Cancelar();
-            SairDaManutencao();
+            SairParaOferta();
         }
 
         public void AtualizarDescricaoManutencao(int idManutencao, string descricao)
@@ -175,23 +256,6 @@
             var manutencao = ObterManutencao(idManutencao);
             // só a descrição muda: o veículo continua no status em que estava
             manutencao.AtualizarDescricao(descricao);
-        }
-
-        /// <summary>
-        /// Ao sair da manutenção o veículo só volta a ser ofertado se estiver ativo.
-        /// </summary>
-        private void SairDaManutencao()
-        {
-            if (Ativo)
-            {
-                Status = StatusVeiculo.Disponivel;
-                Disponibilizar();
-            }
-            else
-            {
-                Status = StatusVeiculo.Indisponivel;
-                Indisponibilizar();
-            }
         }
 
         private Manutencao ObterManutencao(int idManutencao)
@@ -210,7 +274,11 @@
         Disponivel = 1,
         Indisponivel = 2,
         Locado = 3,
-        EmManutencao = 4
+        EmManutencao = 4,
+        /// <summary>
+        /// Devolvido e ainda não conferido: fila do pátio entre a devolução e a volta à oferta.
+        /// </summary>
+        EmPreparacao = 5
     }
 
 }
