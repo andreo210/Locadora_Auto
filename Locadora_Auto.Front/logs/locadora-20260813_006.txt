@@ -3,3 +3,6 @@
 2026-08-13 10:40:52.191 -03:00 [INF] Application started. Press Ctrl+C to shut down.
 2026-08-13 10:40:52.191 -03:00 [INF] Hosting environment: Development
 2026-08-13 10:40:52.191 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front
+2026-08-13 19:33:35.889 -03:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-13 19:33:35.973 -03:00 [INF] Hosting environment: Development
+2026-08-13 19:33:35.974 -03:00 [INF] Content root path: C:\Users\andre\Source\Repos\Locadora_Auto\Locadora_Auto.Front

@@ -43,6 +43,43 @@ namespace Locadora_Auto.Tests.Fabricas
         public static Seguro Seguro(string nome = "Proteção Total")
             => Domain.Entidades.Seguro.Criar(nome, "Cobertura ampla", valorDiaria: 40m, franquia: 1500m, cobertura: "Colisão, roubo e terceiros");
 
+        public static Funcionario Funcionario(string matricula = "F-0001", string cargo = "Atendente")
+            => Domain.Entidades.Funcionario.Criar(matricula, cargo);
+
+        /// <summary>
+        /// Locação já criada, com cliente apto, veículo disponível e funcionário — o mínimo que
+        /// <c>Locacao.Criar</c> exige. O teste passa só a peça que ele precisa inspecionar depois
+        /// (<c>Fabrica.Locacao(veiculo: veiculo)</c>) ou variar (as datas).
+        ///
+        /// <paramref name="dataFimPrevista"/> é derivada de <paramref name="dataInicio"/> e não de
+        /// um <c>UtcNow</c> novo: <c>CalcularDias</c> arredonda horas para cima, então dois
+        /// <c>UtcNow</c> diferentes fariam 72h virar 72,0001h — e o teste esperaria 3 e receberia 4.
+        /// </summary>
+        public static Locacao Locacao(
+            Clientes? cliente = null,
+            Veiculo? veiculo = null,
+            Funcionario? funcionario = null,
+            Reserva? reserva = null,
+            DateTime? dataInicio = null,
+            DateTime? dataFimPrevista = null,
+            int kmInicial = 15_000,
+            decimal valorPrevisto = 450m,
+            int idFilialRetirada = 1)
+        {
+            var inicio = dataInicio ?? DateTime.UtcNow;
+
+            return Domain.Entidades.Locacao.Criar(
+                cliente ?? Cliente(),
+                veiculo ?? Veiculo(),
+                funcionario ?? Funcionario(),
+                reserva!,
+                idFilialRetirada,
+                inicio,
+                dataFimPrevista ?? inicio.AddDays(3),
+                kmInicial,
+                valorPrevisto);
+        }
+
         /// <summary>
         /// Cria uma reserva pela raiz do agregado (única porta de entrada, já que
         /// <c>Reserva.Criar</c> é internal) e devolve as duas pontas para o teste.
