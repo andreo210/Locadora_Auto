@@ -79,6 +79,166 @@ namespace Locadora_Auto.Tests.Dominio
             Assert.Equal("ARGO", veiculo.Modelo);
         }
 
+        // ======================= ciclo do ativo =======================
+
+        [Fact]
+        public void Locar_tira_o_veiculo_da_oferta()
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            veiculo.Locar();
+
+            Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Theory]
+        [InlineData(StatusVeiculo.Locado)]
+        [InlineData(StatusVeiculo.EmManutencao)]
+        [InlineData(StatusVeiculo.EmPreparacao)]
+        public void Locar_veiculo_que_nao_esta_na_oferta_e_recusado(StatusVeiculo status)
+        {
+            var veiculo = EmStatus(status);
+
+            Assert.Throws<DomainException>(() => veiculo.Locar());
+        }
+
+        [Fact]
+        public void Locar_veiculo_inativo_e_recusado()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Desativar();
+
+            Assert.Throws<DomainException>(() => veiculo.Locar());
+        }
+
+        [Fact]
+        public void Devolver_manda_para_preparacao_e_move_km_e_filial()
+        {
+            var veiculo = Fabrica.Veiculo(idFilial: 1);
+            veiculo.Locar();
+
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 4);
+
+            // devolvido não é disponível: o carro ainda precisa de vistoria, limpeza e abastecimento
+            Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+            Assert.Equal(15_900, veiculo.KmAtual);
+            Assert.Equal(4, veiculo.FilialAtualId);
+        }
+
+        [Fact]
+        public void Devolver_veiculo_que_nao_esta_locado_e_recusado()
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(15_900, 1));
+        }
+
+        [Fact]
+        public void LiberarDaPreparacao_devolve_o_veiculo_para_a_oferta()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Locar();
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+
+            veiculo.LiberarDaPreparacao();
+
+            Assert.Equal(StatusVeiculo.Disponivel, veiculo.Status);
+            Assert.True(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void LiberarDaPreparacao_nao_devolve_veiculo_inativo_para_a_oferta()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Locar();
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+            veiculo.Desativar();
+
+            veiculo.LiberarDaPreparacao();
+
+            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void LiberarDaPreparacao_de_veiculo_que_nao_esta_em_preparacao_e_recusado()
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            Assert.Throws<DomainException>(() => veiculo.LiberarDaPreparacao());
+        }
+
+        [Fact]
+        public void Desativar_veiculo_locado_tira_da_oferta_mas_mantem_o_status()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Locar();
+
+            veiculo.Desativar();
+
+            // o carro está com o cliente: desativar não o traz de volta, só impede a próxima locação
+            Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void Ativar_nao_devolve_para_a_oferta_veiculo_que_esta_locado()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Locar();
+            veiculo.Desativar();
+
+            veiculo.Ativar();
+
+            Assert.True(veiculo.Ativo);
+            Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void Km_nao_retrocede_na_devolucao()
+        {
+            var veiculo = Fabrica.Veiculo();   // nasce com 15.000
+            veiculo.Locar();
+
+            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(kmFinal: 14_999, idFilialDevolucao: 1));
+        }
+
+        [Fact]
+        public void Km_nao_retrocede_na_atualizacao_do_cadastro()
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            Assert.Throws<DomainException>(() => veiculo.Atualizar(kmAtual: 14_999, idFilialAtual: 1));
+        }
+
+        /// <summary>Leva o veículo até o status pedido pelas transições, sem escrever no estado à mão.</summary>
+        private static Veiculo EmStatus(StatusVeiculo status)
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            switch (status)
+            {
+                case StatusVeiculo.Locado:
+                    veiculo.Locar();
+                    break;
+                case StatusVeiculo.EmManutencao:
+                    veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Troca de embreagem");
+                    break;
+                case StatusVeiculo.EmPreparacao:
+                    veiculo.Locar();
+                    veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+                    break;
+                case StatusVeiculo.Indisponivel:
+                    veiculo.Desativar();
+                    break;
+            }
+
+            return veiculo;
+        }
+
         [Fact]
         public void IniciarManutencao_indisponibiliza_e_abre_a_ordem()
         {

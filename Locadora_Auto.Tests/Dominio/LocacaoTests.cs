@@ -28,13 +28,14 @@ namespace Locadora_Auto.Tests.Dominio
         // ======================= criação =======================
 
         [Fact]
-        public void Criar_nasce_criada_e_tira_o_veiculo_da_oferta()
+        public void Criar_nasce_criada_e_leva_o_veiculo_para_locado()
         {
             var veiculo = Fabrica.Veiculo();
 
             var locacao = Fabrica.Locacao(veiculo: veiculo);
 
             Assert.Equal(StatusLocacao.Criada, locacao.Status);
+            Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
             Assert.Null(locacao.DataFimReal);
             Assert.Null(locacao.ValorFinal);
@@ -70,12 +71,32 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void Criar_com_veiculo_indisponivel_e_recusado()
+        public void Criar_com_veiculo_em_manutencao_e_recusado()
         {
             var veiculo = Fabrica.Veiculo();
-            veiculo.Indisponibilizar();
+            veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Troca de embreagem");
 
-            Assert.Throws<ArgumentNullException>(() => Fabrica.Locacao(veiculo: veiculo));
+            Assert.Throws<DomainException>(() => Fabrica.Locacao(veiculo: veiculo));
+        }
+
+        [Fact]
+        public void Criar_com_veiculo_ja_locado_e_recusado()
+        {
+            var veiculo = Fabrica.Veiculo();
+            Fabrica.Locacao(veiculo: veiculo);
+
+            // a checagem de período sobreposto é do serviço; o que o domínio garante é que a placa
+            // já consumida não é consumida de novo
+            Assert.Throws<DomainException>(() => Fabrica.Locacao(veiculo: veiculo));
+        }
+
+        [Fact]
+        public void Criar_com_veiculo_inativo_e_recusado()
+        {
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Desativar();
+
+            Assert.Throws<DomainException>(() => Fabrica.Locacao(veiculo: veiculo));
         }
 
         [Fact]
@@ -90,7 +111,7 @@ namespace Locadora_Auto.Tests.Dominio
         // ======================= devolução =======================
 
         [Fact]
-        public void Finalizar_registra_a_devolucao_e_libera_o_veiculo()
+        public void Finalizar_registra_a_devolucao_e_manda_o_veiculo_para_preparacao()
         {
             var veiculo = Fabrica.Veiculo();
             var locacao = Fabrica.Locacao(veiculo: veiculo, kmInicial: 15_000);
@@ -101,6 +122,64 @@ namespace Locadora_Auto.Tests.Dominio
             Assert.Equal(15_400, locacao.KmFinal);
             Assert.Equal(520m, locacao.ValorFinal);
             Assert.Equal(2, locacao.IdFilialDevolucao);
+
+            // o carro devolvido não está disponível ainda: entra na fila do pátio
+            Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void Finalizar_avanca_o_odometro_e_a_filial_do_veiculo()
+        {
+            var veiculo = Fabrica.Veiculo(idFilial: 1);
+            var locacao = Fabrica.Locacao(veiculo: veiculo, kmInicial: 15_000, idFilialRetirada: 1);
+
+            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 7);
+
+            Assert.Equal(15_400, veiculo.KmAtual);
+            Assert.Equal(7, veiculo.FilialAtualId);
+        }
+
+        [Fact]
+        public void Finalizar_com_avaria_na_devolucao_manda_o_veiculo_para_a_oficina()
+        {
+            var veiculo = Fabrica.Veiculo();
+            var locacao = Fabrica.Locacao(veiculo: veiculo);
+            locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
+            Fabrica.DefinirId(locacao.Vistorias.Single(), 8);
+            locacao.RegistrarDanoVistoria(8, "Risco na porta direita", TipoDano.Risco, 350m);
+
+            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
+
+            var manutencao = Assert.Single(veiculo.Manutencoes);
+            Assert.Equal(TipoManutencao.Corretiva, manutencao.Tipo);
+            Assert.Equal(StatusVeiculo.EmManutencao, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void Finalizar_sem_avaria_nao_abre_manutencao()
+        {
+            var veiculo = Fabrica.Veiculo();
+            var locacao = Fabrica.Locacao(veiculo: veiculo);
+            locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
+
+            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
+
+            Assert.Empty(veiculo.Manutencoes);
+            Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
+        }
+
+        [Fact]
+        public void Cancelar_devolve_o_veiculo_para_a_oferta_sem_preparacao()
+        {
+            var veiculo = Fabrica.Veiculo();
+            var locacao = Fabrica.Locacao(veiculo: veiculo);
+
+            locacao.Cancelar();
+
+            // o contrato foi anulado e o carro não rodou: não há o que preparar
+            Assert.Equal(StatusVeiculo.Disponivel, veiculo.Status);
             Assert.True(veiculo.Disponivel);
         }
 
@@ -453,7 +532,7 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void Dano_na_vistoria_de_devolucao_manda_o_veiculo_para_manutencao()
+        public void Dano_na_vistoria_de_devolucao_nao_abre_manutencao_com_o_contrato_aberto()
         {
             var veiculo = Fabrica.Veiculo();
             var locacao = Fabrica.Locacao(veiculo: veiculo);
@@ -464,9 +543,11 @@ namespace Locadora_Auto.Tests.Dominio
 
             locacao.RegistrarDanoVistoria(8, "Risco na porta direita", TipoDano.Risco, 350m);
 
+            // a avaria fica registrada, mas o carro ainda está com o cliente: a ordem corretiva só
+            // abre no fechamento (ver Finalizar_com_avaria_na_devolucao_manda_o_veiculo_para_a_oficina)
             Assert.Single(vistoria.Danos);
-            Assert.Equal(StatusVeiculo.EmManutencao, veiculo.Status);
-            Assert.False(veiculo.Disponivel);
+            Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
+            Assert.Empty(veiculo.Manutencoes);
         }
 
         [Fact]

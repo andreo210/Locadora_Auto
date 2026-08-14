@@ -1,8 +1,9 @@
 # 08 — Especificação: invariante do ativo (veículo)
 
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
-> **faz hoje**, aqui está o que o controle do veículo **precisa fazer**. Nada do que está
-> abaixo está implementado no momento da escrita.
+> **faz hoje**, aqui está o que o controle do veículo **precisa fazer**. A implementação está
+> em andamento — o que já está de pé é a máquina de estados do domínio; veja
+> [Estado da implementação](#estado-da-implementação).
 
 Continuação de [07 — Fechamento financeiro](07-especificacao-fechamento-financeiro.md). A
 numeração das regras segue de onde aquele documento parou (RN-35 em diante), para as RNs não
@@ -20,6 +21,34 @@ Este bloco trata o veículo como **ativo controlado**. Ele fecha quatro buracos 
   registrada na filial errada.
 - `ReservaService.ValidarDisponibilidade` **desconta o mesmo carro duas vezes** e ignora
   sobreposição de período.
+
+## Estado da implementação
+
+A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Locacao`):
+
+| RN | O que passou a valer |
+|---|---|
+| RN-35, RN-36 | `AplicarStatus` é a única escrita de `Status`/`Disponivel`; o booleano virou derivado (`Ativo && Status == Disponivel`) |
+| RN-38, RN-43 | `Veiculo.Locar()` é chamado por `Locacao.Criar` e valida por status — o booleano deixou de decidir |
+| RN-44, RN-45 | `RegistrarDevolucao` leva a `EmPreparacao`; `LiberarDaPreparacao` devolve à oferta |
+| RN-12, RN-47 | A devolução avança `KmAtual` e `FilialAtualId` do veículo |
+| RN-50 | A guarda "locado não entra em oficina" ficou alcançável, porque `Locado` passou a ser atribuído |
+| RN-51 | A ordem corretiva por avaria abre no fechamento, não no registro da vistoria |
+| RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
+| RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
+
+Ainda **não** implementado:
+
+- **RN-40, RN-41, RN-42** — sobreposição de contrato no mesmo veículo, a constraint `EXCLUDE`
+  e a tradução de `23P01` para 409. É o item mais grave da lista.
+- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos` e o endpoint que o
+  pátio usa para liberar. Sem eles o carro devolvido **fica preso em `EmPreparacao`**.
+- **RN-46** — o cálculo de disponibilidade ainda não desconta o tempo de preparação, e
+  `ReservaService.ValidarDisponibilidade` continua com a subtração dobrada.
+- **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
+  e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
+  **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
+  a versão mínima da seção 4.
 
 ---
 
