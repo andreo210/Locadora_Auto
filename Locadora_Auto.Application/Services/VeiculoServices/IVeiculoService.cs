@@ -24,6 +24,11 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
         Task<bool> AtivarAsync(int id, CancellationToken ct = default);
         Task<bool> DesativarAsync(int id, CancellationToken ct = default);
 
+        /// <summary>
+        /// Devolve à oferta o veículo que estava na fila do pátio depois da devolução (RN-45).
+        /// </summary>
+        Task<bool> LiberarDaPreparacaoAsync(int id, CancellationToken ct = default);
+
         #region Manutencao
         Task<IReadOnlyList<ManutencaoDto>> ObterManutencoesAsync(int id, CancellationToken ct = default);
         Task<bool> IniciarManutencao(int id, CriarManutencaoDto dto, CancellationToken ct = default);

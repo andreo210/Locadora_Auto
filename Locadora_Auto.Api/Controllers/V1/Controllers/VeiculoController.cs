@@ -111,6 +111,19 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
             return CustomResponse(null, HttpStatusCode.NoContent);
         }
 
+        /// <summary>
+        /// O pátio declara o carro pronto depois da devolução e ele volta à oferta (RN-45).
+        /// </summary>
+        [HttpPatch("{id:int}/liberar-preparacao")]
+        public async Task<ActionResult> LiberarDaPreparacao(int id, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.LiberarDaPreparacaoAsync(id, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
         [HttpGet("{id:int}/manutencao")]
         public async Task<ActionResult> ObterManutencoes(int id, CancellationToken ct)
         {

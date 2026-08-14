@@ -254,6 +254,36 @@ public class VeiculoService : IVeiculoService
         return await _veiculoRepository.AtualizarSalvarAsync(veiculo, ct);
     }
 
+    /// <summary>
+    /// RN-45: o pátio declara o carro pronto e ele volta à oferta. Sem esta porta o veículo
+    /// devolvido fica preso em <see cref="StatusVeiculo.EmPreparacao"/>, fora da disponibilidade.
+    /// Veículo inativo volta para <see cref="StatusVeiculo.Indisponivel"/>, não para a oferta.
+    /// </summary>
+    public async Task<bool> LiberarDaPreparacaoAsync(int id, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        // repete a guarda de Veiculo.LiberarDaPreparacao para a recusa sair como ProblemDetails 4xx
+        if (veiculo.Status != StatusVeiculo.EmPreparacao)
+        {
+            _notificador.Add($"Veículo não está em preparação (situação atual: {veiculo.Status})");
+            return false;
+        }
+
+        veiculo.LiberarDaPreparacao();
+        await _veiculoRepository.SalvarAsync(ct);
+        return true;
+    }
+
     #endregion
     #region Manutecao
     public async Task<IReadOnlyList<ManutencaoDto>> ObterManutencoesAsync(int id, CancellationToken ct = default)

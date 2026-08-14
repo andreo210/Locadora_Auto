@@ -44,6 +44,21 @@ namespace Locadora_Auto.Tests.Fakes
         public LocacaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
+    public class FuncionarioRepositoryFake : RepositorioFake<Funcionario>, IFuncionarioRepository
+    {
+        public FuncionarioRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class VistoriaRepositoryFake : RepositorioFake<Vistoria>, IVistoriaRepository
+    {
+        public VistoriaRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class LocacaoSeguroRepositoryFake : RepositorioFake<LocacaoSeguro>, ILocacaoSeguroRepository
+    {
+        public LocacaoSeguroRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
     /// <summary>
     /// Cliente é raiz do agregado que contém as reservas, então este fake reproduz o cascade
     /// do EF: reserva criada por <c>Clientes.ReservarVeiculo</c> só existe dentro da coleção da

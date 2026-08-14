@@ -37,18 +37,32 @@ A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Lo
 | RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
 | RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
 
+E o que está **ligado à Application e à Api** — sem isso a máquina de estados acima existia mas
+não era alcançada por nenhum endpoint:
+
+| RN | O que passou a valer |
+|---|---|
+| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega o veículo com `rastreado: true`, sem o que o `Locar()` do domínio não vira UPDATE — o EF pinta o grafo de `Added` e tentaria inserir o veículo de novo |
+| RN-45 | `PATCH api/v1/veiculos/{id}/liberar-preparacao` → `VeiculoService.LiberarDaPreparacaoAsync`: é a porta pela qual o pátio devolve o carro à oferta |
+| — | Os serviços repetem as guardas de `Veiculo` (`Ativo`, `Status`, km) **antes** de chamar o domínio, para a recusa sair como `ProblemDetails` 4xx. `DomainException` é `internal`, não deriva de `InvalidOperationException` e não é mapeada no `ExceptionProblemFactory`: se escapar, é 500 |
+
 Ainda **não** implementado:
 
 - **RN-40, RN-41, RN-42** — sobreposição de contrato no mesmo veículo, a constraint `EXCLUDE`
   e a tradução de `23P01` para 409. É o item mais grave da lista.
-- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos` e o endpoint que o
-  pátio usa para liberar. Sem eles o carro devolvido **fica preso em `EmPreparacao`**.
+- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. A liberação manual já
+  existe; a automática depende de job agendado, e o Hangfire está comentado no `Program.cs`
+  (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
 - **RN-46** — o cálculo de disponibilidade ainda não desconta o tempo de preparação, e
   `ReservaService.ValidarDisponibilidade` continua com a subtração dobrada.
 - **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
   e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
   **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
   a versão mínima da seção 4.
+
+  Consequência prática da RN-37 estar aberta: a liberação da preparação **não registra quem
+  liberou**. `Veiculo` não implementa `IAuditoria`, então não há nem o autor da última alteração
+  — todo movimento de status do ativo hoje é anônimo, o que é buraco de auditoria de frota.
 
 ---
 
