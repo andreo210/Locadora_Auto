@@ -233,6 +233,7 @@
                 return;
 
             _movimentos.Add(MovimentoVeiculo.Criar(
+                IdVeiculo,
                 // no cadastro não havia situação anterior: o enum começa em 1, então o default
                 // aqui é o veículo que ainda não existia
                 statusAnterior == default ? null : statusAnterior,

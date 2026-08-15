@@ -223,6 +223,7 @@ namespace Locadora_Auto.Tests.Dominio
             // documento — o compilador garante o tipo, não o par
             Assert.Throws<DomainException>(() =>
                 MovimentoVeiculo.Criar(
+                    idVeiculo: 1,
                     StatusVeiculo.Disponivel,
                     StatusVeiculo.Locado,
                     TipoDocumentoOrigem.Contrato));
@@ -233,6 +234,7 @@ namespace Locadora_Auto.Tests.Dominio
         {
             Assert.Throws<DomainException>(() =>
                 MovimentoVeiculo.Criar(
+                    idVeiculo: 1,
                     StatusVeiculo.Disponivel,
                     StatusVeiculo.EmManutencao,
                     TipoDocumentoOrigem.OrdemServico));

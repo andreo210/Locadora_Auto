@@ -29,6 +29,24 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
         /// </summary>
         Task<bool> LiberarDaPreparacaoAsync(int id, CancellationToken ct = default);
 
+        #region Trilha do ativo
+
+        /// <summary>
+        /// Por onde o veículo passou (RN-37), da transição mais recente para a mais antiga.
+        /// </summary>
+        /// <param name="de">Início da janela, inclusivo. Compara instante, não dia.</param>
+        /// <param name="ate">Fim da janela, inclusivo. Compara instante, não dia.</param>
+        /// <param name="idTipoOrigem">Filtra por <c>TipoDocumentoOrigem</c>; valor fora do enum não devolve nada.</param>
+        Task<PaginatedResult<MovimentoVeiculoDto>> ObterMovimentosAsync(
+            int id,
+            ConsultaPaginadaRequest consulta,
+            DateTime? de = null,
+            DateTime? ate = null,
+            int? idTipoOrigem = null,
+            CancellationToken ct = default);
+
+        #endregion Trilha do ativo
+
         #region Manutencao
         Task<IReadOnlyList<ManutencaoDto>> ObterManutencoesAsync(int id, CancellationToken ct = default);
         Task<bool> IniciarManutencao(int id, CriarManutencaoDto dto, CancellationToken ct = default);

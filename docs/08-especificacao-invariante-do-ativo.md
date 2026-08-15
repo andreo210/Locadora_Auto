@@ -53,6 +53,8 @@ não era alcançada por nenhum endpoint:
 | RN-46 | `ReservaService.ValidarDisponibilidade` usa a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período, recuado pelo tempo de preparo da filial |
 | RN-45 (parâmetro) | `Filial.TempoPreparacaoMinutos` (migration `TempoPreparacaoDaFilial`, padrão 120, teto de 1440). É de filial e não de categoria porque quem executa a preparação é o pátio dela; em one-way vale o da filial de destino, para onde a RN-47 já move o ativo |
 | RN-37 (autor) | O autor sai do `IAuditoria` que `MovimentoVeiculo` implementa, preenchido pelo `AplicarAuditoria` do `SaveChangesAsync` — nenhum serviço precisou de `ICurrentUser`. Enquanto a autenticação estiver comentada no `Program.cs` grava `"SYSTEM"`, e volta a gravar o usuário sozinho quando ela for reativada. O par `DataModificacao`/`IdUsuarioModificacao` fica nulo de propósito: movimento não se altera |
+| RN-37 (leitura) | `GET api/v1/veiculos/{id}/movimentos` → `VeiculoService.ObterMovimentosAsync`, paginado, com filtro por período e por tipo de documento, e `termo` procurando o autor. Consulta `MovimentoVeiculo` pelo repositório próprio, e não `veiculo.Movimentos` por `Include`: não há como paginar dentro de um Include, e a trilha de um carro antigo tem centenas de linhas |
+| Seção 12 | `GET api/v1/veiculos/indicadores` → `IndicadoresFrotaService`: utilização real e tempo médio de preparação, mais o tempo por situação (a "frota parada por motivo" medida em tempo). Janela padrão de 30 dias |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
 `btree_gist` 1.7). O que o banco confirmou:
@@ -88,6 +90,32 @@ A migration `MovimentoVeiculo` foi aplicada contra o `locadora_autos` real, que 
 remoção do `xmin` e os dois caminhos de cascata (o veículo apaga o movimento direto e também pela
 manutenção).
 
+E cinco decisões da apuração dos indicadores, que são regra de negócio e não detalhe de cálculo:
+
+| Decisão | Porquê |
+|---|---|
+| A janela termina no máximo **agora** — `ate` no futuro é truncado | A última situação de cada carro é esticada até o fim da janela. Aceitar data futura acumularia tempo que ainda não passou e diluiria a utilização, sempre para baixo |
+| O denominador é o tempo apurado **menos** o tempo em `Indisponivel` | É a "frota operacional" do mercado: carro fora da oferta por decisão da casa não é frota trabalhando, e deixá-lo no denominador puniria a utilização por uma decisão administrativa |
+| A preparação é contada pela **entrada**, e as que não fecharam saem da média mas aparecem em `PreparacoesEmAberto` | Sem o par, um pátio que nunca libera carro nenhum exibiria a melhor média da rede — só as preparações rápidas fechariam dentro da janela e entrariam na conta |
+| Veículo cadastrado dentro da janela só conta a partir do cadastro | O relógio dele começa no primeiro movimento, não na borda da janela: contar antes inventaria frota que ainda não tinha sido comprada |
+| `idFilial` filtra pela filial **atual** do cadastro, não pela histórica | A trilha não guarda filial, e a do veículo muda a cada devolução one-way (RN-47). Enquanto a transferência (RN-48/RN-49) não existir, não há de onde tirar a filial da época — o recorte responde "onde o carro está hoje" |
+
+Duas ressalvas de leitura, para o número não ser usado como não é:
+
+- **Esta utilização é física, não comercial.** Ela mede o que o ativo fez (tempo em `Locado`); a
+  utilização do mercado mede o que foi vendido (diárias faturadas ÷ frota × dias) e sai do
+  contrato, não da trilha. A diferença entre as duas é informação: diária faturada acima do tempo
+  em `Locado` aponta cobrança sem carro na rua; o contrário aponta carro na rua sem contrato.
+- **`VeiculosComTrilha` vem abaixo de `VeiculosNoRecorte` enquanto a RN-37 for recente.** Carro que
+  não se moveu desde a implantação não tem linha nenhuma, e é por isso que ele fica fora da conta
+  em vez de entrar como frota parada — o que baixaria a utilização por falta de dado, não por
+  ociosidade.
+
+A apuração é feita **em memória** sobre as linhas do período, de propósito: enquanto a frota for de
+centenas de carros, ler as linhas é mais barato que manter um fechamento diário que ninguém audita.
+O ponto de virada é conhecido — quando a trilha crescer, isso vira agregação no banco ou tabela de
+fechamento.
+
 Ainda **não** implementado:
 
 - **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. O parâmetro já existe em
@@ -95,8 +123,8 @@ Ainda **não** implementado:
   começou: o `DataMovimento` do movimento que levou a `EmPreparacao`. Falta só o job que solta o
   carro quando o prazo vence, e ele depende de agendador — o Hangfire está comentado no
   `Program.cs` (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
-- **Leitura da trilha** — os movimentos são gravados e nenhum endpoint os devolve. Os indicadores
-  de utilização real e de tempo médio de preparação (seção 12) dependem dessa leitura.
+- **Tela da trilha e dos indicadores** — os dois endpoints existem e nenhuma tela os consome. A
+  trilha cabe na `TabelaGenerica`; os indicadores são painel, que o front ainda não tem.
 - **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo e responsável), **RN-55**
   (unicidade restrita aos ativos — hoje o índice é global) e **RN-56** (desmobilização).
   `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme a versão mínima da seção 4, e
@@ -433,9 +461,9 @@ Cenário: desmobilizar com contrato aberto é recusado
 
 | Indicador | Fórmula | Para que serve |
 |---|---|---|
-| Utilização real | dias em `Locado` ÷ dias de frota ativa | Hoje é impossível: `Locado` nunca é atribuído |
-| Tempo médio de preparação | média de permanência em `EmPreparacao` | Mede o pátio; entra direto no cálculo de disponibilidade |
-| Frota parada por motivo | % em `EmManutencao`, `Bloqueado`, `EmTransferencia` | Carro parado custa igual — depreciação, IPVA, seguro, capital |
+| Utilização real | dias em `Locado` ÷ dias de frota ativa | **Implantado** em `GET api/v1/veiculos/indicadores`. Medida física: é o que o ativo fez, não o que foi faturado |
+| Tempo médio de preparação | média de permanência em `EmPreparacao` | **Implantado** no mesmo endpoint, com as preparações em aberto contadas à parte. Mede o pátio; entra direto no cálculo de disponibilidade |
+| Frota parada por motivo | % em `EmManutencao`, `Bloqueado`, `EmTransferencia` | **Implantado** como `TempoPorSituacao`, em tempo e não em contagem de carros. Carro parado custa igual — depreciação, IPVA, seguro, capital |
 | Bloqueios vencidos | nº com data de liberação no passado | Carro que sumiu da oferta e ninguém percebeu |
 | Tentativas de sobreposição recusadas | nº por filial | Se subir, indica processo de balcão errado, não sistema |
 | Transições sem documento de origem | deve ser **zero** | Controle de auditoria |

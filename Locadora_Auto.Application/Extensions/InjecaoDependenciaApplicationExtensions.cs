@@ -52,6 +52,7 @@ namespace Locadora_Auto.Application.Extensions
             services.AddScoped<ISeguroService, SeguroService>();
             services.AddScoped<ICategoriaVeiculoService, CategoriaVeiculoService>();
             services.AddScoped<IVeiculoService, VeiculoService>();
+            services.AddScoped<IIndicadoresFrotaService, IndicadoresFrotaService>();
             services.AddScoped<IFuncionarioService, FuncionarioService>();
             services.AddScoped<IFilialService, FilialService>();
             services.AddScoped<ILocacaoService, LocacaoService>();

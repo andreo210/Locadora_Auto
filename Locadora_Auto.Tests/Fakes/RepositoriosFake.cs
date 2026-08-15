@@ -39,6 +39,11 @@ namespace Locadora_Auto.Tests.Fakes
         public VeiculosRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
+    public class MovimentoVeiculoRepositoryFake : RepositorioFake<MovimentoVeiculo>, IMovimentoVeiculoRepository
+    {
+        public MovimentoVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
     public class LocacaoRepositoryFake : RepositorioFake<Locacao>, ILocacaoRepository
     {
         public LocacaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
