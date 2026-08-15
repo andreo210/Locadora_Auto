@@ -16,10 +16,12 @@ Documentação técnica do sistema de locadora de automóveis. Todos os diagrama
 | [06 — Diagramas de sequência](06-diagramas-de-sequencia.md) | Fluxos ponta a ponta: login, criação e finalização de locação, upload de fotos, auditoria |
 | [07 — Especificação: fechamento financeiro](07-especificacao-fechamento-financeiro.md) | **Prescritivo.** Regras de apuração do valor final na devolução: diária, hora excedente, km, combustível, proteção, taxas, caução |
 | [08 — Especificação: invariante do ativo](08-especificacao-invariante-do-ativo.md) | **Prescritivo.** Status do veículo como fonte única, um contrato ativo por placa, preparação, localização, manutenção e disponibilidade |
+| [09 — Backlog](09-backlog.md) | Fila de trabalho da Api e do front: o que está aberto, em que ordem pegar e de que outro item depende |
 
 Os documentos `01` a `06` descrevem o sistema **como ele é hoje**. Os numerados a partir de
 `07` são **especificações** — descrevem o que ainda precisa ser construído, e trazem essa
-marcação no cabeçalho.
+marcação no cabeçalho. O `09` não é nem uma coisa nem outra: é a lista de tarefas derivada
+deles e do código, e sai de sincronia rápido — atualize junto com o documento de origem.
 
 ## Visão geral
 

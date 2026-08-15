@@ -1,0 +1,246 @@
+# 09 — Backlog
+
+> **Este documento não é especificação nem descrição do sistema.** É a fila de trabalho: o que
+> está aberto, em que ordem faz sentido pegar e onde encostar a mão. Cada item aponta a origem —
+> uma RN das especificações `07`/`08`, uma armadilha registrada no `CLAUDE.md`, ou o próprio
+> código. Quando um item for concluído, risque a linha aqui e atualize o documento de origem.
+
+Estado da base em 15/08/2026: a especificação `08` (invariante do ativo) está implantada até a
+RN-47; a `07` (fechamento financeiro) **não tem nada em pé** — `FinalizarAsync` continua
+recebendo `valorFinal` pronto de quem chama.
+
+**Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
+
+## Por onde pegar
+
+Três frentes independentes, para escolher pelo tempo disponível e não pela ordem da lista:
+
+| Frente | Primeiro item | Por quê |
+|---|---|---|
+| Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente |
+| Fio principal | **A1** (estados) → **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado |
+| Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
+
+O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
+comece por ele num dia curto.
+
+---
+
+# API
+
+## Bloco A — fechamento financeiro (doc `07`, nada implementado)
+
+Ordem obrigatória: `A1` antes de tudo, `A4` antes de `A5`–`A10`.
+
+**A1 · Estados de locação de verdade** — `M`
+Hoje `StatusLocacao` tem `Pendente` e `EmAndamento` órfãos (nunca atribuídos), não tem
+`Cancelada` — `Locacao.Cancelar()` grava `Finalizada` — e faltam os três estados do doc `07` §6.
+Acrescentar `Cancelada`, `Devolvida`, `Fechada`, `ComSaldoResidual`.
+**Cuidado:** mexer aqui obriga a atualizar `Locacao.StatusTerminais` **e** o `NOT IN` da constraint
+`ex_locacao_sem_sobreposicao` (migration `SobreposicaoDeContrato`). A coluna é `varchar` — os
+terminais vão **entre aspas**; escrever inteiro ali compila, não dá erro e desliga a constraint em
+silêncio. `SobreposicaoDeContratoTests` fixa os literais.
+
+**A2 · Campos congelados no contrato** — `M` · RN-06, RN-14, RN-18, RN-21, RN-22, RN-25
+`Locacao.ValorDiariaContratada`; `LocacaoSeguro.ValorDiariaContratada` e `FranquiaContratada`;
+`Veiculo.CapacidadeTanqueLitros`; `Filial.HabilitadaOneWay` e `TaxaRetornoOneWay`. Migration na
+mesma mudança. Sem cálculo ainda — só o dado e o preenchimento na abertura do contrato. Sem isso
+alterar uma categoria reescreveria contratos passados.
+
+**A3 · Parâmetros da casa** — `P` · RN-03, RN-04, RN-15, RN-23
+`ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`,
+`TaxaServicoAbastecimento`, `ValorLimpezaEspecial`.
+**Decisão pendente:** por filial ou global. O doc `07` §9 recomenda 30 min de tolerância, hora
+excedente a 1/3 da diária com teto de 1 diária, e full-to-full no combustível.
+
+**A4 · Entidades `FechamentoLocacao` e `LinhaFechamento`** — `M` · RN-31, RN-33
+Linha discriminada (tipo, base de cálculo, quantidade, valor unitário, total), **imutável** após o
+fechamento, arredondamento a 2 casas por linha com `MidpointRounding.AwayFromZero`. Correção é
+lançamento novo com autor e motivo, nunca edição.
+
+**A5 · Apuração do período** — `M` · RN-01 a RN-07
+Diária = ciclo de 24h a partir de `DataInicio` (nunca calendário), mínimo 1; tolerância; hora
+excedente por hora iniciada; **teto de 1 diária** substituindo as horas. É domínio puro — testa
+sem banco, e os quatro primeiros cenários gherkin do doc `07` §10 já servem de teste.
+
+**A6 · Quilometragem e combustível** — `M` · RN-08 a RN-16
+Franquia = `LimiteKm × diárias cobradas`; excedente sobre isso. `KmAtual` já avança na devolução
+(RN-12, feito no bloco anterior). Combustível full-to-full pelo enum `NivelCombustivel` ×
+`CapacidadeTanqueLitros` + taxa de serviço cobrada uma vez; devolver com mais não gera crédito.
+Bloqueios: `KmFinal < KmInicial`; `LimiteKm` preenchido com `ValorKmExcedente` nulo. Tanque não
+cadastrado **notifica e não cobra** — melhor perder a cobrança que inventar número.
+
+**A7 · Proteções e acessórios** — `M` · RN-17 a RN-20
+Recalcular `LocacaoAdicional` pelas diárias **efetivas** — hoje `Dias` congela a previsão e erra em
+toda devolução antecipada ou atrasada. Proteção pelas diárias cobradas, pró-rata quando cancelada
+no meio do contrato. Depende de `A2`.
+
+**A8 · Taxas** — `P` · RN-21 a RN-23
+One-way quando a filial de devolução difere da de retirada, só entre filiais habilitadas (não
+habilitada bloqueia e exige alçada). Limpeza especial: valor fixo, só com registro na vistoria de
+devolução **e ao menos uma foto**.
+
+**A9 · Avarias e multas no fechamento** — `M` · RN-24 a RN-26
+Só entram avarias em `Aprovado` ou `Cobrado`; `Registrado`/`EmAnalise` vão para o pós-contrato.
+Havendo proteção, a cobrança ao cliente é limitada à franquia contratada **somando todas as
+avarias**, não por avaria. Multa `Pendente` conhecida entra; recebida depois não reabre.
+
+**A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34
+Total, abatimento só de pagamento `Pago`, saldo negativo que **não** trunca para zero, caução
+resolvida **depois** do saldo, apuração idempotente.
+Inclui consertar a máquina da caução, que hoje está quebrada: `Caucao.Devolver()` só aceita status
+`Pendente` — logo uma caução `Bloqueada`, que é o fluxo normal, nunca pode ser devolvida —,
+`Deduzir` zera o valor marcando `Bloqueada`, e `StatusCaucao.Utilizada` não é atribuído em lugar
+nenhum.
+
+**A11 · Porta da Api** — `M`
+`ILocacaoService.FinalizarAsync` deixa de receber `valorFinal`; entra endpoint de apuração e
+leitura do fechamento discriminado (o extrato que o cliente recebe). **Quebra o contrato do
+`CriarLocacaoDto`/`FinalizarLocacaoDto`** — combinar com `F1` na mesma entrega.
+
+**A12 · Testes do fechamento** — `M`
+Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no molde de
+`LocacaoServiceTests`.
+
+## Bloco B — o que resta do doc `08`
+
+**B1 · Liberação automática da preparação** — `M` · RN-45 (parte automática)
+O parâmetro (`Filial.TempoPreparacaoMinutos`), a liberação manual e o carimbo de início (o
+`DataMovimento` do movimento que levou a `EmPreparacao`) já existem. Falta o job.
+**Decisão pendente:** Hangfire está comentado no `Program.cs` e `AddHangFireConfig`/
+`UseHangFireConfig` **não existem no repositório** — ou se escreve essas extensions, ou se usa um
+`BackgroundService`. O mesmo agendador resolve outros dois pendentes: expirar reservas vencidas
+(hoje só o endpoint manual `PATCH reservas/expirar-vencidas`) e o `//TODO: isso é um job` de
+`Locacao.cs:491` (marcar contrato atrasado).
+
+**B2 · Bloqueio com prazo e responsável** — `M` · RN-52
+`Indisponivel` vira `Bloqueado`, com motivo, data prevista de liberação e responsável. Bloqueio sem
+prazo é carro que some da oferta e ninguém percebe.
+
+**B3 · Transferência entre filiais** — `G` · RN-48, RN-49
+`StatusVeiculo.EmTransferencia`, `Filial.PermiteTransferencia`, `TipoDocumentoOrigem.Transferencia`.
+O veículo sai da oferta da origem **antes** de entrar na do destino. Destrava também o recorte
+histórico por filial dos indicadores (hoje é pela filial atual do cadastro, por falta de dado).
+
+**B4 · Unicidade de placa e chassi restrita aos ativos** — `P` · RN-55
+O índice hoje é global; passa a índice filtrado por `Ativo`.
+
+**B5 · Desmobilização** — `M` · RN-56
+`Desmobilizado` como estado terminal, recusado com contrato aberto.
+
+**B6 · Indicadores que faltam** — `M` · doc `08` §12
+Bloqueios vencidos; tentativas de sobreposição recusadas por filial (contar o `23P01`); transições
+sem documento de origem — este último tem que dar **zero**, é controle de auditoria.
+
+## Bloco C — dívida técnica e consistência
+
+**C1 · `MultaService.ObterMultasPendentesAsync` lança `NotImplementedException`** — `P`
+Não tem endpoint e não tem implementação. Implementar ou tirar da interface. Trava `F4`.
+
+**C2 · `MultaController`** — `P`
+Sem paginação; a rota `status-multa/{idTipo:int}` recebe status num parâmetro chamado de tipo;
+o método é `ObterPorAtatus`; e o `MultaDto` não devolve status nem a locação de origem.
+
+**C3 · `LocacoesController.ObterTodas` sem paginação nem filtro** — `M`
+Migrar para `ConsultaPaginadaRequest` + `OrdenacaoDeConsulta<Locacao>` + `pagina.ParaDto(...)`,
+como em `Reserva`/`Seguro`/`Veiculo`. É o que sustenta a listagem de `F1`.
+
+**C4 · Padronizar as listagens antigas** — `M`
+`Cliente` e `Funcionario` ainda usam `ordem`/`nome`/`cpf`/`cargo`/`pageNumber`/`pageSize`;
+`Filial` e `CategoriaVeiculo` não aceitam ordenação. **Muda a query string** — o
+`Locadora_Auto.Front.Services` correspondente entra na mesma mudança.
+
+**C5 · `DomainException` escapando vira 500** — `P`
+Ela é `internal`, não deriva de `InvalidOperationException` e não está no `ExceptionProblemFactory`.
+Hoje a proteção é os serviços repetirem as guardas do domínio antes de chamá-lo. Mapear para 400/409
+ou fixar por teste que ela nunca escapa.
+
+**C6 · Valores de negócio na rota e na query** — `P`
+`POST {id}/caucao/{valor:decimal}`, `caucao/{idCaucao}/bloquear?motivo=`,
+`pagamento/{id}/marcar-falha?motivo=` — passar para DTO no corpo.
+
+**C7 · Reativar autenticação** — `M`
+`AddApplicationAuthentication`, os `[Authorize]` dos controllers, CORS e health checks estão
+comentados no `Program.cs`. Descomentar como está **não compila**: `AddHangFireConfig`/
+`UseHangFireConfig` não existem (ver `B1`). Efeito colateral bom: o autor do `MovimentoVeiculo`
+deixa de gravar `"SYSTEM"` sozinho.
+
+**C8 · Leitura de vistoria** — `P`
+Existem quatro `POST` de vistoria e **nenhum `GET`**. O fechamento (`A6`, `A9`) e a tela (`F8`)
+precisam ler vistoria, fotos e danos.
+
+**C9 · Rotas de versionamento inconsistentes** — `P`
+Alguns controllers usam `api/v{version:apiVersion}/[controller]`, outros fixam `api/v1/<nome>`.
+Escolher um e uniformizar — mexe na URL, portanto no `Front.Services` junto.
+
+**C10 · Serviços sem teste nenhum** — `M`
+`MultaService`, `SeguroService`, `ClienteService`, `FuncionarioService`, `FilialService`,
+`CategoriaVeiculosService`.
+
+---
+
+# Front
+
+## Bloco D — o menu promete e a página não existe
+
+Todo item aqui é rota que hoje devolve 404 a partir do menu ou da Home.
+
+**F1 · Módulo de locações** — `G` · o maior item da lista
+`/locacoes`, `/locacoes/nova`, `/locacoes/ativas`, `/locacoes/finalizadas`, visualizar. Não existe
+`ILocacaoService` em `Front.Services`, nem `Request`/`Response`, nem validador — e o botão **"Nova
+locação" da Home cai em 404**. É a tela do balcão: o sistema inteiro existe para ela.
+Fatiar em quatro: (a) serviço + listagem na `TabelaGenerica`; (b) abertura, com reserva opcional;
+(c) visualização; (d) finalizar e cancelar. Depende de `C3` para a listagem paginada, e de `A11`
+se o fechamento chegar antes.
+
+**F2 · Operação da locação aberta** — `G`
+Abas de vistoria, adicionais, seguros, multas, pagamentos e caução. Todos os endpoints já existem
+no `LocacoesController` — é front puro. Depende de `F1`.
+
+**F3 · Módulo de adicionais** — `M`
+`/adicionais` e `/adicionais/novo`, com ativar/desativar. A Api está 100% pronta (CRUD completo).
+**Melhor relação esforço/entrega da lista inteira.**
+
+**F4 · Módulo de multas** — `M`
+`/multas` e `/multas/tipos`. Depende de `C1` e `C2`.
+
+**F5 · Dashboard** — `M`
+O menu tem "Dashboard → `/teste`", rota que não existe. Construir sobre
+`GET api/v1/veiculos/indicadores`: utilização real, tempo médio de preparação, preparações em
+aberto e tempo por situação. **Leia as duas ressalvas do doc `08` §Estado antes de rotular os
+números** — a utilização é física e não comercial, e `VeiculosComTrilha` vem abaixo de
+`VeiculosNoRecorte` enquanto a trilha for recente.
+
+**F6 · Trilha do ativo** — `M`
+`GET veiculos/{id}/movimentos` na `TabelaGenerica`, dentro de `VisualizarVeiculo` — paginado, com
+filtro por período e por tipo de documento. O endpoint existe e nenhuma tela o consome.
+
+**F7 · Botão de liberar da preparação** — `P`
+`PATCH veiculos/{id}/liberar-preparacao` não tem botão em lugar nenhum, e o `IVeiculoService` do
+front não tem o método: **hoje o pátio não consegue devolver carro à oferta pelo sistema.** Item
+pequeno com efeito operacional imediato.
+
+**F8 · Vistoria de retirada e devolução** — `G`
+Registro com hodômetro, nível de combustível, fotos e danos. É o que alimenta o fechamento do doc
+`07` — sem vistoria nas duas pontas o fechamento bloqueia por regra. Depende de `C8`.
+
+## Bloco E — correções e limpeza
+
+**F9 · Porta da Api errada no front** — `P`
+`ApiConfig:BaseUrlApiLocacao` em `Front/appsettings.Development.json` aponta para
+`https://localhost:44310/`; a Api sobe em `https://localhost:61977` (`launchSettings.json`).
+
+**F10 · Restos de template** — `P`
+`Counter.razor`, `Weather.razor`, `Component.razor` e o arquivo
+`Front.Services/Servicos/Novo(a) Documento de Texto.txt`.
+
+**F11 · Confirmação em `CriarCategoria.razor:153`** — `P`
+O `// TODO: Implementar diálogo de confirmação` continua lá, e o `ConfirmDialog.razor` já existe.
+
+**F12 · Ações que faltam na reserva** — `P`
+Finalizar e expirar-vencidas não têm botão na listagem, embora o `IReservaService` do front já
+tenha os dois métodos. Falta também o atalho **reserva → abrir locação** (o `CriarLocacaoDto` já
+aceita `idReserva`).
+
+**F13 · Usuários e roles** — `M`
+`UserDto` e `RoleResponse` existem sem serviço e sem tela. Só faz sentido depois de `C7`.
