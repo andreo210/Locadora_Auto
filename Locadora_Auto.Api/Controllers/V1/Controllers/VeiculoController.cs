@@ -12,10 +12,15 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
     public class VeiculoController : MainController
     {
         private readonly IVeiculoService _veiculoService;
+        private readonly IIndicadoresFrotaService _indicadoresService;
 
-        public VeiculoController(IVeiculoService veiculoService,  INotificadorService notificador): base(notificador)
+        public VeiculoController(
+            IVeiculoService veiculoService,
+            IIndicadoresFrotaService indicadoresService,
+            INotificadorService notificador): base(notificador)
         {
             _veiculoService = veiculoService;
+            _indicadoresService = indicadoresService;
         }
 
 
@@ -122,6 +127,39 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
                 return CustomResponse();
 
             return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Indicadores de frota da seção 12, apurados sobre a trilha (RN-37): utilização real e
+        /// tempo médio de preparação. Sem período informado, vale a janela dos últimos 30 dias.
+        /// </summary>
+        [HttpGet("indicadores")]
+        public async Task<ActionResult> ObterIndicadores(
+            CancellationToken ct,
+            [FromQuery] DateTime? de = null,
+            [FromQuery] DateTime? ate = null,
+            [FromQuery] int? idFilial = null,
+            [FromQuery] int? idCategoria = null)
+        {
+            var result = await _indicadoresService.ObterAsync(de, ate, idFilial, idCategoria, ct);
+            return CustomResponse(result);
+        }
+
+        /// <summary>
+        /// Trilha de movimentação do ativo (RN-37): por onde o carro passou, com que documento,
+        /// quando e por quem. Da transição mais recente para a mais antiga.
+        /// </summary>
+        [HttpGet("{id:int}/movimentos")]
+        public async Task<ActionResult> ObterMovimentos(
+            int id,
+            CancellationToken ct,
+            [FromQuery] ConsultaPaginadaRequest consulta,
+            [FromQuery] DateTime? de = null,
+            [FromQuery] DateTime? ate = null,
+            [FromQuery] int? idTipoOrigem = null)
+        {
+            var result = await _veiculoService.ObterMovimentosAsync(id, consulta, de, ate, idTipoOrigem, ct);
+            return CustomResponse(result);
         }
 
         [HttpGet("{id:int}/manutencao")]

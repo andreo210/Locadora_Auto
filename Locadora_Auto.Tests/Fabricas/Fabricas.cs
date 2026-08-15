@@ -117,5 +117,41 @@ namespace Locadora_Auto.Tests.Fabricas
         /// normalmente viria do banco, e sem ele todo filtro por id casaria com a entidade errada.
         /// </summary>
         public static void DefinirId(object entidade, int id) => ChavePrimaria.Definir(entidade, id);
+
+        /// <summary>
+        /// Põe a trilha do veículo (RN-37) no armazém como o <c>SaveChangesAsync</c> faria, para
+        /// que o serviço possa consultá-la por <c>IdVeiculo</c>.
+        ///
+        /// O movimento do cadastro é o único que nasce com <c>IdVeiculo</c> zerado — naquele
+        /// instante o veículo ainda não tinha id, e quem resolve a chave é a navegação, no mesmo
+        /// insert. Em memória não há EF para fazer essa resolução, então ela é refeita aqui.
+        ///
+        /// Semeie o veículo <b>antes</b> das transições: é o id dele que os movimentos seguintes
+        /// carimbam.
+        /// </summary>
+        public static void SemearTrilha(ArmazemFake armazem, Veiculo veiculo)
+        {
+            foreach (var movimento in veiculo.Movimentos.Where(m => m.IdVeiculo == 0))
+                DefinirPropriedade(movimento, nameof(MovimentoVeiculo.IdVeiculo), veiculo.IdVeiculo);
+
+            armazem.Semear(veiculo.Movimentos.ToArray());
+        }
+
+        /// <summary>
+        /// Ancora o instante de um movimento da trilha.
+        ///
+        /// <c>DataMovimento</c> nasce de um <c>DateTime.UtcNow</c> dentro do domínio, que é o certo
+        /// em produção e inútil no teste: sem reescrever o instante, uma trilha inteira cabe em
+        /// alguns milissegundos e nenhum teste de duração distingue uma preparação de 6 horas de
+        /// uma de 6 dias.
+        /// </summary>
+        public static void DatarMovimento(MovimentoVeiculo movimento, DateTime data)
+            => DefinirPropriedade(movimento, nameof(MovimentoVeiculo.DataMovimento), data);
+
+        /// <summary>Escreve em propriedade de set privado — o que o EF e o relógio fazem em produção.</summary>
+        private static void DefinirPropriedade(object entidade, string propriedade, object valor)
+            => entidade.GetType()
+                .GetProperty(propriedade)!
+                .SetValue(entidade, valor);
     }
 }

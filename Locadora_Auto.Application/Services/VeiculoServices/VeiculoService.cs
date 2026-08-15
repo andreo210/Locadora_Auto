@@ -14,17 +14,20 @@ public class VeiculoService : IVeiculoService
     private readonly IVeiculosRepository _veiculoRepository;
     private readonly ICategoriaVeiculosRepository _categoriaRepository;
     private readonly IFilialRepository _filialRepository;
+    private readonly IMovimentoVeiculoRepository _movimentoRepository;
     private readonly INotificadorService _notificador;
 
     public VeiculoService(
         IVeiculosRepository veiculoRepository,
         ICategoriaVeiculosRepository categoriaRepository,
         IFilialRepository filialRepository,
+        IMovimentoVeiculoRepository movimentoRepository,
         INotificadorService notificador)
     {
         _veiculoRepository = veiculoRepository;
         _categoriaRepository = categoriaRepository;
         _filialRepository = filialRepository;
+        _movimentoRepository = movimentoRepository;
         _notificador = notificador;
     }
 
@@ -289,6 +292,110 @@ public class VeiculoService : IVeiculoService
     }
 
     #endregion
+
+    #region Trilha do ativo
+
+    /// <summary>
+    /// Colunas que a trilha aceita ordenar.
+    ///
+    /// O padrão é o id, e não a data, de propósito: <c>DataMovimento</c> vem de um
+    /// <c>DateTime.UtcNow</c> por transição, e duas transições do mesmo <c>SaveChanges</c> podem
+    /// cair no mesmo instante. Empate no ORDER BY faz o Postgres devolver a página 2 com uma linha
+    /// que já apareceu na 1 — ou nenhuma. O id é único e cresce junto com o tempo (a sequência é
+    /// atribuída na ordem do insert), então ordena igual e pagina estável.
+    /// </summary>
+    private static readonly OrdenacaoDeConsulta<MovimentoVeiculo> OrdenacoesMovimento =
+        OrdenacaoDeConsulta<MovimentoVeiculo>.Padrao(m => m.IdMovimentoVeiculo, descendente: true)
+            .Com("data", m => m.DataMovimento)
+            .Com("statusdestino", m => m.StatusDestino)
+            .Com("tipoorigem", m => m.TipoOrigem)
+            .Com("autor", m => m.IdUsuarioCriacao);
+
+    /// <summary>
+    /// RN-37: por onde o carro passou. É a leitura que fecha o ciclo da trilha — sem ela o
+    /// movimento é gravado e ninguém consegue conferir, que é o pior estado possível para uma
+    /// tabela de auditoria.
+    ///
+    /// Consulta <c>MovimentoVeiculo</c> direto, e não <c>veiculo.Movimentos</c> por
+    /// <c>Include</c>, porque a trilha de um carro antigo tem centenas de linhas e não há como
+    /// paginar dentro de um Include: viria tudo para a memória para descartar 90%.
+    /// </summary>
+    public async Task<PaginatedResult<MovimentoVeiculoDto>> ObterMovimentosAsync(
+        int id,
+        ConsultaPaginadaRequest consulta,
+        DateTime? de = null,
+        DateTime? ate = null,
+        int? idTipoOrigem = null,
+        CancellationToken ct = default)
+    {
+        if (!await _veiculoRepository.ExisteAsync(v => v.IdVeiculo == id, ct))
+        {
+            _notificador.Add("Veículo não encontrado");
+            return PaginaVazia(consulta);
+        }
+
+        // as colunas são timestamptz e o Npgsql recusa DateTime que não seja Utc; data de query
+        // string chega Unspecified
+        var inicio = NormalizarUtc(de);
+        var fim = NormalizarUtc(ate);
+
+        // comparar enum com enum evita o cast dentro da árvore de expressão
+        TipoDocumentoOrigem? tipoOrigem = idTipoOrigem.HasValue
+            ? (TipoDocumentoOrigem)idTipoOrigem.Value
+            : null;
+
+        // o termo procura o autor: a pergunta que a trilha responde é "quem mexeu neste carro", e
+        // o resto da linha é enum e id, que já têm filtro próprio
+        var busca = consulta.TermoNormalizado;
+
+        Expression<Func<MovimentoVeiculo, bool>> filtro = m =>
+            m.IdVeiculo == id
+            && (inicio == null || m.DataMovimento >= inicio)
+            && (fim == null || m.DataMovimento <= fim)
+            && (tipoOrigem == null || m.TipoOrigem == tipoOrigem)
+            && (busca == null
+                || (m.IdUsuarioCriacao != null && m.IdUsuarioCriacao.ToLower().Contains(busca)));
+
+        var movimentos = await _movimentoRepository.ObterPaginadoComFiltroAsync(
+            filtro: filtro,
+            ordenarPor: OrdenacoesMovimento.Montar(consulta),
+            pagina: consulta.Pagina,
+            itensPorPagina: consulta.ItensPorPagina,
+            asNoTracking: true,
+            ct: ct);
+
+        return movimentos.ParaDto(MovimentoVeiculoMapper.ToDtoList);
+    }
+
+    /// <summary>
+    /// Página sem itens que preserva o que o cliente pediu. Devolver <c>null</c> obrigaria o
+    /// controller a distinguir "não achei" de "achei e está vazio" — o notificador já faz isso.
+    /// </summary>
+    private static PaginatedResult<MovimentoVeiculoDto> PaginaVazia(ConsultaPaginadaRequest consulta)
+        => new()
+        {
+            Items = new List<MovimentoVeiculoDto>(),
+            Total = 0,
+            Pagina = consulta.Pagina,
+            TotalPaginas = 0,
+            ItensPorPagina = consulta.ItensPorPagina
+        };
+
+    /// <summary>
+    /// Mesma regra do conversor global do <c>LocadoraDbContext</c> (e do
+    /// <c>ReservaService.NormalizarUtc</c>): Local vira UTC, Unspecified é remarcado como UTC.
+    /// </summary>
+    private static DateTime? NormalizarUtc(DateTime? data) => data == null
+        ? null
+        : data.Value.Kind switch
+        {
+            DateTimeKind.Utc => data.Value,
+            DateTimeKind.Local => data.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(data.Value, DateTimeKind.Utc)
+        };
+
+    #endregion Trilha do ativo
+
     #region Manutecao
     public async Task<IReadOnlyList<ManutencaoDto>> ObterManutencoesAsync(int id, CancellationToken ct = default)
     {

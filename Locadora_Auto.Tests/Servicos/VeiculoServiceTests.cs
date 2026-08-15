@@ -64,6 +64,7 @@ namespace Locadora_Auto.Tests.Servicos
                 veiculos,
                 new CategoriaVeiculosRepositoryFake(armazem),
                 new FilialRepositoryFake(armazem),
+                new MovimentoVeiculoRepositoryFake(armazem),
                 notificador);
 
             return new Cenario

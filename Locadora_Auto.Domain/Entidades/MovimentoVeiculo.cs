@@ -54,7 +54,14 @@ namespace Locadora_Auto.Domain.Entidades
 
         private MovimentoVeiculo() { } // EF
 
+        /// <param name="idVeiculo">
+        /// Dono do movimento. Segue a mesma regra dos documentos de origem: veículo já gravado
+        /// entra pelo id; no cadastro ele ainda é 0 e quem resolve a chave é a navegação, porque
+        /// veículo e movimento nascem no mesmo <c>SaveChanges</c>. Preenchê-lo aqui é o que
+        /// permite consultar a trilha por veículo sem reler o agregado inteiro.
+        /// </param>
         internal static MovimentoVeiculo Criar(
+            int idVeiculo,
             StatusVeiculo? statusOrigem,
             StatusVeiculo statusDestino,
             TipoDocumentoOrigem tipoOrigem,
@@ -72,6 +79,7 @@ namespace Locadora_Auto.Domain.Entidades
 
             return new MovimentoVeiculo
             {
+                IdVeiculo = idVeiculo,
                 StatusOrigem = statusOrigem,
                 StatusDestino = statusDestino,
                 TipoOrigem = tipoOrigem,
