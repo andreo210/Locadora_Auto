@@ -159,6 +159,24 @@ namespace Locadora_Auto.Tests.Dominio
             Assert.Null(movimento.ManutencaoOrigem);
         }
 
+        [Fact]
+        public void Liberacao_por_prazo_registra_origem_distinta_da_do_patio()
+        {
+            // é a distinção que sustenta o indicador do §12: fundida com a do pátio, a média de
+            // tempo de preparação passaria a premiar exatamente o pátio que nunca declara nada
+            var veiculo = Fabrica.Veiculo();
+            var contrato = Fabrica.Locacao(veiculo: veiculo);
+            contrato.Finalizar(contrato.DataFimPrevista, 15_400, 520m, filialDevolucao: 1);
+
+            veiculo.LiberarDaPreparacaoPorPrazo();
+
+            var movimento = UltimoMovimento(veiculo);
+            Assert.Equal(StatusVeiculo.EmPreparacao, movimento.StatusOrigem);
+            Assert.Equal(StatusVeiculo.Disponivel, movimento.StatusDestino);
+            Assert.Equal(TipoDocumentoOrigem.Prazo, movimento.TipoOrigem);
+            Assert.NotEqual(TipoDocumentoOrigem.Patio, movimento.TipoOrigem);
+        }
+
         // ======================= oficina =======================
 
         [Fact]

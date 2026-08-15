@@ -29,6 +29,12 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
         /// </summary>
         Task<bool> LiberarDaPreparacaoAsync(int id, CancellationToken ct = default);
 
+        /// <summary>
+        /// Varre o pátio e devolve à oferta quem passou do <c>TempoPreparacaoMinutos</c> da filial
+        /// sem liberação explícita (RN-45, parte automática). Chamada pelo agendador, em lote.
+        /// </summary>
+        Task<LiberacaoPreparacaoDto> LiberarPreparacoesVencidasAsync(CancellationToken ct = default);
+
         #region Trilha do ativo
 
         /// <summary>

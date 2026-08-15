@@ -183,12 +183,25 @@
         /// Não recebe documento: aqui a origem é o próprio ato do pátio, e o que responde "quem
         /// liberou" é o autor gravado no movimento.
         /// </summary>
-        public void LiberarDaPreparacao()
+        public void LiberarDaPreparacao() => SairDaPreparacao(TipoDocumentoOrigem.Patio);
+
+        /// <summary>
+        /// RN-45, parte automática: o <c>TempoPreparacaoMinutos</c> da filial venceu e o carro
+        /// volta à oferta sem o pátio ter declarado nada. Existe para o veículo não ficar preso na
+        /// fila por esquecimento — frota que some da oferta e ninguém percebe.
+        ///
+        /// É transição idêntica à do pátio, com um único ponto de diferença que é justamente o que
+        /// importa: a origem gravada é <see cref="TipoDocumentoOrigem.Prazo"/>, porque aqui
+        /// ninguém conferiu o carro.
+        /// </summary>
+        public void LiberarDaPreparacaoPorPrazo() => SairDaPreparacao(TipoDocumentoOrigem.Prazo);
+
+        private void SairDaPreparacao(TipoDocumentoOrigem origem)
         {
             if (Status != StatusVeiculo.EmPreparacao)
                 throw new DomainException($"Veículo não está em preparação (status atual: {Status})");
 
-            SairParaOferta(TipoDocumentoOrigem.Patio);
+            SairParaOferta(origem);
         }
 
         /// <summary>

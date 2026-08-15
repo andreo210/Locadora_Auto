@@ -112,6 +112,19 @@ namespace Locadora_Auto.Domain.Entidades
         OrdemServico = 3,
 
         /// <summary>Liberação da preparação declarada pelo pátio.</summary>
-        Patio = 4
+        Patio = 4,
+
+        /// <summary>
+        /// Vencimento do <c>TempoPreparacaoMinutos</c> da filial (RN-45, parte automática).
+        ///
+        /// Separado de <see cref="Patio"/> de propósito, e a distinção é de negócio, não de
+        /// implementação: a liberação por prazo devolve à oferta um carro que <b>ninguém
+        /// conferiu</b>. Fundidas num tipo só, o tempo médio de preparação da seção 12 viraria
+        /// ficção — um pátio que nunca declara nada exibiria exatamente o
+        /// <c>TempoPreparacaoMinutos</c> da casa, a melhor média da rede, sem ter limpado carro
+        /// nenhum. Assim a liberação sem conferência fica contável por filial e a métrica continua
+        /// medindo o pátio.
+        /// </summary>
+        Prazo = 5
     }
 }

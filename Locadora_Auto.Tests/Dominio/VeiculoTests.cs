@@ -174,6 +174,46 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
+        public void LiberarDaPreparacaoPorPrazo_devolve_o_veiculo_para_a_oferta()
+        {
+            var veiculo = Fabrica.Veiculo();
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
+
+            veiculo.LiberarDaPreparacaoPorPrazo();
+
+            Assert.Equal(StatusVeiculo.Disponivel, veiculo.Status);
+            Assert.True(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void LiberarDaPreparacaoPorPrazo_nao_devolve_veiculo_inativo_para_a_oferta()
+        {
+            // RN-53: o prazo vence igual, mas carro desativado não volta para a oferta
+            var veiculo = Fabrica.Veiculo();
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
+            veiculo.Desativar();
+
+            veiculo.LiberarDaPreparacaoPorPrazo();
+
+            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.False(veiculo.Disponivel);
+        }
+
+        [Fact]
+        public void LiberarDaPreparacaoPorPrazo_de_veiculo_que_nao_esta_em_preparacao_e_recusado()
+        {
+            // a varredura em lote passa pela mesma guarda: carro locado não é solto pelo relógio
+            var veiculo = Fabrica.Veiculo();
+            veiculo.Locar(Fabrica.Contrato());
+
+            Assert.Throws<DomainException>(() => veiculo.LiberarDaPreparacaoPorPrazo());
+        }
+
+        [Fact]
         public void Desativar_veiculo_locado_tira_da_oferta_mas_mantem_o_status()
         {
             var veiculo = Fabrica.Veiculo();

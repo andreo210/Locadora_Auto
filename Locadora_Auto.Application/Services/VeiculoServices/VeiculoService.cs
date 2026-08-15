@@ -291,6 +291,92 @@ public class VeiculoService : IVeiculoService
         return true;
     }
 
+    /// <summary>
+    /// RN-45, parte automática: devolve à oferta todo veículo cujo prazo de preparação venceu sem
+    /// o pátio ter declarado nada. Sem esta varredura o carro esquecido pelo pátio some da oferta
+    /// para sempre, e a frota encolhe sem ninguém perceber.
+    ///
+    /// Não notifica: é varredura de lote, disparada por agendador e não por usuário, e recusa
+    /// individual aqui não tem para quem ser respondida. O que ela devolve é a contagem — é assim
+    /// que a liberação sem conferência fica visível.
+    /// </summary>
+    public async Task<LiberacaoPreparacaoDto> LiberarPreparacoesVencidasAsync(CancellationToken ct = default)
+    {
+        var agora = DateTime.UtcNow;
+
+        // rastreado: LiberarDaPreparacaoPorPrazo é transição e acrescenta MovimentoVeiculo à
+        // coleção — filho novo só chega ao banco pela instância rastreada
+        var noPatio = await _veiculoRepository.ObterAsync(
+            filtro: v => v.Status == StatusVeiculo.EmPreparacao,
+            rastreado: true,
+            ct: ct);
+
+        var resultado = new LiberacaoPreparacaoDto { Analisados = noPatio.Count };
+        if (noPatio.Count == 0) return resultado;
+
+        // o prazo vem da filial atual do veículo, que na devolução one-way já é a de destino
+        // (RN-47): quem prepara o carro é o pátio de onde ele está. Consulta à parte em vez de
+        // Include porque só o inteiro interessa
+        var idsFilial = noPatio.Select(v => v.FilialAtualId).Distinct().ToList();
+        var filiais = (await _filialRepository.ObterAsync(
+                filtro: f => idsFilial.Contains(f.IdFilial),
+                ct: ct))
+            .ToDictionary(f => f.IdFilial);
+
+        var idsVeiculo = noPatio.Select(v => v.IdVeiculo).ToList();
+
+        // quando cada carro entrou no pátio: o DataMovimento do movimento que o levou a
+        // EmPreparacao. O mais recente deles, porque o mesmo carro entra e sai a cada ciclo de
+        // locação — e o desempate é pelo id, não pela data, porque duas transições do mesmo
+        // SaveChanges caem no mesmo instante e o id é atribuído na ordem do insert.
+        //
+        // Traz todas as entradas históricas dos carros do lote, e não só a última de cada um:
+        // "o maior por grupo" não sai do repositório genérico. O lote é o pátio de agora, então o
+        // custo é pequeno — mesmo ponto de virada dos indicadores da seção 12, quando a trilha
+        // crescer isto vira agregação no banco
+        var entradas = (await _movimentoRepository.ObterAsync(
+                filtro: m => idsVeiculo.Contains(m.IdVeiculo)
+                             && m.StatusDestino == StatusVeiculo.EmPreparacao,
+                ct: ct))
+            .GroupBy(m => m.IdVeiculo)
+            .ToDictionary(g => g.Key, g => g.MaxBy(m => m.IdMovimentoVeiculo)!.DataMovimento);
+
+        foreach (var veiculo in noPatio)
+        {
+            // a FK de filial é obrigatória, então a busca não falha; se algum dia falhar, deixar o
+            // carro no pátio é o lado seguro — a porta manual continua aberta
+            if (!filiais.TryGetValue(veiculo.FilialAtualId, out var filial))
+                continue;
+
+            if (entradas.TryGetValue(veiculo.IdVeiculo, out var inicioPreparacao))
+            {
+                if (!filial.PreparacaoVencida(inicioPreparacao, agora))
+                {
+                    resultado.AindaNoPrazo++;
+                    continue;
+                }
+            }
+            else
+            {
+                // sem carimbo: o carro entrou no pátio antes da trilha da RN-37 existir, logo está
+                // parado há mais tempo que qualquer TempoPreparacaoMinutos e o prazo venceu por
+                // construção. Inventar um início "agora" reiniciaria o relógio de um carro parado
+                // há dias — esconderia exatamente o que se quer enxergar
+                resultado.SemCarimbo++;
+            }
+
+            // veículo inativo não volta para a oferta: SairParaOferta o manda para Indisponivel
+            // (RN-53). A transição é a mesma; o que muda é o destino
+            veiculo.LiberarDaPreparacaoPorPrazo();
+            resultado.Liberados++;
+        }
+
+        if (resultado.Liberados > 0)
+            await _veiculoRepository.SalvarAsync(ct);
+
+        return resultado;
+    }
+
     #endregion
 
     #region Trilha do ativo

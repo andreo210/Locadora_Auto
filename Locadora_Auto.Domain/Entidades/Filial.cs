@@ -100,6 +100,26 @@
             TempoPreparacaoMinutos = minutos;
         }
 
+        /// <summary>
+        /// Instante em que a preparação começada em <paramref name="inicioPreparacao"/> vence e o
+        /// carro pode voltar à oferta sozinho (RN-45, parte automática).
+        ///
+        /// O cálculo mora aqui, e não em quem varre o pátio, porque o parâmetro é da filial: quem
+        /// conhece o prazo é quem o define.
+        /// </summary>
+        public DateTime PrazoDePreparacao(DateTime inicioPreparacao)
+            => inicioPreparacao.AddMinutes(TempoPreparacaoMinutos);
+
+        /// <summary>
+        /// O prazo já venceu? Comparação por instante, não por dia — preparação se mede em minutos.
+        ///
+        /// Filial com preparação zero vence no mesmo instante da devolução: é a filial declarando
+        /// que não tem preparação, a escolha consciente que <see cref="DefinirTempoPreparacao"/>
+        /// permite.
+        /// </summary>
+        public bool PreparacaoVencida(DateTime inicioPreparacao, DateTime agora)
+            => agora >= PrazoDePreparacao(inicioPreparacao);
+
         private static void ValidarPreparacao(int minutos)
         {
             if (minutos < 0)

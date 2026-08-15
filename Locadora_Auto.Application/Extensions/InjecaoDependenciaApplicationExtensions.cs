@@ -3,6 +3,7 @@ using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Configuration.Ultils.UploadArquivoServices;
 using Locadora_Auto.Application.Configuration.Ultils.ValidadorArquivoServices;
 using Locadora_Auto.Application.Jobs;
+using Locadora_Auto.Application.Jobs.JobsBackgroundService;
 using Locadora_Auto.Application.Services.AdicionaisServices;
 using Locadora_Auto.Application.Services.CategoriaVeiculosServices;
 using Locadora_Auto.Application.Services.ClienteServices;
@@ -35,6 +36,10 @@ namespace Locadora_Auto.Application.Extensions
             services.AddSingleton<MessageSenderBackgroundService>();
             services.AddSingleton<IMessageSenderBackgroundService>(provider => provider.GetRequiredService<MessageSenderBackgroundService>());
             services.AddHostedService(provider => provider.GetRequiredService<MessageSenderBackgroundService>());
+
+            // RN-45: solta o carro que o pátio esqueceu em preparação. Sem porta na Api de
+            // propósito — a liberação manual já tem a dela (PATCH veiculos/{id}/liberar-preparacao)
+            services.AddHostedService<LiberacaoPreparacaoBackgroundService>();
 
             //utils
             services.AddScoped<IUploadDownloadFileService, UploadDownloadFileService>();

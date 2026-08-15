@@ -76,5 +76,38 @@ namespace Locadora_Auto.Tests.Dominio
             Assert.Equal("Filial Centro", filial.Nome);
             Assert.Equal("São Paulo", filial.Cidade);
         }
+
+        // ======================= prazo (RN-45, parte automática) =======================
+
+        [Fact]
+        public void Prazo_de_preparacao_soma_os_minutos_da_filial_ao_inicio()
+        {
+            var filial = Fabrica.Filial(tempoPreparacaoMinutos: 120);
+            var devolucao = new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
+
+            Assert.Equal(devolucao.AddHours(2), filial.PrazoDePreparacao(devolucao));
+        }
+
+        [Theory]
+        [InlineData(119, false)] // um minuto antes do prazo o carro ainda é do pátio
+        [InlineData(120, true)]  // no instante do vencimento já pode sair sozinho
+        [InlineData(121, true)]
+        public void Preparacao_vence_no_minuto_do_prazo_e_nao_antes(int minutosDecorridos, bool vencida)
+        {
+            var filial = Fabrica.Filial(tempoPreparacaoMinutos: 120);
+            var devolucao = new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
+
+            Assert.Equal(vencida, filial.PreparacaoVencida(devolucao, devolucao.AddMinutes(minutosDecorridos)));
+        }
+
+        [Fact]
+        public void Filial_sem_preparacao_vence_no_instante_da_devolucao()
+        {
+            // zero é a filial declarando que não prepara carro; o prazo não tem o que esperar
+            var filial = Fabrica.Filial(tempoPreparacaoMinutos: 0);
+            var devolucao = new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
+
+            Assert.True(filial.PreparacaoVencida(devolucao, devolucao));
+        }
     }
 }

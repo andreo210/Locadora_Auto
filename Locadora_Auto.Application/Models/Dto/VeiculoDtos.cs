@@ -43,5 +43,33 @@
         public int? IdFilialAtual { get; set; }
     }
 
+    /// <summary>
+    /// O que uma passada da varredura da RN-45 encontrou. Não é resposta de endpoint: é o que a
+    /// varredura devolve para quem a disparou registrar em log.
+    ///
+    /// Os números existem para a liberação automática não virar caixa-preta. Uma varredura que só
+    /// dissesse "liberei 4" esconderia justamente o que interessa saber — quantos carros o pátio
+    /// deixou vencer.
+    /// </summary>
+    public class LiberacaoPreparacaoDto
+    {
+        /// <summary>Quantos veículos estavam em preparação no momento da varredura.</summary>
+        public int Analisados { get; set; }
+
+        /// <summary>Quantos voltaram à oferta por vencimento do prazo, sem conferência do pátio.</summary>
+        public int Liberados { get; set; }
+
+        /// <summary>Quantos continuam no pátio dentro do prazo da filial.</summary>
+        public int AindaNoPrazo { get; set; }
+
+        /// <summary>
+        /// Subconjunto de <see cref="Liberados"/>: veículos que entraram em preparação antes da
+        /// trilha da RN-37 existir e por isso não têm carimbo de início. Contados à parte porque
+        /// são liberados por dedução — estão parados desde antes da implantação — e não por prazo
+        /// medido. Tende a zero e não deve voltar a subir.
+        /// </summary>
+        public int SemCarimbo { get; set; }
+    }
+
 
 }

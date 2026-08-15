@@ -55,6 +55,7 @@ não era alcançada por nenhum endpoint:
 | RN-37 (autor) | O autor sai do `IAuditoria` que `MovimentoVeiculo` implementa, preenchido pelo `AplicarAuditoria` do `SaveChangesAsync` — nenhum serviço precisou de `ICurrentUser`. Enquanto a autenticação estiver comentada no `Program.cs` grava `"SYSTEM"`, e volta a gravar o usuário sozinho quando ela for reativada. O par `DataModificacao`/`IdUsuarioModificacao` fica nulo de propósito: movimento não se altera |
 | RN-37 (leitura) | `GET api/v1/veiculos/{id}/movimentos` → `VeiculoService.ObterMovimentosAsync`, paginado, com filtro por período e por tipo de documento, e `termo` procurando o autor. Consulta `MovimentoVeiculo` pelo repositório próprio, e não `veiculo.Movimentos` por `Include`: não há como paginar dentro de um Include, e a trilha de um carro antigo tem centenas de linhas |
 | Seção 12 | `GET api/v1/veiculos/indicadores` → `IndicadoresFrotaService`: utilização real e tempo médio de preparação, mais o tempo por situação (a "frota parada por motivo" medida em tempo). Janela padrão de 30 dias |
+| RN-45 (automática) | `LiberacaoPreparacaoBackgroundService` varre o pátio a cada 5 min e solta quem passou do `TempoPreparacaoMinutos` da filial, por `VeiculoService.LiberarPreparacoesVencidasAsync`. Sem porta na Api: é lote de agendador, e a liberação manual já tem a dela. Desligável por `Jobs:LiberacaoPreparacao:Habilitado` |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
 `btree_gist` 1.7). O que o banco confirmou:
@@ -116,13 +117,26 @@ centenas de carros, ler as linhas é mais barato que manter um fechamento diári
 O ponto de virada é conhecido — quando a trilha crescer, isso vira agregação no banco ou tabela de
 fechamento.
 
+Quatro decisões da liberação automática (RN-45), que são regra e não detalhe do agendador:
+
+| Decisão | Porquê |
+|---|---|
+| A liberação por prazo grava origem **`Prazo`**, separada de `Patio` | A distinção é de negócio: o prazo devolve à oferta um carro que **ninguém conferiu**. Fundidos num tipo só, o tempo médio de preparação da seção 12 viraria ficção — um pátio que nunca declara nada exibiria exatamente o `TempoPreparacaoMinutos` da casa, a melhor média da rede, sem ter limpado carro nenhum. Separados, a liberação sem conferência fica contável por filial e a métrica continua medindo o pátio |
+| O carro parado há dias (Api fora do ar, backlog) é solto com data de **agora**, nunca retroativa | A trilha registra o que aconteceu, e o indicador tem que mostrar os dias em que o carro ficou parado. Datar a liberação no vencimento esconderia exatamente a falha que se quer enxergar |
+| Avaria não ganhou guarda nova | A RN-51 abre a ordem corretiva **no fechamento**, e o carro vai para `EmManutencao`. Quem tem avaria não está em `EmPreparacao`, então a varredura nunca o vê — repetir a decisão aqui a duplicaria em dois lugares |
+| Veículo em `EmPreparacao` **sem carimbo** de entrada é liberado, e contado à parte | É o carro que entrou no pátio antes da RN-37 existir: está parado há mais tempo que qualquer `TempoPreparacaoMinutos`, logo o prazo venceu por construção. Datar o início como "agora" reiniciaria o relógio de um carro parado há dias. O contador `SemCarimbo` tende a zero e não deve voltar a subir |
+
+O agendador é um `BackgroundService`, e não o Hangfire: a varredura olha o estado atual do pátio em
+vez de consumir uma fila, então é idempotente — tick perdido se resolve no próximo e não há nada que
+precise sobreviver a um restart. Fila persistente, retry e dashboard só pagam o custo com trabalho
+que não pode se perder ou com mais de uma instância; o Hangfire ainda exigiria storage próprio no
+banco (hoje há só o pacote no `csproj`, sem extension e com `HangfireConnection` vazia). Com mais de
+uma instância as duas varreriam junto sem estragar nada: a segunda encontra o carro fora de
+`EmPreparacao` e a guarda do domínio o descarta; empatando na leitura, o `xmin` derruba a segunda
+gravação.
+
 Ainda **não** implementado:
 
-- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. O parâmetro já existe em
-  `Filial`, a liberação manual também, e desde a RN-37 existe o carimbo de **quando** a preparação
-  começou: o `DataMovimento` do movimento que levou a `EmPreparacao`. Falta só o job que solta o
-  carro quando o prazo vence, e ele depende de agendador — o Hangfire está comentado no
-  `Program.cs` (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
 - **Tela da trilha e dos indicadores** — os dois endpoints existem e nenhuma tela os consome. A
   trilha cabe na `TabelaGenerica`; os indicadores são painel, que o front ainda não tem.
 - **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo e responsável), **RN-55**

@@ -6,8 +6,9 @@
 > código. Quando um item for concluído, risque a linha aqui e atualize o documento de origem.
 
 Estado da base em 15/08/2026: a especificação `08` (invariante do ativo) está implantada até a
-RN-47; a `07` (fechamento financeiro) **não tem nada em pé** — `FinalizarAsync` continua
-recebendo `valorFinal` pronto de quem chama.
+RN-47, agora com a RN-45 inteira (a liberação da preparação virou automática); a `07` (fechamento
+financeiro) **não tem nada em pé** — `FinalizarAsync` continua recebendo `valorFinal` pronto de quem
+chama.
 
 **Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
 
@@ -104,14 +105,19 @@ Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no 
 
 ## Bloco B — o que resta do doc `08`
 
-**B1 · Liberação automática da preparação** — `M` · RN-45 (parte automática)
-O parâmetro (`Filial.TempoPreparacaoMinutos`), a liberação manual e o carimbo de início (o
-`DataMovimento` do movimento que levou a `EmPreparacao`) já existem. Falta o job.
-**Decisão pendente:** Hangfire está comentado no `Program.cs` e `AddHangFireConfig`/
-`UseHangFireConfig` **não existem no repositório** — ou se escreve essas extensions, ou se usa um
-`BackgroundService`. O mesmo agendador resolve outros dois pendentes: expirar reservas vencidas
-(hoje só o endpoint manual `PATCH reservas/expirar-vencidas`) e o `//TODO: isso é um job` de
-`Locacao.cs:491` (marcar contrato atrasado).
+~~**B1 · Liberação automática da preparação** — `M` · RN-45 (parte automática)~~ **feito.**
+`LiberacaoPreparacaoBackgroundService` varre o pátio a cada 5 min e solta quem passou do
+`TempoPreparacaoMinutos` da filial. A decisão do agendador foi **`BackgroundService`**, não
+Hangfire — a varredura é idempotente, então não há trabalho que precise sobreviver a restart (o
+porquê inteiro está no doc `08`). A liberação por prazo grava `TipoDocumentoOrigem.Prazo`, separada
+da do pátio, para o tempo médio de preparação continuar medindo o pátio e não premiar quem nunca
+declara nada.
+
+**B1.1 · As outras duas varreduras** — `P`
+O host do agendador já existe; cada varredura nova é um método. Faltam expirar reservas vencidas
+(hoje só o endpoint manual `PATCH reservas/expirar-vencidas`, com `ExpirarVencidasAsync` pronto) e o
+`//TODO: isso é um job` de `Locacao.cs` (`MarcarComoAtrasada`, pronto na entidade e sem ninguém
+chamando). O segundo mexe em `StatusLocacao` — combine com `A1`.
 
 **B2 · Bloqueio com prazo e responsável** — `M` · RN-52
 `Indisponivel` vira `Bloqueado`, com motivo, data prevista de liberação e responsável. Bloqueio sem
@@ -162,8 +168,9 @@ ou fixar por teste que ela nunca escapa.
 **C7 · Reativar autenticação** — `M`
 `AddApplicationAuthentication`, os `[Authorize]` dos controllers, CORS e health checks estão
 comentados no `Program.cs`. Descomentar como está **não compila**: `AddHangFireConfig`/
-`UseHangFireConfig` não existem (ver `B1`). Efeito colateral bom: o autor do `MovimentoVeiculo`
-deixa de gravar `"SYSTEM"` sozinho.
+`UseHangFireConfig` não existem. Como o `B1` decidiu ficar em `BackgroundService`, a saída é
+**apagar as duas linhas do Hangfire** ao descomentar o resto, não escrever as extensions. Efeito
+colateral bom: o autor do `MovimentoVeiculo` deixa de gravar `"SYSTEM"` sozinho.
 
 **C8 · Leitura de vistoria** — `P`
 Existem quatro `POST` de vistoria e **nenhum `GET`**. O fechamento (`A6`, `A9`) e a tela (`F8`)
