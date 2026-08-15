@@ -231,7 +231,10 @@ public class VeiculoService : IVeiculoService
 
     public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
     {
-        var veiculo = await _veiculoRepository.ObterPorIdAsync(id);
+        // rastreado: Ativar() é transição de status e, desde a RN-37, também acrescenta um
+        // MovimentoVeiculo à coleção — filho novo só chega ao banco pela instância rastreada,
+        // porque o SetValues do AtualizarSalvarAsync copia escalares e ignora navegação
+        var veiculo = await _veiculoRepository.ObterPorIdAsync(id, true, ct);
         if (veiculo == null)
         {
             _notificador.Add("Veículo não encontrado");
@@ -243,7 +246,8 @@ public class VeiculoService : IVeiculoService
     }
     public async Task<bool> DesativarAsync(int id, CancellationToken ct = default)
     {
-        var veiculo = await _veiculoRepository.ObterPorIdAsync(id);
+        // rastreado: mesmo motivo do AtivarAsync — a transição gera movimento
+        var veiculo = await _veiculoRepository.ObterPorIdAsync(id, true, ct);
         if (veiculo == null)
         {
             _notificador.Add("Veículo não encontrado");

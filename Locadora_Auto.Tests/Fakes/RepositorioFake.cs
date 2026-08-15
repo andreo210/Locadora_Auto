@@ -61,6 +61,11 @@ namespace Locadora_Auto.Tests.Fakes
 
         public IQueryable<TEntity> ObterTodos() => Tabela.AsQueryable();
 
+        /// <summary>
+        /// <c>rastreado</c> é ignorado de propósito: em memória o armazém devolve a mesma instância
+        /// que o teste semeou, então rastrear não muda nada. Quem verifica a semântica do parâmetro
+        /// é <c>Infra/ParametroRastreadoTests</c>, com o change tracker real.
+        /// </summary>
         public Task<TEntity> ObterPorIdAsync(object id, bool? rastreado = false, CancellationToken ct = default)
             => Task.FromResult(Tabela.FirstOrDefault(e => Equals(ChavePrimaria.Ler(e), id))!);
 

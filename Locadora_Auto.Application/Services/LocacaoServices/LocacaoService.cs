@@ -70,11 +70,17 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 ? await _reservaRepository.ObterPrimeiroAsync(r => r.IdReserva == idReserva, null, true, ct)
                 : null;
 
-            // rastreado: Locacao.Criar chama veiculo.Locar(), e a saída do ativo da oferta só chega
-            // ao banco se esta instância estiver sendo rastreada pelo contexto
+            // Os três precisam vir rastreados, por dois motivos distintos:
+            //
+            // o veículo, porque Locacao.Criar chama veiculo.Locar() — a saída do ativo da oferta e
+            // o MovimentoVeiculo da RN-37 só chegam ao banco pela instância que o contexto segue;
+            //
+            // cliente e funcionário, porque Locacao.Criar os guarda como navegação e o Add da
+            // locação pinta de Added todo o grafo que não estiver rastreado: o EF tentaria inserir
+            // um cliente e um funcionário novos em vez de referenciar os que já existem.
             var veiculo = await _veiculoRepository.ObterPorIdAsync(dto.IdVeiculo.Value, true, ct);
-            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente.Value, false, ct);
-            var funcionario = await _funcionarioRepository.ObterPorIdAsync(dto.IdFuncionario, false, ct);
+            var cliente = await _clienteRepository.ObterPorIdAsync(dto.IdCliente.Value, true, ct);
+            var funcionario = await _funcionarioRepository.ObterPorIdAsync(dto.IdFuncionario, true, ct);
 
             if (cliente == null) _notificador.Add("Cliente não encontrado");
             if (veiculo == null) _notificador.Add("Veículo não encontrado");
@@ -156,7 +162,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         }
         public async Task<LocacaoDto?> AtualizarAsync(int id, AtualizarLocacaoDto dto, CancellationToken ct = default)
         {
-            var locacao = await _locacaoRepository.ObterPorIdAsync(id, false, ct);
+            // rastreado: AtualizarDados altera a locação e o AtualizarSalvarAsync grava logo abaixo
+            var locacao = await _locacaoRepository.ObterPorIdAsync(id, true, ct);
             if (locacao == null)
             {
                 _notificador.Add("Locação não encontrada");

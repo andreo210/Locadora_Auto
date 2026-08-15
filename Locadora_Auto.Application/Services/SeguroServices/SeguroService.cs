@@ -182,7 +182,7 @@ namespace Locadora_Auto.Application.Services.SeguroServices
 
         public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
         {
-            var seguro = await _seguroRepository.ObterPorIdAsync(id);
+            var seguro = await _seguroRepository.ObterPorIdAsync(id, true, ct);
             if (seguro == null)
             {
                 _notificador.Add("Seguro não encontrado");
@@ -200,7 +200,7 @@ namespace Locadora_Auto.Application.Services.SeguroServices
 
         public async Task<bool> DesativarAsync(int id, CancellationToken ct = default)
         {
-            var seguro = await _seguroRepository.ObterPorIdAsync(id);
+            var seguro = await _seguroRepository.ObterPorIdAsync(id, true, ct);
             if (seguro == null)
             {
                 _notificador.Add("Seguro não encontrado");

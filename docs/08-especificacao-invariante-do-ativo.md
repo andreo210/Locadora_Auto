@@ -36,19 +36,23 @@ A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Lo
 | RN-51 | A ordem corretiva por avaria abre no fechamento, não no registro da vistoria |
 | RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
 | RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
+| RN-37 | `MovimentoVeiculo` registra cada transição: situação de origem e destino, documento que a autorizou e data. Como `AplicarStatus` já era a escrita única de status, virou também o registro único do movimento — e a origem é parâmetro obrigatório dele, então **transição sem documento não compila** |
 
 E o que está **ligado à Application e à Api** — sem isso a máquina de estados acima existia mas
 não era alcançada por nenhum endpoint:
 
 | RN | O que passou a valer |
 |---|---|
-| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega o veículo com `rastreado: true`, sem o que o `Locar()` do domínio não vira UPDATE — o EF pinta o grafo de `Added` e tentaria inserir o veículo de novo |
+| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega **veículo, cliente e funcionário** com `rastreado: true`. Sem isso o `Add` da locação pinta de `Added` todo o grafo solto: o `Locar()` do domínio não vira UPDATE e o EF ainda tentaria inserir de novo os três. Cliente e funcionário entram na conta porque `Locacao.Criar` os guarda como navegação, mesmo sem alterá-los |
+| — | Isso só passou a valer de fato quando o `rastreado` de `RepositorioGlobal.ObterPorIdAsync` foi corrigido: ele fazia `FindAsync` (que rastreia) e **destacava quando `true`**, ou seja, entregava o oposto do que o nome prometia. O caminho sem rastreio virou consulta `AsNoTracking` em vez de `FindAsync` seguido de `Detached`, que destacaria junto qualquer instância já alterada na mesma requisição. `Infra/ParametroRastreadoTests` fixa o significado |
 | RN-45 | `PATCH api/v1/veiculos/{id}/liberar-preparacao` → `VeiculoService.LiberarDaPreparacaoAsync`: é a porta pela qual o pátio devolve o carro à oferta |
 | — | Os serviços repetem as guardas de `Veiculo` (`Ativo`, `Status`, km) **antes** de chamar o domínio, para a recusa sair como `ProblemDetails` 4xx. `DomainException` é `internal`, não deriva de `InvalidOperationException` e não é mapeada no `ExceptionProblemFactory`: se escapar, é 500 |
 | RN-40, RN-43 | `LocacaoService.CriarAsync` recusa abertura com contrato sobreposto, pelo filtro `Locacao.Sobrepostas` — a guarda de status é um retrato de agora e não enxerga período |
 | RN-42 | `LocacaoService.AtualizarAsync` revalida a sobreposição antes de estender, ignorando a própria locação |
 | RN-41 | A constraint `ex_locacao_sem_sobreposicao` está na migration `SobreposicaoDeContrato` (SQL bruto, sem modelo por trás), e a violação — SQLSTATE `23P01` — vira **409** no `ExceptionProblemFactory` |
-| RN-46 (parcial) | `ReservaService.ValidarDisponibilidade` passou a usar a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período. Falta o termo do tempo de preparo |
+| RN-46 | `ReservaService.ValidarDisponibilidade` usa a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período, recuado pelo tempo de preparo da filial |
+| RN-45 (parâmetro) | `Filial.TempoPreparacaoMinutos` (migration `TempoPreparacaoDaFilial`, padrão 120, teto de 1440). É de filial e não de categoria porque quem executa a preparação é o pátio dela; em one-way vale o da filial de destino, para onde a RN-47 já move o ativo |
+| RN-37 (autor) | O autor sai do `IAuditoria` que `MovimentoVeiculo` implementa, preenchido pelo `AplicarAuditoria` do `SaveChangesAsync` — nenhum serviço precisou de `ICurrentUser`. Enquanto a autenticação estiver comentada no `Program.cs` grava `"SYSTEM"`, e volta a gravar o usuário sozinho quando ela for reativada. O par `DataModificacao`/`IdUsuarioModificacao` fica nulo de propósito: movimento não se altera |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
 `btree_gist` 1.7). O que o banco confirmou:
@@ -72,23 +76,31 @@ constraint existir — nenhum `if` no serviço produz esse bloqueio.
 > da própria migration e o comparam com `Locacao.StatusTerminais` e `Locacao.Sobrepostas` — eles
 > pegam a lista de status divergindo, não uma regressão no banco.
 
+Três decisões da RN-37 que o código não explica sozinho:
+
+| Decisão | Porquê |
+|---|---|
+| O documento de origem entra como **navegação** (`LocacaoOrigem`, `ManutencaoOrigem`), não só como id | Na abertura do contrato e na abertura da OS o documento ainda não foi gravado — o id nasce no mesmo `SaveChanges`. Guardar `contrato.IdLocacao` ali registraria zero; pela navegação quem resolve a chave é o EF. Documento que já tem id entra pelos dois |
+| Movimento só é registrado quando o estado do ativo **muda** | `Ativar()` num carro que já está na oferta não é transição, e registrar viraria ruído no indicador da seção 12. Efeito colateral conhecido: desativar um carro **locado** não gera movimento, porque ele já estava fora da oferta — essa alteração é cadastral, e `Veiculo` continua sem `IAuditoria` |
+| O `xmin` foi apagado à mão do `CreateTable` da migration | Mesmo motivo que esvazia a `ConcorrenciaOtimista`: `xmin` é coluna de sistema do Postgres e declará-la no `CREATE TABLE` faz o comando falhar. O token de concorrência continua valendo, como propriedade sombra. Se a migration for regerada, apague a linha de novo |
+
+A migration `MovimentoVeiculo` foi aplicada contra o `locadora_autos` real, que é o que prova a
+remoção do `xmin` e os dois caminhos de cascata (o veículo apaga o movimento direto e também pela
+manutenção).
+
 Ainda **não** implementado:
 
-- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. A liberação manual já
-  existe; a automática depende de job agendado, e o Hangfire está comentado no `Program.cs`
-  (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
-- **RN-46 (parte do preparo)** — o cálculo de disponibilidade já foi corrigido (ver abaixo), mas
-  ainda **não soma as devoluções previstas dentro do período, deslocadas pelo tempo de preparo**:
-  isso depende de `TempoPreparacaoMinutos`, que não existe no modelo. Sem esse termo a conta é
-  conservadora, nunca otimista — a devolução prevista simplesmente não entra na oferta.
-- **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
-  e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
-  **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
-  a versão mínima da seção 4.
-
-  Consequência prática da RN-37 estar aberta: a liberação da preparação **não registra quem
-  liberou**. `Veiculo` não implementa `IAuditoria`, então não há nem o autor da última alteração
-  — todo movimento de status do ativo hoje é anônimo, o que é buraco de auditoria de frota.
+- **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. O parâmetro já existe em
+  `Filial`, a liberação manual também, e desde a RN-37 existe o carimbo de **quando** a preparação
+  começou: o `DataMovimento` do movimento que levou a `EmPreparacao`. Falta só o job que solta o
+  carro quando o prazo vence, e ele depende de agendador — o Hangfire está comentado no
+  `Program.cs` (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
+- **Leitura da trilha** — os movimentos são gravados e nenhum endpoint os devolve. Os indicadores
+  de utilização real e de tempo médio de preparação (seção 12) dependem dessa leitura.
+- **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo e responsável), **RN-55**
+  (unicidade restrita aos ativos — hoje o índice é global) e **RN-56** (desmobilização).
+  `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme a versão mínima da seção 4, e
+  pelo mesmo motivo `TipoDocumentoOrigem` ainda não tem `Transferencia` nem `Bloqueio`.
 
 ---
 
@@ -283,10 +295,24 @@ Com RN-35/RN-36 a fórmula correta fica:
 disponível(categoria, filial, [início, fim)) =
     veículos da categoria na filial com Ativo = true
   − os que estão em [Bloqueado, EmManutencao, EmTransferencia, Desmobilizado]
-  − contratos abertos cujo período atravessa [início, fim)
+  − contratos abertos cujo período atravessa [início − preparo, fim)
   − reservas Reservado cujo período atravessa [início, fim)
-  + devoluções previstas dentro de [início, fim), deslocadas pelo tempo de preparação
 ```
+
+> **Correção da última linha.** A versão anterior deste documento somava as *devoluções previstas
+> dentro de `[início, fim)`, deslocadas pelo tempo de preparação*. Esse termo está certo para uma
+> **curva de ocupação de frota** — quantos carros estão livres em cada instante — mas **errado para
+> validar uma reserva**, que precisa do mesmo carro pelo período inteiro. Um veículo devolvido no
+> meio da janela não serve uma reserva que começou antes dele voltar; somá-lo de volta venderia
+> carro que não existe, que é exatamente o defeito que a RN-40 fecha do outro lado.
+>
+> O efeito real do preparo é o **inverso**: ele *estende* a ocupação do contrato anterior para
+> `fim + preparo`, porque o carro devolvido às 09:00 com preparo de 2h só entrega às 11:00. Por
+> isso a subtração passou a usar `[início − preparo, fim)` — recuar o início é algebricamente o
+> mesmo que estender o fim do contrato, e mantém a consulta sem aritmética de data no SQL.
+>
+> Consequência: **o preparo torna a checagem mais restritiva, não mais frouxa.** É a oferta caindo
+> no papel para passar a bater com o pátio, como a seção 10 já previa.
 
 O status deixa de ser subtraído duas vezes, e contrato que termina antes do início da reserva
 deixa de bloquear a venda.

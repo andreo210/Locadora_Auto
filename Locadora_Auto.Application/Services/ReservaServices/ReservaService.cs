@@ -150,7 +150,11 @@ namespace Locadora_Auto.Application.Services.ReservaServices
             if (!await _categoriaVeiculoRepository.ExisteAsync(c => c.Id == dto.IdCategoriaVeiculo, ct))
                 _notificador.Add($"Categoria de veículo com ID {dto.IdCategoriaVeiculo} não encontrada.");
 
-            if (!await _filialRepository.ExisteAsync(f => f.IdFilial == dto.IdFilial, ct))
+            // a filial vem inteira, e não por ExisteAsync, porque o cálculo de disponibilidade
+            // precisa do TempoPreparacaoMinutos dela
+            var filial = await _filialRepository.ObterPrimeiroAsync(f => f.IdFilial == dto.IdFilial, ct: ct);
+
+            if (filial == null)
                 _notificador.Add($"Filial com ID {dto.IdFilial} não encontrada.");
 
             if (inicio <= DateTime.UtcNow)
@@ -161,7 +165,7 @@ namespace Locadora_Auto.Application.Services.ReservaServices
 
             // só vale checar disponibilidade se categoria, filial e período já passaram
             if (!_notificador.TemNotificacao())
-                await ValidarDisponibilidade(dto, inicio, fim, ct);
+                await ValidarDisponibilidade(dto, filial!, inicio, fim, ct);
 
             if (_notificador.TemNotificacao()) return null;
 
@@ -289,12 +293,19 @@ namespace Locadora_Auto.Application.Services.ReservaServices
         /// Por isso `EmPreparacao` <b>não</b> é subtraído: o contrato dele já está encerrado, a fila
         /// do pátio se resolve em horas e a reserva é sempre futura.
         ///
-        /// Fica de fora, por depender de `TempoPreparacaoMinutos` — que ainda não existe no modelo:
-        /// somar as devoluções previstas dentro do período, deslocadas pelo tempo de preparo. Sem
-        /// esse termo a conta é conservadora, nunca otimista: a devolução prevista simplesmente não
-        /// entra na oferta.
+        /// <b>Sobre o tempo de preparo.</b> A seção 9 do documento manda <i>somar</i> as devoluções
+        /// previstas dentro do período, deslocadas pelo preparo. Esse termo vale para uma curva de
+        /// ocupação de frota — quantos carros estão livres em cada instante — mas <b>não</b> para
+        /// validar uma reserva, que precisa do mesmo carro pelo período inteiro: veículo devolvido
+        /// no meio da janela não serve uma reserva que começa antes disso, e somá-lo de volta
+        /// venderia carro que não existe.
+        ///
+        /// O efeito correto do preparo aqui é o inverso: ele <b>estende</b> a ocupação do contrato
+        /// anterior para <c>fim + preparo</c>, porque o carro devolvido às 10h com preparo de 2h só
+        /// entrega às 12h. Ou seja, a checagem fica mais restritiva, não mais frouxa.
         /// </summary>
-        private async Task ValidarDisponibilidade(CriarReservaDto dto, DateTime inicio, DateTime fim, CancellationToken ct)
+        private async Task ValidarDisponibilidade(
+            CriarReservaDto dto, Filial filial, DateTime inicio, DateTime fim, CancellationToken ct)
         {
             var frota = await _veiculoRepository.ContarAsync(
                 v => v.IdCategoria == dto.IdCategoriaVeiculo
@@ -309,6 +320,14 @@ namespace Locadora_Auto.Application.Services.ReservaServices
                 return;
             }
 
+            /*
+             * "contrato termina depois do início da reserva + preparo" é o mesmo que "termina
+             * depois do início recuado pelo preparo". Recuar o início aqui, em memória, mantém o
+             * SQL na forma já conhecida — sem aritmética de data dentro da consulta, que teria de
+             * ser traduzida para INTERVAL e é a parte mais frágil de traduzir.
+             */
+            var inicioComPreparo = inicio.AddMinutes(-filial.TempoPreparacaoMinutos);
+
             // mesma álgebra de datas de Locacao.Sobrepostas: intervalo meio-aberto, e o fim do
             // contrato é o real depois da devolução, o previsto enquanto ele está aberto
             var contratosNoPeriodo = await _locacaoRepository.ContarAsync(
@@ -316,7 +335,7 @@ namespace Locadora_Auto.Application.Services.ReservaServices
                      && l.Veiculo.FilialAtualId == dto.IdFilial
                      && !Locacao.StatusTerminais.Contains(l.Status)
                      && l.DataInicio < fim
-                     && (l.DataFimReal ?? l.DataFimPrevista) > inicio, ct);
+                     && (l.DataFimReal ?? l.DataFimPrevista) > inicioComPreparo, ct);
 
             var reservasNoPeriodo = await _reservaRepository.ContarAsync(
                 r => r.IdCategoria == dto.IdCategoriaVeiculo

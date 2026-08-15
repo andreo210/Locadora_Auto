@@ -31,8 +31,12 @@ namespace Locadora_Auto.Tests.Fabricas
         public static CategoriaVeiculo Categoria(string nome = "Hatch")
             => CategoriaVeiculo.Criar(nome, valorDiaria: 150m, limiteKm: 200, valorKmExcedente: 2m);
 
-        public static Filial Filial(string nome = "Filial Centro")
-            => Domain.Entidades.Filial.Criar(nome, "São Paulo", Endereco());
+        /// <param name="tempoPreparacaoMinutos">
+        /// <c>null</c> deixa o padrão da casa (<c>Filial.PreparacaoPadraoMinutos</c>). Informe só
+        /// nos testes em que o tempo de preparação é o objeto da verificação.
+        /// </param>
+        public static Filial Filial(string nome = "Filial Centro", int? tempoPreparacaoMinutos = null)
+            => Domain.Entidades.Filial.Criar(nome, "São Paulo", Endereco(), tempoPreparacaoMinutos);
 
         public static Veiculo Veiculo(int idCategoria = 1, int idFilial = 1, string placa = "ABC1D23")
             => Domain.Entidades.Veiculo.Criar(placa, "Fiat", "Argo", 2022, "9BWZZZ377VT004251", 15_000, idCategoria, idFilial);
@@ -79,6 +83,14 @@ namespace Locadora_Auto.Tests.Fabricas
                 kmInicial,
                 valorPrevisto);
         }
+
+        /// <summary>
+        /// Contrato descartável, para os testes do <c>Veiculo</c> que precisam apenas satisfazer o
+        /// documento de origem que a RN-37 exige nas transições. Ele nasce sobre um veículo
+        /// próprio, e não sobre o que está sob teste — quem quer contrato e veículo casados usa
+        /// <c>Fabrica.Locacao(veiculo: veiculo)</c>, que é o caminho real.
+        /// </summary>
+        public static Locacao Contrato() => Locacao();
 
         /// <summary>
         /// Cria uma reserva pela raiz do agregado (única porta de entrada, já que

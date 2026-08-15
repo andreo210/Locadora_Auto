@@ -3,6 +3,7 @@ using System;
 using Locadora_Auto.Infra.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Locadora_Auto.Infra.Data.Migrations
 {
     [DbContext(typeof(LocadoraDbContext))]
-    partial class LocadoraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814135958_TempoPreparacaoDaFilial")]
+    partial class TempoPreparacaoDaFilial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1094,80 +1097,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.ToTable("tb_manutencao", (string)null);
                 });
 
-            modelBuilder.Entity("Locadora_Auto.Domain.Entidades.MovimentoVeiculo", b =>
-                {
-                    b.Property<int>("IdMovimentoVeiculo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id_movimento_veiculo");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdMovimentoVeiculo"));
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<DateTime?>("DataModificacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_modificacao");
-
-                    b.Property<DateTime>("DataMovimento")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_movimento");
-
-                    b.Property<int?>("IdLocacaoOrigem")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_locacao_origem");
-
-                    b.Property<int?>("IdManutencaoOrigem")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_manutencao_origem");
-
-                    b.Property<string>("IdUsuarioCriacao")
-                        .HasColumnType("text")
-                        .HasColumnName("id_usuario_criacao");
-
-                    b.Property<string>("IdUsuarioModificacao")
-                        .HasColumnType("text")
-                        .HasColumnName("id_usuario_modificacao");
-
-                    b.Property<int>("IdVeiculo")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_veiculo");
-
-                    b.Property<int>("StatusDestino")
-                        .HasColumnType("integer")
-                        .HasColumnName("status_destino");
-
-                    b.Property<int?>("StatusOrigem")
-                        .HasColumnType("integer")
-                        .HasColumnName("status_origem");
-
-                    b.Property<int>("TipoOrigem")
-                        .HasColumnType("integer")
-                        .HasColumnName("tipo_origem");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("IdMovimentoVeiculo")
-                        .HasName("pk_tb_movimento_veiculo");
-
-                    b.HasIndex("IdLocacaoOrigem")
-                        .HasDatabaseName("ix_tb_movimento_veiculo_id_locacao_origem");
-
-                    b.HasIndex("IdManutencaoOrigem")
-                        .HasDatabaseName("ix_tb_movimento_veiculo_id_manutencao_origem");
-
-                    b.HasIndex("IdVeiculo", "DataMovimento")
-                        .HasDatabaseName("ix_tb_movimento_veiculo_id_veiculo_data_movimento");
-
-                    b.ToTable("tb_movimento_veiculo", (string)null);
-                });
-
             modelBuilder.Entity("Locadora_Auto.Domain.Entidades.Multa", b =>
                 {
                     b.Property<int>("IdMulta")
@@ -1888,32 +1817,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasConstraintName("fk_tb_manutencao_tb_veiculo_id_veiculo");
                 });
 
-            modelBuilder.Entity("Locadora_Auto.Domain.Entidades.MovimentoVeiculo", b =>
-                {
-                    b.HasOne("Locadora_Auto.Domain.Entidades.Locacao", "LocacaoOrigem")
-                        .WithMany()
-                        .HasForeignKey("IdLocacaoOrigem")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_tb_movimento_veiculo_tb_locacao_id_locacao_origem");
-
-                    b.HasOne("Locadora_Auto.Domain.Entidades.Manutencao", "ManutencaoOrigem")
-                        .WithMany()
-                        .HasForeignKey("IdManutencaoOrigem")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .HasConstraintName("fk_tb_movimento_veiculo_tb_manutencao_id_manutencao_origem");
-
-                    b.HasOne("Locadora_Auto.Domain.Entidades.Veiculo", null)
-                        .WithMany("Movimentos")
-                        .HasForeignKey("IdVeiculo")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_tb_movimento_veiculo_tb_veiculo_id_veiculo");
-
-                    b.Navigation("LocacaoOrigem");
-
-                    b.Navigation("ManutencaoOrigem");
-                });
-
             modelBuilder.Entity("Locadora_Auto.Domain.Entidades.Multa", b =>
                 {
                     b.HasOne("Locadora_Auto.Domain.Entidades.Locacao", null)
@@ -2136,8 +2039,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Navigation("Locacoes");
 
                     b.Navigation("Manutencoes");
-
-                    b.Navigation("Movimentos");
                 });
 
             modelBuilder.Entity("Locadora_Auto.Domain.Entidades.Vistoria", b =>

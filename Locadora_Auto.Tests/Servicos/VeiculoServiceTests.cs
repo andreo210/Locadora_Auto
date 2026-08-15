@@ -40,11 +40,12 @@ namespace Locadora_Auto.Tests.Servicos
             switch (status)
             {
                 case StatusVeiculo.Locado:
-                    veiculo.Locar();
+                    veiculo.Locar(Fabrica.Contrato());
                     break;
                 case StatusVeiculo.EmPreparacao:
-                    veiculo.Locar();
-                    veiculo.RegistrarDevolucao(16_000, filial.IdFilial);
+                    var contrato = Fabrica.Contrato();
+                    veiculo.Locar(contrato);
+                    veiculo.RegistrarDevolucao(16_000, filial.IdFilial, contrato);
                     break;
                 case StatusVeiculo.EmManutencao:
                     veiculo.IniciarManutencao(TipoManutencao.Preventiva, "revisão");

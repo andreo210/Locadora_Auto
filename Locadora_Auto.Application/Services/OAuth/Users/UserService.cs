@@ -105,7 +105,7 @@ namespace Locadora_Auto.Application.Services.OAuth.Users
 
         public virtual async Task<bool> AtualizarAsync(string id)
         {
-            var model = await _userRepository.ObterPorIdAsync(id);
+            var model = await _userRepository.ObterPorIdAsync(id, true);
             return await _userRepository.AtualizarSalvarAsync(model);
         }
     }

@@ -28,6 +28,13 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.Ativo)
                 .HasColumnName("ativo");
 
+            // RN-45/RN-46: minutos entre a devolução e a volta do carro à oferta. O default vale
+            // para as filiais que já existiam quando a coluna entrou.
+            builder.Property(e => e.TempoPreparacaoMinutos)
+                .HasColumnName("tempo_preparacao_minutos")
+                .HasDefaultValue(Filial.PreparacaoPadraoMinutos)
+                .IsRequired();
+
             //chave estrangeira
             builder.Property(e => e.IdEndereco)
                 .HasColumnName("id_endereco")

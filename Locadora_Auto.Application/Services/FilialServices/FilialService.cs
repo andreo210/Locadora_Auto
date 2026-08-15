@@ -120,7 +120,7 @@ public class FilialService : IFilialService
             return null;
 
         // Criar entidade
-        var filial = Filial.Criar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity());
+        var filial = Filial.Criar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity(), filialDto.TempoPreparacaoMinutos);
         await _filialRepository.InserirSalvarAsync(filial, ct);
         return filial.ToDto();       
     }
@@ -138,7 +138,7 @@ public class FilialService : IFilialService
         if (!await ValidarAtualizacaoFilialAsync(id, filialDto, ct))
             return false;
 
-        filial.Atualizar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity());
+        filial.Atualizar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity(), filialDto.TempoPreparacaoMinutos);
 
         var rows = await _filialRepository.SalvarAsync(ct);
         if (rows == 0)

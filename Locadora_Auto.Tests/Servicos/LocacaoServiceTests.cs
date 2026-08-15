@@ -50,11 +50,12 @@ namespace Locadora_Auto.Tests.Servicos
             switch (status)
             {
                 case StatusVeiculo.Locado:
-                    veiculo.Locar();
+                    veiculo.Locar(Fabrica.Contrato());
                     break;
                 case StatusVeiculo.EmPreparacao:
-                    veiculo.Locar();
-                    veiculo.RegistrarDevolucao(KmDoVeiculo, filial.IdFilial);
+                    var contrato = Fabrica.Contrato();
+                    veiculo.Locar(contrato);
+                    veiculo.RegistrarDevolucao(KmDoVeiculo, filial.IdFilial, contrato);
                     break;
                 case StatusVeiculo.EmManutencao:
                     veiculo.IniciarManutencao(TipoManutencao.Preventiva, "revisão");
@@ -217,7 +218,7 @@ namespace Locadora_Auto.Tests.Servicos
             // Fabrica.Locacao passa por Locacao.Criar, que consome a placa: sem devolvê-la, quem
             // recusaria a abertura seguinte seria o status, e não a regra em teste.
             if (encerrado) contrato.Cancelar();
-            else cenario.Veiculo.ReverterLocacao();
+            else cenario.Veiculo.ReverterLocacao(contrato);
 
             return contrato;
         }

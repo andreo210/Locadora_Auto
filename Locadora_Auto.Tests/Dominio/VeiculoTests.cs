@@ -86,7 +86,7 @@ namespace Locadora_Auto.Tests.Dominio
         {
             var veiculo = Fabrica.Veiculo();
 
-            veiculo.Locar();
+            veiculo.Locar(Fabrica.Contrato());
 
             Assert.Equal(StatusVeiculo.Locado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
@@ -100,7 +100,7 @@ namespace Locadora_Auto.Tests.Dominio
         {
             var veiculo = EmStatus(status);
 
-            Assert.Throws<DomainException>(() => veiculo.Locar());
+            Assert.Throws<DomainException>(() => veiculo.Locar(Fabrica.Contrato()));
         }
 
         [Fact]
@@ -109,16 +109,17 @@ namespace Locadora_Auto.Tests.Dominio
             var veiculo = Fabrica.Veiculo();
             veiculo.Desativar();
 
-            Assert.Throws<DomainException>(() => veiculo.Locar());
+            Assert.Throws<DomainException>(() => veiculo.Locar(Fabrica.Contrato()));
         }
 
         [Fact]
         public void Devolver_manda_para_preparacao_e_move_km_e_filial()
         {
             var veiculo = Fabrica.Veiculo(idFilial: 1);
-            veiculo.Locar();
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
 
-            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 4);
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 4, contrato);
 
             // devolvido não é disponível: o carro ainda precisa de vistoria, limpeza e abastecimento
             Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
@@ -132,15 +133,16 @@ namespace Locadora_Auto.Tests.Dominio
         {
             var veiculo = Fabrica.Veiculo();
 
-            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(15_900, 1));
+            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(15_900, 1, Fabrica.Contrato()));
         }
 
         [Fact]
         public void LiberarDaPreparacao_devolve_o_veiculo_para_a_oferta()
         {
             var veiculo = Fabrica.Veiculo();
-            veiculo.Locar();
-            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
 
             veiculo.LiberarDaPreparacao();
 
@@ -152,8 +154,9 @@ namespace Locadora_Auto.Tests.Dominio
         public void LiberarDaPreparacao_nao_devolve_veiculo_inativo_para_a_oferta()
         {
             var veiculo = Fabrica.Veiculo();
-            veiculo.Locar();
-            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
             veiculo.Desativar();
 
             veiculo.LiberarDaPreparacao();
@@ -174,7 +177,7 @@ namespace Locadora_Auto.Tests.Dominio
         public void Desativar_veiculo_locado_tira_da_oferta_mas_mantem_o_status()
         {
             var veiculo = Fabrica.Veiculo();
-            veiculo.Locar();
+            veiculo.Locar(Fabrica.Contrato());
 
             veiculo.Desativar();
 
@@ -187,7 +190,7 @@ namespace Locadora_Auto.Tests.Dominio
         public void Ativar_nao_devolve_para_a_oferta_veiculo_que_esta_locado()
         {
             var veiculo = Fabrica.Veiculo();
-            veiculo.Locar();
+            veiculo.Locar(Fabrica.Contrato());
             veiculo.Desativar();
 
             veiculo.Ativar();
@@ -201,9 +204,10 @@ namespace Locadora_Auto.Tests.Dominio
         public void Km_nao_retrocede_na_devolucao()
         {
             var veiculo = Fabrica.Veiculo();   // nasce com 15.000
-            veiculo.Locar();
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
 
-            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(kmFinal: 14_999, idFilialDevolucao: 1));
+            Assert.Throws<DomainException>(() => veiculo.RegistrarDevolucao(kmFinal: 14_999, idFilialDevolucao: 1, contrato));
         }
 
         [Fact]
@@ -222,14 +226,15 @@ namespace Locadora_Auto.Tests.Dominio
             switch (status)
             {
                 case StatusVeiculo.Locado:
-                    veiculo.Locar();
+                    veiculo.Locar(Fabrica.Contrato());
                     break;
                 case StatusVeiculo.EmManutencao:
                     veiculo.IniciarManutencao(TipoManutencao.Corretiva, "Troca de embreagem");
                     break;
                 case StatusVeiculo.EmPreparacao:
-                    veiculo.Locar();
-                    veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1);
+                    var contrato = Fabrica.Contrato();
+                    veiculo.Locar(contrato);
+                    veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
                     break;
                 case StatusVeiculo.Indisponivel:
                     veiculo.Desativar();

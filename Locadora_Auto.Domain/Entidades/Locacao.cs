@@ -119,11 +119,6 @@ namespace Locadora_Auto.Domain.Entidades
             if (dataFimPrevista <= dataInicio)
                 throw new InvalidOperationException("Data fim prevista deve ser posterior à data de início");
 
-            // quem decide é o status do ativo, não o booleano `Disponivel` — e a mesma chamada que
-            // valida é a que consome a placa. Contrato sobreposto no mesmo veículo não cabe aqui:
-            // depende de consulta às outras locações, então é validação do serviço.
-            veiculo.Locar();
-
             var locacao = new Locacao
             {
                 Cliente = cliente,
@@ -139,6 +134,16 @@ namespace Locadora_Auto.Domain.Entidades
                 ValorPrevisto = valorPrevisto,
                 Status = StatusLocacao.Criada
             };
+
+            // quem decide é o status do ativo, não o booleano `Disponivel` — e a mesma chamada que
+            // valida é a que consome a placa. Contrato sobreposto no mesmo veículo não cabe aqui:
+            // depende de consulta às outras locações, então é validação do serviço.
+            //
+            // Vem depois do contrato montado, e não antes, porque a RN-37 exige o documento de
+            // origem do movimento: recusa continua recusando — o objeto acima é descartado sem ter
+            // tocado em nada além de si mesmo.
+            veiculo.Locar(locacao);
+
             if (reserva != null)
             {
                 reserva.Finalizar();
@@ -170,7 +175,7 @@ namespace Locadora_Auto.Domain.Entidades
 
             // o carro entra na fila do pátio, e o odômetro e a filial do ativo avançam com o que a
             // devolução informou — sem isso a frota fica registrada na filial errada
-            Veiculo.RegistrarDevolucao(kmFinal, filialDevolucao);
+            Veiculo.RegistrarDevolucao(kmFinal, filialDevolucao, this);
 
             AbrirManutencaoPorAvaria();
         }
@@ -202,7 +207,7 @@ namespace Locadora_Auto.Domain.Entidades
             Status = StatusLocacao.Finalizada;
 
             // contrato anulado: o carro não rodou, então volta à oferta sem passar pela preparação
-            Veiculo.ReverterLocacao();
+            Veiculo.ReverterLocacao(this);
         }
 
         #region pagamento

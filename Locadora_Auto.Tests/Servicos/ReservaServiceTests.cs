@@ -32,7 +32,7 @@ namespace Locadora_Auto.Tests.Servicos
         /// Cenário mínimo para uma reserva passar: cliente ativo, categoria e filial existentes
         /// e pelo menos um veículo disponível na combinação categoria + filial.
         /// </summary>
-        private static Cenario Montar(bool clienteAtivo = true, int veiculosDisponiveis = 1)
+        private static Cenario Montar(bool clienteAtivo = true, int veiculosDisponiveis = 1, int? tempoPreparacaoMinutos = null)
         {
             var armazem = new ArmazemFake();
 
@@ -42,7 +42,7 @@ namespace Locadora_Auto.Tests.Servicos
             var categoria = Fabrica.Categoria();
             armazem.Semear(categoria);
 
-            var filial = Fabrica.Filial();
+            var filial = Fabrica.Filial(tempoPreparacaoMinutos: tempoPreparacaoMinutos);
             armazem.Semear(filial);
 
             for (var i = 0; i < veiculosDisponiveis; i++)
@@ -175,17 +175,30 @@ namespace Locadora_Auto.Tests.Servicos
         /// já não conta como disponível, e ainda assim a locação era subtraída de novo.
         /// </summary>
         private static Locacao SemearContrato(Cenario cenario, Veiculo veiculo, int diasAteInicio, int diasAteFim)
+            => SemearContrato(cenario, veiculo, Fabrica.DaquiADias(diasAteInicio), Fabrica.DaquiADias(diasAteFim));
+
+        private static Locacao SemearContrato(Cenario cenario, Veiculo veiculo, DateTime inicio, DateTime fim)
         {
             var contrato = Fabrica.Locacao(
                 cliente: cenario.Cliente,
                 veiculo: veiculo,
-                dataInicio: Fabrica.DaquiADias(diasAteInicio),
-                dataFimPrevista: Fabrica.DaquiADias(diasAteFim),
+                dataInicio: inicio,
+                dataFimPrevista: fim,
                 idFilialRetirada: IdFilial);
 
             cenario.Reservas.Armazem.Semear(contrato);
             return contrato;
         }
+
+        private static CriarReservaDto DtoEntre(DateTime inicio, DateTime fim)
+            => new()
+            {
+                IdCliente = IdCliente,
+                IdCategoriaVeiculo = IdCategoria,
+                IdFilial = IdFilial,
+                DataInicio = inicio,
+                DataFim = fim
+            };
 
         private static List<Veiculo> Frota(Cenario cenario) => cenario.Reservas.Armazem.Tabela<Veiculo>();
 
@@ -246,8 +259,9 @@ namespace Locadora_Auto.Tests.Servicos
             var cenario = Montar(veiculosDisponiveis: 1);
             var veiculo = Frota(cenario).Single();
 
-            veiculo.Locar();
-            veiculo.RegistrarDevolucao(16_000, IdFilial);
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(16_000, IdFilial, contrato);
             Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
 
             var resultado = await cenario.Service.CriarAsync(Dto());
@@ -299,6 +313,75 @@ namespace Locadora_Auto.Tests.Servicos
 
             Assert.NotNull(resultado);
             Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        // ======================= tempo de preparação (RN-45/RN-46) =======================
+
+        [Fact]
+        public async Task Contrato_que_termina_dentro_do_preparo_ainda_bloqueia_a_venda()
+        {
+            // devolvido às 09:00 com preparo de 2h, o carro só entrega às 11:00 — uma reserva que
+            // começa às 10:00 não pode contar com ele
+            var cenario = Montar(tempoPreparacaoMinutos: 120);
+            var inicio = Fabrica.DaquiADias(3);
+
+            SemearContrato(cenario, Frota(cenario).Single(), inicio.AddDays(-2), inicio.AddHours(-1));
+
+            var resultado = await cenario.Service.CriarAsync(DtoEntre(inicio, inicio.AddDays(2)));
+
+            Assert.Null(resultado);
+            Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("período"));
+        }
+
+        [Fact]
+        public async Task Contrato_que_termina_antes_do_preparo_nao_bloqueia_a_venda()
+        {
+            // devolvido 3h antes, com preparo de 2h: dá tempo, o carro está na oferta
+            var cenario = Montar(tempoPreparacaoMinutos: 120);
+            var inicio = Fabrica.DaquiADias(3);
+
+            SemearContrato(cenario, Frota(cenario).Single(), inicio.AddDays(-2), inicio.AddHours(-3));
+
+            var resultado = await cenario.Service.CriarAsync(DtoEntre(inicio, inicio.AddDays(2)));
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Filial_sem_preparacao_entrega_no_instante_da_devolucao()
+        {
+            // preparo zero é escolha declarada da filial: aí vale só o intervalo meio-aberto, e o
+            // contrato que termina exatamente no início da reserva não bloqueia
+            var cenario = Montar(tempoPreparacaoMinutos: 0);
+            var inicio = Fabrica.DaquiADias(3);
+
+            SemearContrato(cenario, Frota(cenario).Single(), inicio.AddDays(-2), inicio);
+
+            var resultado = await cenario.Service.CriarAsync(DtoEntre(inicio, inicio.AddDays(2)));
+
+            Assert.NotNull(resultado);
+            Assert.False(cenario.Notificador.TemNotificacao());
+        }
+
+        [Fact]
+        public async Task Preparo_maior_tira_da_oferta_o_que_o_preparo_menor_deixaria_passar()
+        {
+            // mesma frota, mesmo contrato, mesma janela: só o parâmetro da filial muda o resultado
+            var inicioDaReserva = Fabrica.DaquiADias(3);
+            var fimDoContrato = inicioDaReserva.AddHours(-2);
+
+            var comPreparoCurto = Montar(tempoPreparacaoMinutos: 60);
+            SemearContrato(comPreparoCurto, Frota(comPreparoCurto).Single(), inicioDaReserva.AddDays(-2), fimDoContrato);
+
+            var comPreparoLongo = Montar(tempoPreparacaoMinutos: 240);
+            SemearContrato(comPreparoLongo, Frota(comPreparoLongo).Single(), inicioDaReserva.AddDays(-2), fimDoContrato);
+
+            var aceita = await comPreparoCurto.Service.CriarAsync(DtoEntre(inicioDaReserva, inicioDaReserva.AddDays(2)));
+            var recusada = await comPreparoLongo.Service.CriarAsync(DtoEntre(inicioDaReserva, inicioDaReserva.AddDays(2)));
+
+            Assert.NotNull(aceita);
+            Assert.Null(recusada);
         }
 
         [Fact]
