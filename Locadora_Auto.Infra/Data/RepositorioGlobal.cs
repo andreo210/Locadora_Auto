@@ -63,15 +63,56 @@ namespace Locadora_Auto.Infra.Data
             return entity;
         }
 
-        //buscar por id Trackeado
+        /// <summary>
+        /// Busca pela chave primária. <paramref name="rastreado"/> tem aqui o mesmo significado que
+        /// nos demais métodos da classe: <c>true</c> devolve a entidade rastreada pelo contexto — é
+        /// o que faz a alteração do grafo virar UPDATE no <c>SaveChangesAsync</c> — e <c>false</c>
+        /// devolve leitura solta.
+        ///
+        /// O caminho sem rastreio é consulta própria, e não <c>FindAsync</c> seguido de
+        /// <c>Detached</c>: destacar o que o <c>FindAsync</c> devolve destacaria junto a instância
+        /// que outra etapa da mesma requisição já tivesse carregado e alterado, descartando em
+        /// silêncio a alteração pendente.
+        /// </summary>
         public virtual async Task<TEntity> ObterPorIdAsync(object id, bool? rastreado = false,CancellationToken ct = default)
         {
-            var entity = await DbSet.FindAsync(id);
-            if (rastreado.Value)
-            {
-                Context.Entry(entity).State = EntityState.Detached;
-            }
-            return entity;
+            ArgumentNullException.ThrowIfNull(id);
+
+            if (rastreado.GetValueOrDefault())
+                return await DbSet.FindAsync(new[] { id }, ct);
+
+            return await DbSet.AsNoTracking().FirstOrDefaultAsync(FiltroPorChavePrimaria(id), ct);
+        }
+
+        /// <summary>
+        /// Monta <c>e => EF.Property&lt;TChave&gt;(e, "IdX") == id</c> a partir da chave que o
+        /// modelo declara — a mesma fonte que o <c>AtualizarSalvarAsync</c> usa, e não a heurística
+        /// por nome de propriedade do <c>ObterNomeChavePrimaria</c>.
+        /// </summary>
+        private Expression<Func<TEntity, bool>> FiltroPorChavePrimaria(object id)
+        {
+            var chave = Context.Model.FindEntityType(typeof(TEntity))?.FindPrimaryKey()
+                ?? throw new InvalidOperationException($"{typeof(TEntity).Name} não tem chave primária mapeada.");
+
+            if (chave.Properties.Count > 1)
+                throw new InvalidOperationException(
+                    $"{typeof(TEntity).Name} tem chave composta: use ObterPrimeiroAsync com o filtro explícito.");
+
+            var propriedade = chave.Properties[0];
+            var tipoDaChave = Nullable.GetUnderlyingType(propriedade.ClrType) ?? propriedade.ClrType;
+
+            var parametro = Expression.Parameter(typeof(TEntity), "e");
+
+            var acesso = Expression.Call(
+                typeof(EF),
+                nameof(EF.Property),
+                new[] { propriedade.ClrType },
+                parametro,
+                Expression.Constant(propriedade.Name));
+
+            var valor = Expression.Constant(Convert.ChangeType(id, tipoDaChave), propriedade.ClrType);
+
+            return Expression.Lambda<Func<TEntity, bool>>(Expression.Equal(acesso, valor), parametro);
         }
 
         public virtual async Task<TEntity?> ObterPrimeiroAsync(

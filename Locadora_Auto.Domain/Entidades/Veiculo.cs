@@ -25,6 +25,10 @@
         private readonly List<Manutencao> _manutencoes = new();
         public IReadOnlyCollection<Manutencao> Manutencoes => _manutencoes;
 
+        //RN-37: histórico de transições do ativo, escrito só por AplicarStatus
+        private readonly List<MovimentoVeiculo> _movimentos = new();
+        public IReadOnlyCollection<MovimentoVeiculo> Movimentos => _movimentos;
+
         public static Veiculo Criar(string placa, string marca, string modelo, int ano, string chassi, int kmAtual,int idCategoria, int idFilialAtual)
         {
             if (string.IsNullOrWhiteSpace(placa))
@@ -58,7 +62,7 @@
                 Ativo = true
             };
 
-            veiculo.AplicarStatus(StatusVeiculo.Disponivel);
+            veiculo.AplicarStatus(StatusVeiculo.Disponivel, TipoDocumentoOrigem.Cadastro);
 
             return veiculo;
         }
@@ -90,7 +94,9 @@
 
             // o bloqueio administrativo cai junto com a reativação; locado, em preparação ou em
             // oficina continuam onde estão até a transição própria de cada um
-            AplicarStatus(Status == StatusVeiculo.Indisponivel ? StatusVeiculo.Disponivel : Status);
+            AplicarStatus(
+                Status == StatusVeiculo.Indisponivel ? StatusVeiculo.Disponivel : Status,
+                TipoDocumentoOrigem.Cadastro);
         }
         public void Desativar()
         {
@@ -98,7 +104,9 @@
 
             // desativar um carro que está na rua não o traz de volta: ele sai da oferta agora
             // (Disponivel é derivado de Ativo) e o status só muda na devolução
-            AplicarStatus(Status == StatusVeiculo.Disponivel ? StatusVeiculo.Indisponivel : Status);
+            AplicarStatus(
+                Status == StatusVeiculo.Disponivel ? StatusVeiculo.Indisponivel : Status,
+                TipoDocumentoOrigem.Cadastro);
         }
 
 
@@ -128,15 +136,22 @@
         /// Abrir contrato consome a placa. Só sai da oferta quem estava nela — é aqui que o
         /// veículo passa a <see cref="StatusVeiculo.Locado"/>.
         /// </summary>
-        public void Locar()
+        /// <param name="contrato">
+        /// RN-37: o documento que autoriza a saída da oferta. Vem como entidade, e não como id,
+        /// porque na abertura o contrato ainda não foi gravado.
+        /// </param>
+        public void Locar(Locacao contrato)
         {
+            if (contrato == null)
+                throw new DomainException("Locação do veículo exige o contrato de origem");
+
             if (!Ativo)
                 throw new DomainException("Veículo inativo não pode ser locado");
 
             if (Status != StatusVeiculo.Disponivel)
                 throw new DomainException($"Veículo não está disponível para locação (status atual: {Status})");
 
-            AplicarStatus(StatusVeiculo.Locado);
+            AplicarStatus(StatusVeiculo.Locado, TipoDocumentoOrigem.Contrato, contrato: contrato);
         }
 
         /// <summary>
@@ -144,8 +159,11 @@
         /// precisa de vistoria, limpeza e abastecimento. O odômetro e a filial do ativo avançam
         /// aqui, que é o único ponto em que a devolução é conhecida.
         /// </summary>
-        public void RegistrarDevolucao(int kmFinal, int idFilialDevolucao)
+        public void RegistrarDevolucao(int kmFinal, int idFilialDevolucao, Locacao contrato)
         {
+            if (contrato == null)
+                throw new DomainException("Devolução do veículo exige o contrato de origem");
+
             if (Status != StatusVeiculo.Locado)
                 throw new DomainException($"Só veículo locado pode ser devolvido (status atual: {Status})");
 
@@ -155,42 +173,73 @@
             RegistrarKm(kmFinal);
             FilialAtualId = idFilialDevolucao;
 
-            AplicarStatus(StatusVeiculo.EmPreparacao);
+            AplicarStatus(StatusVeiculo.EmPreparacao, TipoDocumentoOrigem.Contrato, contrato: contrato);
         }
 
         /// <summary>
         /// O pátio declara o carro pronto. Como toda saída de indisponibilidade, só devolve à
         /// oferta se o veículo estiver ativo.
+        ///
+        /// Não recebe documento: aqui a origem é o próprio ato do pátio, e o que responde "quem
+        /// liberou" é o autor gravado no movimento.
         /// </summary>
         public void LiberarDaPreparacao()
         {
             if (Status != StatusVeiculo.EmPreparacao)
                 throw new DomainException($"Veículo não está em preparação (status atual: {Status})");
 
-            SairParaOferta();
+            SairParaOferta(TipoDocumentoOrigem.Patio);
         }
 
         /// <summary>
         /// Cancelamento da abertura: o contrato foi anulado e o carro não rodou, então volta à
         /// oferta sem passar pela preparação.
         /// </summary>
-        public void ReverterLocacao()
+        public void ReverterLocacao(Locacao contrato)
         {
+            if (contrato == null)
+                throw new DomainException("Reversão da locação exige o contrato de origem");
+
             if (Status != StatusVeiculo.Locado)
                 throw new DomainException($"Veículo não está locado (status atual: {Status})");
 
-            SairParaOferta();
+            SairParaOferta(TipoDocumentoOrigem.Contrato, contrato: contrato);
         }
 
         /// <summary>
         /// Única escrita de <see cref="Status"/> e <see cref="Disponivel"/>. O booleano continua
         /// existindo porque o filtro de disponibilidade precisa traduzir para SQL, mas é
         /// derivado — quem manda é o status, e assim os dois nunca divergem.
+        ///
+        /// RN-37: por ser o gargalo único, é também o único ponto que registra
+        /// <see cref="MovimentoVeiculo"/> — e como a origem é parâmetro obrigatório, transição sem
+        /// documento não compila, em vez de depender de quem chama lembrar de registrar.
         /// </summary>
-        private void AplicarStatus(StatusVeiculo novoStatus)
+        private void AplicarStatus(
+            StatusVeiculo novoStatus,
+            TipoDocumentoOrigem tipoOrigem,
+            Locacao? contrato = null,
+            Manutencao? ordemServico = null)
         {
+            var statusAnterior = Status;
+            var disponivelAnterior = Disponivel;
+
             Status = novoStatus;
             Disponivel = Ativo && novoStatus == StatusVeiculo.Disponivel;
+
+            // reaplicar o mesmo estado não é transição: Ativar() num carro que já está na oferta,
+            // ou Desativar() num que já estava fora, não vira linha de auditoria
+            if (statusAnterior == Status && disponivelAnterior == Disponivel)
+                return;
+
+            _movimentos.Add(MovimentoVeiculo.Criar(
+                // no cadastro não havia situação anterior: o enum começa em 1, então o default
+                // aqui é o veículo que ainda não existia
+                statusAnterior == default ? null : statusAnterior,
+                novoStatus,
+                tipoOrigem,
+                contrato,
+                ordemServico));
         }
 
         /// <summary>
@@ -211,9 +260,16 @@
         /// <summary>
         /// Saída de manutenção, preparação ou bloqueio. O veículo inativo não volta para a oferta.
         /// </summary>
-        private void SairParaOferta()
+        private void SairParaOferta(
+            TipoDocumentoOrigem tipoOrigem,
+            Locacao? contrato = null,
+            Manutencao? ordemServico = null)
         {
-            AplicarStatus(Ativo ? StatusVeiculo.Disponivel : StatusVeiculo.Indisponivel);
+            AplicarStatus(
+                Ativo ? StatusVeiculo.Disponivel : StatusVeiculo.Indisponivel,
+                tipoOrigem,
+                contrato,
+                ordemServico);
         }
 
         #endregion Ciclo do ativo
@@ -224,9 +280,11 @@
             if (Status == StatusVeiculo.Locado)
                 throw new DomainException("Veículo locado não pode entrar em manutenção");
 
-            _manutencoes.Add(Manutencao.Criar(tipo, descricao));
+            // a ordem recém-aberta é o documento de origem do próprio movimento (RN-37)
+            var manutencao = Manutencao.Criar(tipo, descricao);
+            _manutencoes.Add(manutencao);
 
-            AplicarStatus(StatusVeiculo.EmManutencao);
+            AplicarStatus(StatusVeiculo.EmManutencao, TipoDocumentoOrigem.OrdemServico, ordemServico: manutencao);
         }
         public void TerminaManutencao(decimal custo, int idManutencao)
         {
@@ -235,7 +293,7 @@
 
             var manutencao = ObterManutencao(idManutencao);
             manutencao.Encerrar(custo);
-            SairParaOferta();
+            SairParaOferta(TipoDocumentoOrigem.OrdemServico, ordemServico: manutencao);
         }
 
         public void CancelarManutencao(int idManutencao)
@@ -245,7 +303,7 @@
 
             var manutencao = ObterManutencao(idManutencao);
             manutencao.Cancelar();
-            SairParaOferta();
+            SairParaOferta(TipoDocumentoOrigem.OrdemServico, ordemServico: manutencao);
         }
 
         public void AtualizarDescricaoManutencao(int idManutencao, string descricao)

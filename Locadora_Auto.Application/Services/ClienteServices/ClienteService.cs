@@ -359,7 +359,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         public async Task<bool> AtivarClienteAsync(int id, CancellationToken ct = default)
         {
-            var cliente = await _clienteRepository.ObterPorIdAsync(id);
+            var cliente = await _clienteRepository.ObterPorIdAsync(id, true, ct);
             if (cliente == null)
             {
                 _notificador.Add($"Cliente com ID {id} não encontrado.");
@@ -385,7 +385,7 @@ namespace Locadora_Auto.Application.Services.ClienteServices
 
         public async Task<bool> DesativarClienteAsync(int id, CancellationToken ct = default)
         {
-            var cliente = await _clienteRepository.ObterPorIdAsync(id);
+            var cliente = await _clienteRepository.ObterPorIdAsync(id, true, ct);
             if (cliente == null)
             {
                _notificador.Add($"Cliente com ID {id} não encontrado.");

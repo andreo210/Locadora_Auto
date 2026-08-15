@@ -85,6 +85,14 @@ namespace Locadora_Auto.Tests.Fabricas
         }
 
         /// <summary>
+        /// Contrato descartável, para os testes do <c>Veiculo</c> que precisam apenas satisfazer o
+        /// documento de origem que a RN-37 exige nas transições. Ele nasce sobre um veículo
+        /// próprio, e não sobre o que está sob teste — quem quer contrato e veículo casados usa
+        /// <c>Fabrica.Locacao(veiculo: veiculo)</c>, que é o caminho real.
+        /// </summary>
+        public static Locacao Contrato() => Locacao();
+
+        /// <summary>
         /// Cria uma reserva pela raiz do agregado (única porta de entrada, já que
         /// <c>Reserva.Criar</c> é internal) e devolve as duas pontas para o teste.
         /// </summary>

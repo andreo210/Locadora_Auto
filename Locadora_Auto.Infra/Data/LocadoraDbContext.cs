@@ -25,6 +25,7 @@ namespace Locadora_Auto.Infra.Data
         public DbSet<Locacao> Locacoes => Set<Locacao>();
         public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
         public DbSet<Manutencao> Manutencoes => Set<Manutencao>();
+        public DbSet<MovimentoVeiculo> MovimentosVeiculo => Set<MovimentoVeiculo>();
         public DbSet<Reserva> Reservas => Set<Reserva>();
         public DbSet<Vistoria> Vistorias => Set<Vistoria>();
         public DbSet<Multa> Multas => Set<Multa>();

@@ -259,8 +259,9 @@ namespace Locadora_Auto.Tests.Servicos
             var cenario = Montar(veiculosDisponiveis: 1);
             var veiculo = Frota(cenario).Single();
 
-            veiculo.Locar();
-            veiculo.RegistrarDevolucao(16_000, IdFilial);
+            var contrato = Fabrica.Contrato();
+            veiculo.Locar(contrato);
+            veiculo.RegistrarDevolucao(16_000, IdFilial, contrato);
             Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
 
             var resultado = await cenario.Service.CriarAsync(Dto());

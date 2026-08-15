@@ -88,5 +88,47 @@ namespace Locadora_Auto.Tests.Infra
             // e a saída da oferta nunca chegaria à linha que está no banco
             Assert.Equal(EntityState.Added, contexto.Entry(veiculo).State);
         }
+
+        [Fact]
+        public void Cliente_e_funcionario_sem_rastreio_tambem_seriam_inseridos_de_novo()
+        {
+            // eles não mudam de estado na abertura, então parecem leitura pura — mas Locacao.Criar
+            // os guarda como navegação, e é isso que os arrasta para o grafo do Add. Por isso os
+            // três são carregados com rastreado: true em LocacaoService.CriarAsync.
+            using var contexto = MontarContexto();
+            var (cliente, veiculo, funcionario) = Existentes();
+
+            contexto.Attach(veiculo);
+
+            var locacao = Fabrica.Locacao(cliente, veiculo, funcionario);
+            contexto.Add(locacao);
+
+            Assert.Equal(EntityState.Added, contexto.Entry(cliente).State);
+            Assert.Equal(EntityState.Added, contexto.Entry(funcionario).State);
+        }
+
+        [Fact]
+        public void Com_os_tres_rastreados_so_a_locacao_e_inserida()
+        {
+            using var contexto = MontarContexto();
+            var (cliente, veiculo, funcionario) = Existentes();
+
+            contexto.Attach(veiculo);
+            contexto.Attach(cliente);
+            contexto.Attach(funcionario);
+
+            var locacao = Fabrica.Locacao(cliente, veiculo, funcionario);
+            contexto.Add(locacao);
+
+            Assert.Equal(EntityState.Added, contexto.Entry(locacao).State);
+            Assert.Equal(EntityState.Modified, contexto.Entry(veiculo).State);
+            Assert.Equal(EntityState.Unchanged, contexto.Entry(cliente).State);
+            Assert.Equal(EntityState.Unchanged, contexto.Entry(funcionario).State);
+
+            // e o movimento da RN-37 entra junto, com o contrato como origem
+            var movimento = veiculo.Movimentos.Last();
+            Assert.Equal(EntityState.Added, contexto.Entry(movimento).State);
+            Assert.Same(locacao, movimento.LocacaoOrigem);
+        }
     }
 }

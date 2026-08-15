@@ -36,13 +36,15 @@ A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Lo
 | RN-51 | A ordem corretiva por avaria abre no fechamento, não no registro da vistoria |
 | RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
 | RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
+| RN-37 | `MovimentoVeiculo` registra cada transição: situação de origem e destino, documento que a autorizou e data. Como `AplicarStatus` já era a escrita única de status, virou também o registro único do movimento — e a origem é parâmetro obrigatório dele, então **transição sem documento não compila** |
 
 E o que está **ligado à Application e à Api** — sem isso a máquina de estados acima existia mas
 não era alcançada por nenhum endpoint:
 
 | RN | O que passou a valer |
 |---|---|
-| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega o veículo com `rastreado: true`, sem o que o `Locar()` do domínio não vira UPDATE — o EF pinta o grafo de `Added` e tentaria inserir o veículo de novo |
+| RN-38, RN-43 | `LocacaoService.CriarAsync` carrega **veículo, cliente e funcionário** com `rastreado: true`. Sem isso o `Add` da locação pinta de `Added` todo o grafo solto: o `Locar()` do domínio não vira UPDATE e o EF ainda tentaria inserir de novo os três. Cliente e funcionário entram na conta porque `Locacao.Criar` os guarda como navegação, mesmo sem alterá-los |
+| — | Isso só passou a valer de fato quando o `rastreado` de `RepositorioGlobal.ObterPorIdAsync` foi corrigido: ele fazia `FindAsync` (que rastreia) e **destacava quando `true`**, ou seja, entregava o oposto do que o nome prometia. O caminho sem rastreio virou consulta `AsNoTracking` em vez de `FindAsync` seguido de `Detached`, que destacaria junto qualquer instância já alterada na mesma requisição. `Infra/ParametroRastreadoTests` fixa o significado |
 | RN-45 | `PATCH api/v1/veiculos/{id}/liberar-preparacao` → `VeiculoService.LiberarDaPreparacaoAsync`: é a porta pela qual o pátio devolve o carro à oferta |
 | — | Os serviços repetem as guardas de `Veiculo` (`Ativo`, `Status`, km) **antes** de chamar o domínio, para a recusa sair como `ProblemDetails` 4xx. `DomainException` é `internal`, não deriva de `InvalidOperationException` e não é mapeada no `ExceptionProblemFactory`: se escapar, é 500 |
 | RN-40, RN-43 | `LocacaoService.CriarAsync` recusa abertura com contrato sobreposto, pelo filtro `Locacao.Sobrepostas` — a guarda de status é um retrato de agora e não enxerga período |
@@ -50,6 +52,7 @@ não era alcançada por nenhum endpoint:
 | RN-41 | A constraint `ex_locacao_sem_sobreposicao` está na migration `SobreposicaoDeContrato` (SQL bruto, sem modelo por trás), e a violação — SQLSTATE `23P01` — vira **409** no `ExceptionProblemFactory` |
 | RN-46 | `ReservaService.ValidarDisponibilidade` usa a fórmula da seção 9: a base é a frota ativa (não `Disponivel`, que já excluía os locados e causava o desconto dobrado) e as locações são filtradas por período, recuado pelo tempo de preparo da filial |
 | RN-45 (parâmetro) | `Filial.TempoPreparacaoMinutos` (migration `TempoPreparacaoDaFilial`, padrão 120, teto de 1440). É de filial e não de categoria porque quem executa a preparação é o pátio dela; em one-way vale o da filial de destino, para onde a RN-47 já move o ativo |
+| RN-37 (autor) | O autor sai do `IAuditoria` que `MovimentoVeiculo` implementa, preenchido pelo `AplicarAuditoria` do `SaveChangesAsync` — nenhum serviço precisou de `ICurrentUser`. Enquanto a autenticação estiver comentada no `Program.cs` grava `"SYSTEM"`, e volta a gravar o usuário sozinho quando ela for reativada. O par `DataModificacao`/`IdUsuarioModificacao` fica nulo de propósito: movimento não se altera |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
 `btree_gist` 1.7). O que o banco confirmou:
@@ -73,20 +76,31 @@ constraint existir — nenhum `if` no serviço produz esse bloqueio.
 > da própria migration e o comparam com `Locacao.StatusTerminais` e `Locacao.Sobrepostas` — eles
 > pegam a lista de status divergindo, não uma regressão no banco.
 
+Três decisões da RN-37 que o código não explica sozinho:
+
+| Decisão | Porquê |
+|---|---|
+| O documento de origem entra como **navegação** (`LocacaoOrigem`, `ManutencaoOrigem`), não só como id | Na abertura do contrato e na abertura da OS o documento ainda não foi gravado — o id nasce no mesmo `SaveChanges`. Guardar `contrato.IdLocacao` ali registraria zero; pela navegação quem resolve a chave é o EF. Documento que já tem id entra pelos dois |
+| Movimento só é registrado quando o estado do ativo **muda** | `Ativar()` num carro que já está na oferta não é transição, e registrar viraria ruído no indicador da seção 12. Efeito colateral conhecido: desativar um carro **locado** não gera movimento, porque ele já estava fora da oferta — essa alteração é cadastral, e `Veiculo` continua sem `IAuditoria` |
+| O `xmin` foi apagado à mão do `CreateTable` da migration | Mesmo motivo que esvazia a `ConcorrenciaOtimista`: `xmin` é coluna de sistema do Postgres e declará-la no `CREATE TABLE` faz o comando falhar. O token de concorrência continua valendo, como propriedade sombra. Se a migration for regerada, apague a linha de novo |
+
+A migration `MovimentoVeiculo` foi aplicada contra o `locadora_autos` real, que é o que prova a
+remoção do `xmin` e os dois caminhos de cascata (o veículo apaga o movimento direto e também pela
+manutenção).
+
 Ainda **não** implementado:
 
 - **RN-45 (parte automática)** — a liberação por `TempoPreparacaoMinutos`. O parâmetro já existe em
-  `Filial` e a liberação manual também; falta o job que solta o carro sozinho quando o prazo vence,
-  e ele depende de agendador — o Hangfire está comentado no `Program.cs`
-  (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
-- **RN-37** (`MovimentoVeiculo`), **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo
-  e responsável), **RN-55** (unicidade restrita aos ativos — hoje o índice é global) e
-  **RN-56** (desmobilização). `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme
-  a versão mínima da seção 4.
-
-  Consequência prática da RN-37 estar aberta: a liberação da preparação **não registra quem
-  liberou**. `Veiculo` não implementa `IAuditoria`, então não há nem o autor da última alteração
-  — todo movimento de status do ativo hoje é anônimo, o que é buraco de auditoria de frota.
+  `Filial`, a liberação manual também, e desde a RN-37 existe o carimbo de **quando** a preparação
+  começou: o `DataMovimento` do movimento que levou a `EmPreparacao`. Falta só o job que solta o
+  carro quando o prazo vence, e ele depende de agendador — o Hangfire está comentado no
+  `Program.cs` (`AddHangFireConfig`/`UseHangFireConfig` sequer existem no repositório).
+- **Leitura da trilha** — os movimentos são gravados e nenhum endpoint os devolve. Os indicadores
+  de utilização real e de tempo médio de preparação (seção 12) dependem dessa leitura.
+- **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo e responsável), **RN-55**
+  (unicidade restrita aos ativos — hoje o índice é global) e **RN-56** (desmobilização).
+  `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme a versão mínima da seção 4, e
+  pelo mesmo motivo `TipoDocumentoOrigem` ainda não tem `Transferencia` nem `Bloqueio`.
 
 ---
 
