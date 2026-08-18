@@ -5,6 +5,7 @@ using Locadora_Auto.Application.Models.Mappers;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 using Microsoft.EntityFrameworkCore;
+using Locadora_Auto.Application.Extensions;
 
 namespace Locadora_Auto.Application.Services.LocacaoServices
 {
@@ -21,6 +22,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         private readonly IFilialRepository _filialRepository;
         private readonly IFuncionarioRepository _funcionarioRepository;
         private readonly IAdicionalRepository _adicionalRepository;
+        private readonly IRecusaSobreposicaoRepository _recusaRepository;
         private readonly INotificadorService _notificador;
 
         public LocacaoService(
@@ -35,6 +37,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             ILocacaoSeguroRepository locacaoSeguroRepository,
             IFuncionarioRepository funcionarioRepository,
             IUploadDownloadFileService uploadDownloadFileService,
+            IRecusaSobreposicaoRepository recusaRepository,
             INotificadorService notificador)
         {
             _locacaoRepository = locacaoRepository;
@@ -47,6 +50,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _reservaRepository = reservaRepository;
             _locacaoSeguroRepository = locacaoSeguroRepository;
             _uploadDownloadFileService = uploadDownloadFileService;
+            _recusaRepository = recusaRepository;
             _vistoriaRepository = vistoriaRepository;
             _adicionalRepository = adicionalRepository;
         }
@@ -140,6 +144,14 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 // carro que voltou à oferta (cancelamento, correção de status, linha antiga) pode
                 // ter contrato futuro já vendido — é essa colisão que só a consulta enxerga.
                 _notificador.Add("Veículo já possui contrato no período");
+
+                await RegistrarRecusaAsync(
+                    veiculo.IdVeiculo,
+                    dto.IdFilialRetirada.Value,
+                    dto.DataInicio.Value,
+                    dto.DataFimPrevista.Value,
+                    OrigemRecusa.Consulta,
+                    ct: ct);
             }
 
             if (_notificador.TemNotificacao())
@@ -157,7 +169,27 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 dto.ValorPrevisto
             );
 
-            await _locacaoRepository.InserirSalvarAsync(locacao, ct);
+            try
+            {
+                await _locacaoRepository.InserirSalvarAsync(locacao, ct);
+            }
+            catch (Exception ex) when (ViolacaoDeExclusao.EhSobreposicaoDeIntervalo(ex))
+            {
+                // RN-41: a consulta lá em cima é a mensagem amigável; esta é a garantia. Chegar
+                // aqui significa concorrência real — dois atendentes passaram pela consulta antes
+                // de qualquer um gravar, e o banco deixou exatamente um passar.
+                await RegistrarRecusaAposFalhaAsync(
+                    veiculo.IdVeiculo,
+                    dto.IdFilialRetirada.Value,
+                    dto.DataInicio.Value,
+                    dto.DataFimPrevista.Value,
+                    ct: ct);
+
+                // relançada de propósito: quem traduz para 409 é o ExceptionProblemFactory, e
+                // engolir aqui transformaria o conflito em 400 do notificador
+                throw;
+            }
+
             return locacao.ToDto();
         }
         public async Task<LocacaoDto?> AtualizarAsync(int id, AtualizarLocacaoDto dto, CancellationToken ct = default)
@@ -178,6 +210,18 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             {
                 _notificador.Add("Veículo já possui contrato no período");
 
+                // extensão recusada conta no mesmo indicador da abertura, mas marcada como
+                // extensão: as duas dizem coisas diferentes ao gestor — abertura errada é escolha
+                // de placa, extensão recusada é frota curta com o cliente já na mão
+                await RegistrarRecusaAsync(
+                    locacao.IdVeiculo,
+                    locacao.IdFilialRetirada,
+                    locacao.DataInicio,
+                    dto.DataFimPrevista,
+                    OrigemRecusa.Consulta,
+                    locacao.IdLocacao,
+                    ct);
+
                 return null;
             }
 
@@ -192,6 +236,70 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add(ex.Message);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Seção 12: registra a tentativa recusada, para o indicador "tentativas de sobreposição
+        /// recusadas por filial" existir.
+        ///
+        /// A recusa em si funcionou — o balcão não vendeu carro que não existe. O que o número
+        /// denuncia é <b>processo</b>: atendente escolhendo placa já comprometida, agenda de pátio
+        /// desatualizada, frota curta na filial. Por isso ele é por filial e ao longo do tempo, e
+        /// por isso é tabela e não linha de log.
+        ///
+        /// Falha ao gravar o indicador não pode derrubar a recusa: o cliente já recebeu a resposta
+        /// certa, e perder uma linha de estatística é infinitamente melhor que transformar um 400
+        /// explicado num 500. Por isso engole a exceção.
+        /// </summary>
+        private async Task RegistrarRecusaAsync(
+            int idVeiculo,
+            int idFilialRetirada,
+            DateTime inicio,
+            DateTime fim,
+            OrigemRecusa origem,
+            int? idLocacaoEmExtensao = null,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                var recusa = RecusaSobreposicao.Criar(
+                    idVeiculo, idFilialRetirada, inicio, fim, origem, idLocacaoEmExtensao);
+
+                await _recusaRepository.InserirSalvarAsync(recusa, ct);
+            }
+            catch
+            {
+                // indicador não derruba operação
+            }
+        }
+
+        /// <summary>
+        /// A mesma coisa, depois de o <c>SaveChanges</c> da abertura ter falhado (RN-41).
+        ///
+        /// O passo a mais é o <c>LimparRastreamento</c>: a locação recusada continua <c>Added</c> no
+        /// contexto, e junto com ela o <c>Locar()</c> que já marcou o veículo. Gravar a recusa sem
+        /// limpar mandaria os três de novo — bateria no mesmo <c>23P01</c> e, pior, poderia deixar
+        /// o veículo <c>Locado</c> sem contrato. A operação já está perdida (a exceção é relançada
+        /// logo em seguida), então descartar o rastreamento é o certo, não um atalho.
+        /// </summary>
+        private async Task RegistrarRecusaAposFalhaAsync(
+            int idVeiculo,
+            int idFilialRetirada,
+            DateTime inicio,
+            DateTime fim,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                _locacaoRepository.LimparRastreamento();
+            }
+            catch
+            {
+                // sem o descarte não dá para gravar nada; sai calado e o 409 segue seu caminho
+                return;
+            }
+
+            await RegistrarRecusaAsync(idVeiculo, idFilialRetirada, inicio, fim, OrigemRecusa.Banco, ct: ct);
         }
 
         /// <summary>

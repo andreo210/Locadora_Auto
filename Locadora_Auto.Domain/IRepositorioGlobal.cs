@@ -79,5 +79,19 @@ namespace Locadora_Auto.Domain
 
         Task<int> SalvarAsync(CancellationToken ct = default);
 
+        /// <summary>
+        /// Descarta tudo o que o contexto está rastreando, sem gravar.
+        ///
+        /// Existe para <b>um</b> caso: gravar alguma coisa depois de um <c>SaveChanges</c> que
+        /// falhou. O que falhou continua pendente no contexto — junto com todo o resto do grafo
+        /// alterado — e a gravação seguinte tentaria mandá-lo de novo, batendo no mesmo erro. Hoje
+        /// quem precisa disso é o registro da tentativa de sobreposição recusada pelo banco
+        /// (seção 12), que só pode ser gravado depois de a abertura do contrato ter falhado.
+        ///
+        /// Só faça isso quando a operação em curso já está perdida de qualquer forma: limpar no
+        /// meio de um fluxo que ainda pretende gravar descarta alteração em silêncio.
+        /// </summary>
+        void LimparRastreamento();
+
     }
 }

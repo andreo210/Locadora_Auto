@@ -49,6 +49,11 @@ namespace Locadora_Auto.Tests.Fakes
         public BloqueioVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
+    public class RecusaSobreposicaoRepositoryFake : RepositorioFake<RecusaSobreposicao>, IRecusaSobreposicaoRepository
+    {
+        public RecusaSobreposicaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
     public class TransferenciaVeiculoRepositoryFake : RepositorioFake<TransferenciaVeiculo>, ITransferenciaVeiculoRepository
     {
         public TransferenciaVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }

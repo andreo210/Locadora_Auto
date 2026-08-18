@@ -165,14 +165,13 @@ namespace Locadora_Auto.Application.Extensions
         /// O tipo consultado é <see cref="DbException"/>, e não <c>PostgresException</c>: o
         /// <c>SqlState</c> existe na classe base desde o .NET 5, e assim a camada de Application
         /// não passa a depender do driver.
+        ///
+        /// Está em <see cref="ViolacaoDeExclusao"/>, e não aqui como privado, porque o
+        /// <c>LocacaoService</c> precisa reconhecer a mesma exceção para contar a recusa da seção
+        /// 12 — e duas cópias do SQLSTATE em lugares diferentes divergem no primeiro ajuste.
         /// </summary>
         private static bool EhSobreposicaoDeIntervalo(Exception? exception)
-        {
-            const string ExclusionViolation = "23P01";
-
-            return (exception as DbException ?? exception?.InnerException as DbException)
-                ?.SqlState == ExclusionViolation;
-        }
+            => ViolacaoDeExclusao.EhSobreposicaoDeIntervalo(exception);
 
         private static ProblemDetails ApplyHttpContext(HttpContext context, ProblemDetails problem)
         {
@@ -180,6 +179,21 @@ namespace Locadora_Auto.Application.Extensions
             problem.Extensions["traceId"] = context.TraceIdentifier;
             return problem;
         }
+    }
+
+    /// <summary>
+    /// Reconhece a violação da constraint <c>EXCLUDE</c> de <c>tb_locacao</c> (RN-41).
+    ///
+    /// Dois lugares perguntam isso e precisam concordar: o <c>ExceptionProblemFactory</c>, que a
+    /// traduz para 409, e o <c>LocacaoService</c>, que conta a recusa no indicador da seção 12.
+    /// </summary>
+    public static class ViolacaoDeExclusao
+    {
+        private const string ExclusionViolation = "23P01";
+
+        public static bool EhSobreposicaoDeIntervalo(Exception? exception)
+            => (exception as DbException ?? exception?.InnerException as DbException)
+                ?.SqlState == ExclusionViolation;
     }
 
     // ========================= 4. EXCEÇÃO DE DOMÍNIO =========================

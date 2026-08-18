@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain;
+﻿using Locadora_Auto.Domain;
 using System.Linq.Expressions;
 
 namespace Locadora_Auto.Tests.Fakes
@@ -32,6 +32,19 @@ namespace Locadora_Auto.Tests.Fakes
 
         /// <summary>Quantas vezes o serviço mandou gravar. É a asserção de "chegou a salvar?".</summary>
         public int Salvamentos { get; private set; }
+
+        /// <summary>
+        /// No-op: o fake não tem change tracking, então não há o que descartar. Quem chama isso em
+        /// produção está limpando um <c>SaveChanges</c> que falhou — e falha de banco também não
+        /// existe aqui.
+        ///
+        /// <see cref="Limpezas"/> conta as chamadas, para o teste conseguir verificar que o serviço
+        /// limpou antes de gravar o que vem depois do erro.
+        /// </summary>
+        public void LimparRastreamento() => Limpezas++;
+
+        /// <summary>Quantas vezes o serviço descartou o rastreamento.</summary>
+        public int Limpezas { get; private set; }
 
         protected List<TEntity> Tabela => Armazem.Tabela<TEntity>();
 

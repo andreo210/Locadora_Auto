@@ -322,6 +322,13 @@ namespace Locadora_Auto.Infra.Data
                 return await query.Select(projecao).ToListAsync(ct);
         }
 
+        /// <summary>
+        /// Descarta o rastreamento do contexto. Ver <c>IRepositorioGlobal.LimparRastreamento</c>
+        /// para quando isto é legítimo — a resposta curta é: só depois de um <c>SaveChanges</c> que
+        /// falhou e cuja operação já está perdida.
+        /// </summary>
+        public virtual void LimparRastreamento() => Context.ChangeTracker.Clear();
+
         public virtual async Task<TEntity> InserirSalvarAsync(TEntity entidade, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(entidade);

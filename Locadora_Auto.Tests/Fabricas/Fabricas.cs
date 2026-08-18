@@ -1,5 +1,6 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Services.LocacaoServices;
+using Locadora_Auto.Application.Services.VeiculoServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fakes;
 
@@ -268,7 +269,8 @@ namespace Locadora_Auto.Tests.Fabricas
         public static LocacaoService LocacaoService(
             ArmazemFake armazem,
             INotificadorService notificador,
-            LocacaoRepositoryFake? locacoes = null)
+            LocacaoRepositoryFake? locacoes = null,
+            RecusaSobreposicaoRepositoryFake? recusas = null)
             => new(
                 locacoes ?? new LocacaoRepositoryFake(armazem),
                 new ClienteRepositoryFake(armazem),
@@ -281,6 +283,19 @@ namespace Locadora_Auto.Tests.Fabricas
                 new LocacaoSeguroRepositoryFake(armazem),
                 new FuncionarioRepositoryFake(armazem),
                 new UploadDownloadFileServiceFake(),
+                recusas ?? new RecusaSobreposicaoRepositoryFake(armazem),
+                notificador);
+
+        /// <summary>
+        /// <c>IndicadoresFrotaService</c> montado sobre um armazém só. Mesmo motivo dos outros dois.
+        /// </summary>
+        public static IndicadoresFrotaService IndicadoresFrotaService(
+            ArmazemFake armazem, INotificadorService notificador)
+            => new(
+                new VeiculosRepositoryFake(armazem),
+                new MovimentoVeiculoRepositoryFake(armazem),
+                new BloqueioVeiculoRepositoryFake(armazem),
+                new RecusaSobreposicaoRepositoryFake(armazem),
                 notificador);
 
         /// <summary>Escreve em propriedade de set privado — o que o EF e o relógio fazem em produção.</summary>

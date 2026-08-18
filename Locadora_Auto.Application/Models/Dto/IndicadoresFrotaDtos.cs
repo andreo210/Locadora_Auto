@@ -60,6 +60,66 @@
         /// </summary>
         public List<TempoPorSituacaoDto> TempoPorSituacao { get; set; } = new();
 
+        /// <summary>
+        /// Bloqueios (RN-52) ainda abertos cuja data prevista de liberação já passou.
+        ///
+        /// É medida do <b>instante</b>, não do período: a pergunta é "quantos carros estão fora da
+        /// oferta agora sem que ninguém tenha percebido". É este número que a RN-52 existe para
+        /// tornar possível — antes dela, bloqueio não tinha prazo e a pergunta não tinha resposta.
+        ///
+        /// Só conta bloqueio de verdade. Veículo apenas desativado também fica em
+        /// <c>Bloqueado</c>, mas isso é ato de cadastro, aparece em qualquer filtro por
+        /// <c>Ativo</c> e não some da vista de ninguém.
+        /// </summary>
+        public int BloqueiosVencidos { get; set; }
+
+        /// <summary>
+        /// Movimentos do período cujo tipo de origem exige documento e está sem ele.
+        ///
+        /// <b>Tem que ser zero.</b> É controle de auditoria, não métrica de operação: qualquer
+        /// número acima disso significa que uma transição de ativo perdeu o documento que a
+        /// autorizou, e aí a conciliação de frota deixa de fechar. Contrato, ordem de serviço,
+        /// bloqueio e transferência são os tipos que exigem; cadastro, pátio, prazo e
+        /// desmobilização são o próprio ato e não têm documento a citar.
+        /// </summary>
+        public int TransicoesSemDocumento { get; set; }
+
+        /// <summary>
+        /// Tentativas de abrir ou estender contrato sobre veículo já comprometido no período
+        /// (RN-40), recusadas dentro da janela.
+        ///
+        /// A recusa funcionou — nenhum cliente ficou sem carro. O que o número mede é
+        /// <b>processo</b>: se sobe numa filial, o balcão de lá está escolhendo placa comprometida,
+        /// e a causa é agenda de pátio desatualizada, treinamento ou frota curta. Não é defeito de
+        /// sistema, e é por isso que ele é acompanhado por filial e não como total da rede.
+        /// </summary>
+        public int TentativasSobreposicaoRecusadas { get; set; }
+
+        /// <summary>
+        /// O mesmo número aberto por filial de retirada — que é onde a tentativa foi feita, e não
+        /// necessariamente a filial atual do veículo.
+        /// </summary>
+        public List<RecusaPorFilialDto> RecusasPorFilial { get; set; } = new();
+    }
+
+    public class RecusaPorFilialDto
+    {
+        public int IdFilial { get; set; }
+        public int Total { get; set; }
+
+        /// <summary>
+        /// Barradas pela consulta do serviço, antes de gravar. É o caso normal: o atendente
+        /// escolheu placa comprometida e o sistema avisou a tempo.
+        /// </summary>
+        public int PelaConsulta { get; set; }
+
+        /// <summary>
+        /// Barradas pela constraint do banco (RN-41). Só acontece em concorrência real — dois
+        /// atendentes abrindo o mesmo período no mesmo instante. Aqui o processo do balcão não
+        /// errou: dois pontos de venda disputaram o mesmo carro, e o que falta é frota ou
+        /// coordenação entre canais.
+        /// </summary>
+        public int PeloBanco { get; set; }
     }
 
     public class TempoPorSituacaoDto

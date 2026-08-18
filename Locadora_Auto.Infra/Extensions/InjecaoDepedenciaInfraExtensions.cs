@@ -26,6 +26,7 @@ namespace Locadora_Auto.Infra.Extensions
             services.AddScoped<IMovimentoVeiculoRepository, MovimentoVeiculoRepository>();
             services.AddScoped<IBloqueioVeiculoRepository, BloqueioVeiculoRepository>();
             services.AddScoped<ITransferenciaVeiculoRepository, TransferenciaVeiculoRepository>();
+            services.AddScoped<IRecusaSobreposicaoRepository, RecusaSobreposicaoRepository>();
             services.AddScoped<IAdicionalRepository, AdicionalRepository>();
             services.AddScoped<IVistoriaRepository, VistoriaRepository>();
             services.AddScoped<IFilialRepository, FilialRepository>();

@@ -22,15 +22,21 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
 
         private readonly IVeiculosRepository _veiculoRepository;
         private readonly IMovimentoVeiculoRepository _movimentoRepository;
+        private readonly IBloqueioVeiculoRepository _bloqueioRepository;
+        private readonly IRecusaSobreposicaoRepository _recusaRepository;
         private readonly INotificadorService _notificador;
 
         public IndicadoresFrotaService(
             IVeiculosRepository veiculoRepository,
             IMovimentoVeiculoRepository movimentoRepository,
+            IBloqueioVeiculoRepository bloqueioRepository,
+            IRecusaSobreposicaoRepository recusaRepository,
             INotificadorService notificador)
         {
             _veiculoRepository = veiculoRepository;
             _movimentoRepository = movimentoRepository;
+            _bloqueioRepository = bloqueioRepository;
+            _recusaRepository = recusaRepository;
             _notificador = notificador;
         }
 
@@ -86,7 +92,87 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
             foreach (var trilha in movimentos.GroupBy(m => m.IdVeiculo))
                 apuracao.Somar(trilha.OrderBy(m => m.IdMovimentoVeiculo).ToList(), inicio, fim);
 
-            return apuracao.Fechar(indicadores);
+            apuracao.Fechar(indicadores);
+
+            // controle de auditoria (RN-37): transição cujo tipo exige documento e está sem ele.
+            // Sai das linhas que já estão na memória — nenhuma consulta a mais — e é contado dentro
+            // da janela, como o resto do relatório
+            indicadores.TransicoesSemDocumento = movimentos.Count(m =>
+                m.DataMovimento > inicio
+                && SemDocumento(m));
+
+            indicadores.BloqueiosVencidos = await ContarBloqueiosVencidosAsync(ids, fim, ct);
+
+            await PreencherRecusasAsync(indicadores, inicio, fim, idFilial, ct);
+
+            return indicadores;
+        }
+
+        /// <summary>
+        /// O movimento cita o documento que a RN-37 exige dele?
+        ///
+        /// Contrato, ordem de serviço, bloqueio e transferência têm documento e precisam apontá-lo.
+        /// Cadastro, pátio, prazo e desmobilização <b>não</b> têm: neles a origem é o próprio ato, e
+        /// o registro é a linha somada ao autor da auditoria. Tratá-los como falta faria o
+        /// indicador nascer com um número grande e permanente, e ninguém voltaria a olhá-lo.
+        /// </summary>
+        private static bool SemDocumento(MovimentoVeiculo movimento) => movimento.TipoOrigem switch
+        {
+            TipoDocumentoOrigem.Contrato => movimento.IdLocacaoOrigem == null,
+            TipoDocumentoOrigem.OrdemServico => movimento.IdManutencaoOrigem == null,
+            TipoDocumentoOrigem.Bloqueio => movimento.IdBloqueioOrigem == null,
+            TipoDocumentoOrigem.Transferencia => movimento.IdTransferenciaOrigem == null,
+            _ => false
+        };
+
+        /// <summary>
+        /// Bloqueios abertos com prazo vencido, entre os veículos do recorte.
+        ///
+        /// É contagem no banco e não em memória: a lista pode ser grande e só o número interessa.
+        /// O instante de referência é o fim da janela — que já vem limitado a "agora" — para o
+        /// relatório inteiro ser lido pelo mesmo relógio.
+        /// </summary>
+        private Task<int> ContarBloqueiosVencidosAsync(List<int> ids, DateTime fim, CancellationToken ct)
+            => _bloqueioRepository.ContarAsync(
+                b => ids.Contains(b.IdVeiculo)
+                     && b.DataLiberacao == null
+                     && b.DataPrevistaLiberacao < fim,
+                ct);
+
+        /// <summary>
+        /// Tentativas de sobreposição recusadas na janela, no total e por filial.
+        ///
+        /// O recorte por filial aqui é o da <b>filial de retirada da tentativa</b> — onde o balcão
+        /// errou —, e não o da filial atual do veículo, que é o recorte do resto do relatório. São
+        /// perguntas diferentes de propósito: a utilização responde "onde o carro está", e esta
+        /// responde "onde alguém tentou vendê-lo indevidamente".
+        /// </summary>
+        private async Task PreencherRecusasAsync(
+            IndicadoresFrotaDto indicadores,
+            DateTime inicio,
+            DateTime fim,
+            int? idFilial,
+            CancellationToken ct)
+        {
+            var recusas = await _recusaRepository.ObterAsync(
+                filtro: r => r.DataRecusa > inicio
+                             && r.DataRecusa <= fim
+                             && (idFilial == null || r.IdFilialRetirada == idFilial),
+                ct: ct);
+
+            indicadores.TentativasSobreposicaoRecusadas = recusas.Count;
+
+            indicadores.RecusasPorFilial = recusas
+                .GroupBy(r => r.IdFilialRetirada)
+                .Select(g => new RecusaPorFilialDto
+                {
+                    IdFilial = g.Key,
+                    Total = g.Count(),
+                    PelaConsulta = g.Count(r => r.Origem == OrigemRecusa.Consulta),
+                    PeloBanco = g.Count(r => r.Origem == OrigemRecusa.Banco)
+                })
+                .OrderByDescending(r => r.Total)
+                .ToList();
         }
 
         /// <summary>
