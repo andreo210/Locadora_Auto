@@ -159,6 +159,20 @@ namespace Locadora_Auto.Tests.Fabricas
         }
 
         /// <summary>
+        /// Contrato com o carro já recebido e a conta ainda por apurar — o ponto de partida de
+        /// todo teste de fechamento (doc 07 §6, <c>Devolvida → Fechada</c>).
+        /// </summary>
+        public static Locacao LocacaoDevolvida(
+            Veiculo? veiculo = null,
+            decimal valorDiariaContratada = 150m,
+            int kmFinal = 15_400,
+            int filialDevolucao = 1)
+            => Devolver(
+                Retirar(Locacao(veiculo: veiculo, valorDiariaContratada: valorDiariaContratada)),
+                kmFinal: kmFinal,
+                filialDevolucao: filialDevolucao);
+
+        /// <summary>
         /// Contrato do começo ao fim da conta. <paramref name="valorFinal"/> zero é o padrão de
         /// propósito: sem saldo a cobrar o contrato cai em <c>Finalizada</c>, que é o estado que a
         /// maioria dos testes de multa e de pós-contrato quer como ponto de partida. Com valor e

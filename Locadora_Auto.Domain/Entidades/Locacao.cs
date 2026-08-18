@@ -75,6 +75,15 @@ namespace Locadora_Auto.Domain.Entidades
         private readonly List<LocacaoAdicional> _adicionais = new();
         public IReadOnlyCollection<LocacaoAdicional> Adicionais => _adicionais;
 
+        /// <summary>
+        /// A conta discriminada do contrato (RN-31). Nula até a apuração ser aberta — contrato que
+        /// ainda não voltou não tem o que apurar.
+        ///
+        /// Um por locação, garantido também por índice único no banco: apurar duas vezes não pode
+        /// produzir duas contas (RN-32).
+        /// </summary>
+        public FechamentoLocacao? Fechamento { get; private set; }
+
 
 
 
@@ -319,6 +328,92 @@ namespace Locadora_Auto.Domain.Entidades
                 ? StatusLocacao.ComSaldoResidual
                 : StatusLocacao.Finalizada;
         }
+
+        #region Fechamento discriminado
+
+        // As quatro portas do doc 07 §1 (FECHAMENTO). Nenhuma delas calcula: o que apura período,
+        // km, combustível, proteção e taxas é o backlog A5–A10, e vai escrever por aqui.
+        //
+        // Elas também ainda **não** mexem em `Status` nem em `ValorFinal` — `Fechar(valorFinal)`
+        // continua sendo a porta do ciclo de vida, exatamente como estava. Juntar as duas é o A10,
+        // e lá vai ser preciso relaxar a guarda de `valorFinal < 0` do `Fechar`: a RN-29 permite
+        // saldo negativo, que é crédito a devolver, e hoje ele seria recusado.
+
+        /// <summary>
+        /// Abre a apuração da conta. <b>Idempotente por desenho</b> (RN-32 e doc 07 §5): chamar de
+        /// novo devolve o fechamento que já existe, selado ou não — retentativa de rede no balcão
+        /// não pode produzir duas contas para o mesmo contrato.
+        ///
+        /// A guarda de estado só vale para o primeiro: apurar exige o carro já recebido (doc 07 §6,
+        /// <c>Devolvida → Fechada</c>), e <c>Criada → Fechada</c> está na lista de transições
+        /// proibidas.
+        /// </summary>
+        public FechamentoLocacao AbrirFechamento(int idFuncionarioApuracao)
+        {
+            if (Fechamento != null)
+                return Fechamento;
+
+            if (!AposDevolucao.Contains(Status))
+                throw new InvalidOperationException("Só é possível apurar a conta depois da devolução do veículo");
+
+            Fechamento = FechamentoLocacao.Abrir(IdLocacao, idFuncionarioApuracao);
+            return Fechamento;
+        }
+
+        /// <summary>
+        /// Escreve uma linha na apuração em curso (RN-31).
+        /// </summary>
+        /// <param name="idFuncionarioLancamento">
+        /// Só para <see cref="TipoLinhaFechamento.Isencao"/>, que pela RN-34 nunca é anônima. As
+        /// linhas que a regra calculou não têm autor a registrar.
+        /// </param>
+        public LinhaFechamento LancarNoFechamento(
+            TipoLinhaFechamento tipo,
+            string baseCalculo,
+            decimal quantidade,
+            decimal valorUnitario,
+            int? idFuncionarioLancamento = null,
+            string? motivo = null)
+        {
+            var fechamento = Fechamento
+                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+            return fechamento.Lancar(tipo, baseCalculo, quantidade, valorUnitario, idFuncionarioLancamento, motivo);
+        }
+
+        /// <summary>
+        /// Encerra a apuração e devolve o saldo (RN-27). Daqui em diante a conta é histórico e só
+        /// aceita correção.
+        /// </summary>
+        public decimal SelarFechamento()
+        {
+            var fechamento = Fechamento
+                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+            fechamento.Selar();
+            return fechamento.Saldo;
+        }
+
+        /// <summary>
+        /// RN-31: ajusta uma conta já selada acrescentando uma linha, com autor e motivo. Nenhuma
+        /// linha existente é tocada — reabrir fechamento é transição proibida (doc 07 §6).
+        /// </summary>
+        public LinhaFechamento CorrigirFechamento(
+            TipoLinhaFechamento tipo,
+            string baseCalculo,
+            decimal quantidade,
+            decimal valorUnitario,
+            int idFuncionarioLancamento,
+            string motivo)
+        {
+            var fechamento = Fechamento
+                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+            return fechamento.RegistrarCorrecao(
+                tipo, baseCalculo, quantidade, valorUnitario, idFuncionarioLancamento, motivo);
+        }
+
+        #endregion Fechamento discriminado
 
         /// <summary>
         /// Avaria vira ordem corretiva no fechamento, não no ato do registro da vistoria: com o

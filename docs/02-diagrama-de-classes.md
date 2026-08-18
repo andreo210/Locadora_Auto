@@ -50,6 +50,8 @@ classDiagram
     Locacao "1" --> "0..*" LocacaoSeguro
     Locacao "1" --> "0..*" LocacaoAdicional
     Locacao "1" --> "0..*" HistoricoStatusLocacao
+    Locacao "1" --> "0..1" FechamentoLocacao
+    FechamentoLocacao "1" --> "0..*" LinhaFechamento
 
     Seguro "1" ..> "0..*" LocacaoSeguro
     Adicional "1" --> "0..*" LocacaoAdicional
@@ -453,10 +455,15 @@ classDiagram
         +IReadOnlyCollection~Vistoria~ Vistorias
         +IReadOnlyCollection~LocacaoSeguro~ Seguros
         +IReadOnlyCollection~LocacaoAdicional~ Adicionais
+        +FechamentoLocacao Fechamento
         +Criar(cliente, veiculo, funcionario, reserva, filialRetirada, dataInicio, dataFimPrevista, kmInicial, valorPrevisto, valorDiariaContratada) Locacao
         +RegistrarDevolucao(dataFimReal, kmFinal, filialDevolucao)
         +Fechar(valorFinal)
         +LiquidarSaldo()
+        +AbrirFechamento(idFuncionarioApuracao) FechamentoLocacao
+        +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
+        +SelarFechamento() decimal
+        +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SaldoEmAberto() decimal
         +Cancelar()
         +AtualizarDados(dataFimPrevista, kmInicial, valorPrevisto)
@@ -576,6 +583,41 @@ classDiagram
         +Desativar()
     }
 
+    class FechamentoLocacao {
+        +int IdFechamento
+        +int IdLocacao
+        +DateTime DataApuracao
+        +int IdFuncionarioApuracao
+        +DateTime? DataSelagem
+        +decimal TotalDebitos
+        +decimal TotalCreditos
+        +decimal Saldo
+        +bool Selado
+        +IReadOnlyCollection~LinhaFechamento~ Linhas
+        ~Abrir(idLocacao, idFuncionarioApuracao) FechamentoLocacao
+        ~Lancar(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
+        ~Selar()
+        ~RegistrarCorrecao(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
+    }
+
+    class LinhaFechamento {
+        +int IdLinhaFechamento
+        +int IdFechamento
+        +TipoLinhaFechamento Tipo
+        +string BaseCalculo
+        +decimal Quantidade
+        +decimal ValorUnitario
+        +decimal Total
+        +DateTime DataLancamento
+        +bool EhCorrecao
+        +int? IdFuncionarioLancamento
+        +string Motivo
+        +NaturezaLinhaFechamento Natureza
+        ~Lancar(tipo, baseCalculo, quantidade, valorUnitario, ehCorrecao, idFuncionario, motivo) LinhaFechamento
+        +Arredondar(valor)$ decimal
+        +NaturezaDe(tipo)$ NaturezaLinhaFechamento
+    }
+
     class LocacaoSeguro {
         +int IdLocacaoSeguro
         +int IdLocacao
@@ -624,6 +666,8 @@ classDiagram
     Locacao "1" *-- "0..*" Vistoria : Vistorias
     Locacao "1" *-- "0..*" LocacaoSeguro : Seguros
     Locacao "1" *-- "0..*" LocacaoAdicional : Adicionais
+    Locacao "1" *-- "0..1" FechamentoLocacao : Fechamento
+    FechamentoLocacao "1" *-- "0..*" LinhaFechamento : Linhas
     Locacao "1" --> "0..*" HistoricoStatusLocacao
     Vistoria "1" *-- "0..*" Dano : Danos
     Vistoria "1" *-- "0..*" FotoVistoria : Fotos
@@ -757,6 +801,30 @@ classDiagram
         Paga
         CompensadaCaucao
         Cancelada
+    }
+
+    class TipoLinhaFechamento {
+        <<enumeration>>
+        Diaria = 1
+        HoraExcedente = 2
+        DiariaPorTetoDeHoras = 3
+        KmExcedente = 4
+        Combustivel = 5
+        TaxaServicoAbastecimento = 6
+        Protecao = 7
+        Acessorio = 8
+        TaxaRetornoOneWay = 9
+        LimpezaEspecial = 10
+        Avaria = 11
+        MultaTransito = 12
+        PagamentoAbatido = 20
+        Isencao = 21
+    }
+
+    class NaturezaLinhaFechamento {
+        <<enumeration>>
+        Debito = 1
+        Credito = 2
     }
 
     class TipoVistoria {

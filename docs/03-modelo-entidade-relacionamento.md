@@ -48,6 +48,8 @@ erDiagram
     tb_locacao        ||--o{ tb_locacao_adicional : "inclui"
     tb_locacao        ||--o{ tb_vistoria : "é vistoriada"
     tb_locacao        ||--o{ historico_status_locacao : "trilha de status"
+    tb_locacao        ||--o| tb_fechamento_locacao : "apura a conta"
+    tb_fechamento_locacao ||--o{ tb_linha_fechamento : "discrimina"
 
     tb_seguro         ||..o{ tb_locacao_seguro : "sem FK no banco"
     tb_adicional      ||--o{ tb_locacao_adicional : "é contratado"
@@ -373,6 +375,31 @@ erDiagram
         boolean ativo
         numeric valor_diaria_contratada "10,2 — congelada na contratação (RN-18)"
         numeric franquia_contratada "10,2 — congelada na contratação (RN-25)"
+    }
+
+    tb_fechamento_locacao {
+        integer id_fechamento PK
+        integer id_locacao FK "UK — um por contrato (RN-32)"
+        timestamptz data_apuracao
+        integer id_funcionario_apuracao FK
+        timestamptz data_selagem "nulo enquanto a apuração corre"
+        numeric total_debitos "10,2"
+        numeric total_creditos "10,2"
+        numeric saldo "10,2 — assinado; negativo é crédito a devolver (RN-29)"
+    }
+
+    tb_linha_fechamento {
+        integer id_linha_fechamento PK
+        integer id_fechamento FK
+        integer tipo "TipoLinhaFechamento"
+        text base_calculo "varchar(300) — como se chegou ao número (RN-31)"
+        numeric quantidade "12,4 — fracionária para pró-rata (RN-19)"
+        numeric valor_unitario "10,2"
+        numeric total "10,2 — arredondado por linha, AwayFromZero (RN-33)"
+        timestamptz data_lancamento
+        boolean eh_correcao "default false"
+        integer id_funcionario_lancamento FK "anulável; obrigatório em correção e isenção"
+        text motivo "varchar(500) — anulável, pela mesma regra"
     }
 
     tb_adicional {

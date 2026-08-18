@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A4** (entidades do fechamento) → **A5** (apuração do período) → **A6**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` abriu o caminho e o `A2`/`A3` já puseram o dado no lugar — falta o cálculo |
+| Fio principal | **A5** (apuração do período) → **A6**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` abriu o caminho, o `A2`/`A3` puseram o dado no lugar e o `A4` fez o livro — falta escrever nele |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1`, `A2` e `A3` estão feitos: o ciclo de vida do contrato, os valores congelados e os parâmetros
-da casa. **Nenhum cálculo existe** — falta do `A4` em diante. Ordem obrigatória: `A4` antes de
-`A5`–`A10`.
+`A1` a `A4` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa
+e a conta discriminada onde a apuração vai escrever. **Nenhum cálculo existe** — falta do `A5` em
+diante.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -107,12 +107,44 @@ contrato**, só a diária é. Os dois são termo contratual tanto quanto o preç
 com contrato aberto muda a conta de quem já assinou. O corte atual aceita isso porque contrato fecha
 em dias e esses parâmetros quase não mudam — mas é decisão a revisitar no `A5`, que é quem vai lê-los.
 
-**A4 · Entidades `FechamentoLocacao` e `LinhaFechamento`** — `M` · RN-31, RN-33
-Linha discriminada (tipo, base de cálculo, quantidade, valor unitário, total), **imutável** após o
-fechamento, arredondamento a 2 casas por linha com `MidpointRounding.AwayFromZero`. Correção é
-lançamento novo com autor e motivo, nunca edição.
+~~**A4 · Entidades `FechamentoLocacao` e `LinhaFechamento`** — `M` · RN-31, RN-33~~ **feito.**
+Entraram as duas entidades, os enums `TipoLinhaFechamento` e `NaturezaLinhaFechamento`, e a
+migration `FechamentoDiscriminado`. O ciclo é
+`AbrirFechamento` → `LancarNoFechamento`* → `SelarFechamento` → `CorrigirFechamento`*, tudo pela
+`Locacao` — as entidades têm `Criar`/`Lancar` `internal`, pela convenção do agregado.
 
-**A5 · Apuração do período** — `M` · RN-01 a RN-07
+**Nada calcula.** O A4 é o livro em que a apuração vai escrever; o que ele garante é a forma.
+
+Cinco decisões que valem para quem for pegar o `A5` em diante:
+
+- **Crédito é tipo de linha, não valor negativo.** `Total` é sempre positivo e o sinal sai da
+  `Natureza`, derivada do `Tipo` (`PagamentoAbatido` e `Isencao` abatem; o resto cobra). Guardar
+  valor negativo faria a mesma informação existir em dois lugares — o sinal e o tipo —, que é como
+  um extrato passa a cobrar o que deveria devolver. `Natureza` **não tem coluna** pelo mesmo
+  motivo, e há teste de modelo fixando isso.
+- **Os totais acumulam linha a linha, não por `Sum()` sobre a coleção.** As linhas só existem em
+  memória se alguém pediu o `Include`, e um total recalculado sobre coleção parcialmente carregada
+  sairia menor que o real — em silêncio, num campo de dinheiro. Só é correto porque a coleção é
+  **append-only**: nenhuma linha muda de valor e nenhuma é removida.
+- **`BaseCalculo` é texto obrigatório** ("franquia de 600 km sobre 3 diárias; rodados 750 km"). É o
+  que sustenta a cobrança contestada, e o doc `07` §9 fecha com "não faça em cenário nenhum: cobrar
+  linha sem documento de suporte".
+- **A selagem é a fronteira.** Antes dela linha nova é cálculo; depois, é correção, e aí exige autor
+  e motivo (RN-34). Selar exige ao menos uma linha — a RN-02 garante o mínimo de uma diária em
+  qualquer contrato, então conta vazia só pode ser apuração que não rodou.
+- **O A4 não encosta em `Fechar`, `Status` nem `ValorFinal`.** O fechamento discriminado e o ciclo
+  de vida do contrato ainda correm em paralelo; juntá-los é o `A10`.
+
+Duas armadilhas registradas:
+
+- O `xmin` que o EF gerou nos dois `CreateTable` foi **removido à mão**, como nas migrations do
+  bloco B — `xmin` é coluna de sistema do Postgres e declará-la no `CREATE TABLE` falha. Se a
+  migration for regerada, apague de novo.
+- **O `A10` vai precisar relaxar a guarda `valorFinal < 0` do `Locacao.Fechar`.** A RN-29 permite
+  saldo negativo, que é crédito a devolver ao cliente; hoje `Fechar` o recusaria, e o
+  `FechamentoLocacao` já sabe produzi-lo.
+
+**A5 · Apuração do período** — `M` · RN-01 a RN-07 · **é por aqui que se começa**
 Diária = ciclo de 24h a partir de `DataInicio` (nunca calendário), mínimo 1; tolerância; hora
 excedente por hora iniciada; **teto de 1 diária** substituindo as horas. É domínio puro — testa
 sem banco, e os quatro primeiros cenários gherkin do doc `07` §10 já servem de teste.
@@ -141,8 +173,12 @@ Havendo proteção, a cobrança ao cliente é limitada à franquia contratada **
 avarias**, não por avaria. Multa `Pendente` conhecida entra; recebida depois não reabre.
 
 **A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34
-Total, abatimento só de pagamento `Pago`, saldo negativo que **não** trunca para zero, caução
-resolvida **depois** do saldo, apuração idempotente.
+Caução resolvida **depois** do saldo, e a ligação entre o fechamento discriminado e o ciclo de vida
+do contrato: hoje `FechamentoLocacao.Saldo` e `Locacao.ValorFinal` correm em paralelo, e é aqui que
+`Fechar` passa a ler o saldo em vez de recebê-lo. **Relaxar a guarda `valorFinal < 0` do `Fechar`
+faz parte:** RN-29 permite saldo negativo.
+O que o `A4` já entregou: total, natureza de crédito, saldo que não trunca, e a idempotência da
+abertura (`AbrirFechamento` devolve a conta existente, com índice único no banco por trás).
 Inclui consertar a máquina da caução, que hoje está quebrada: `Caucao.Devolver()` só aceita status
 `Pendente` — logo uma caução `Bloqueada`, que é o fluxo normal, nunca pode ser devolvida —,
 `Deduzir` zera o valor marcando `Bloqueada`, e `StatusCaucao.Utilizada` não é atribuído em lugar

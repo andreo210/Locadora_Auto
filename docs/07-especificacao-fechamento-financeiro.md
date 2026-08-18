@@ -2,8 +2,9 @@
 
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
-> nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6) e os dados que a apuração vai
-> consumir (§8) — **nenhuma regra de cálculo**. A §8 marca o que já está no modelo.
+> nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração vai
+> consumir e a conta discriminada em que ela vai escrever (§8) — **nenhuma regra de cálculo**. A §8
+> marca o que já está no modelo.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -201,14 +202,23 @@ vazamento de receita.
 | `Veiculo` | `CapacidadeTanqueLitros` | RN-14 | **existe** (anulável) |
 | `Filial` | `HabilitadaOneWay`, `TaxaRetornoOneWay` | RN-21, RN-22 | **existe** |
 | `Filial` | `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`, `TaxaServicoAbastecimento`, `ValorLimpezaEspecial` | RN-03, RN-04, RN-15, RN-23 | **existe** |
-| Nova entidade | `FechamentoLocacao` + `LinhaFechamento` | RN-31 | falta |
+| Nova entidade | `FechamentoLocacao` + `LinhaFechamento` | RN-31 | **existe** |
 
 Os cinco parâmetros da última linha ficaram **por filial**, e não globais: é onde o
 `TempoPreparacaoMinutos` já mora, e pelo mesmo motivo — preço de litro e custo de limpeza variam de
 praça para praça. Entram por `Filial.DefinirParametrosFinanceiros`, onde nulo mantém o valor atual.
 
-Tudo isso é **só o dado**: nenhum campo acima é lido por cálculo nenhum ainda, porque a apuração
-não existe. Quem os consumir precisa fechar antes duas coisas que a especificação não determina:
+O `FechamentoLocacao` é a conta discriminada da RN-31, e o ciclo é
+`AbrirFechamento` → `LancarNoFechamento`* → `SelarFechamento` → `CorrigirFechamento`*, tudo pela
+`Locacao`. A selagem é a fronteira: antes dela linha nova é cálculo, depois é correção assinada.
+Crédito é **tipo de linha** (`PagamentoAbatido`, `Isencao`) e nunca valor negativo — o `Total` é
+sempre positivo e o sinal sai da natureza do tipo, de modo que o `Saldo` pode ser negativo (RN-29)
+sem que nenhuma linha seja.
+
+Tudo isso é **só o dado e a forma**: nenhum campo acima é lido por cálculo nenhum ainda, porque a
+apuração não existe — o `FechamentoLocacao` é o livro em que ela vai escrever, e ele ainda corre em
+paralelo ao `Locacao.ValorFinal`. Quem os consumir precisa fechar antes duas coisas que a
+especificação não determina:
 
 - **De qual filial ler cada parâmetro.** O desenho atual assume termo de contrato (tolerância, hora
   excedente) na filial de **retirada** e custo de execução (combustível, limpeza, one-way) na de

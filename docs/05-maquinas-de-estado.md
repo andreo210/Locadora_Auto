@@ -220,6 +220,43 @@ stateDiagram-v2
 
 ---
 
+## 3.1 Fechamento da locação — `FechamentoLocacao`
+
+Não tem enum: o estado é a `DataSelagem`, e a pergunta que ela responde não é só "está selado" e
+sim "desde quando" — que é o que a retenção fiscal do doc `07` §11 pergunta.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Aberto : Locacao.AbrirFechamento(idFuncionario)<br/>só a partir de Devolvida
+
+    Aberto --> Aberto : LancarNoFechamento(...)<br/>linha nova é cálculo
+    Aberto --> Selado : SelarFechamento()<br/>exige ao menos uma linha
+
+    Selado --> Selado : CorrigirFechamento(...)<br/>linha nova é correção, com autor e motivo
+```
+
+A selagem é a fronteira da RN-31: antes dela a conta é rascunho e linha nova é apuração; depois,
+é histórico, e a única forma de mexer é **acrescentar** uma linha marcada como correção. Nenhuma
+linha existente muda de valor em momento nenhum — `LinhaFechamento` não tem um único método que a
+altere.
+
+`AbrirFechamento` é **idempotente** (RN-32): chamado de novo, devolve a conta que já existe,
+selada ou não. A garantia dura é o índice único sobre `id_locacao`.
+
+Transições que não existem de propósito:
+
+- `Selado → Aberto` — reabrir fechamento (doc `07` §6, transição proibida).
+- `Aberto → Selado` sem linha nenhuma — a RN-02 garante o mínimo de uma diária em qualquer
+  contrato, então conta vazia só pode ser apuração que não rodou.
+
+Este ciclo ainda corre **em paralelo** ao `StatusLocacao` da seção 1: `SelarFechamento` devolve o
+saldo mas não move o contrato para `Fechada`, e `Locacao.Fechar` continua recebendo o `valorFinal`
+de quem chama. Juntar os dois é o backlog `A10`.
+
+---
+
 ## 4. Pagamento — `StatusPagamento`
 
 ```mermaid

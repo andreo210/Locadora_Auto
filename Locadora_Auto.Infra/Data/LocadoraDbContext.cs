@@ -37,6 +37,8 @@ namespace Locadora_Auto.Infra.Data
         public DbSet<Seguro> Seguros => Set<Seguro>();
         public DbSet<LocacaoSeguro> LocacaoSeguros => Set<LocacaoSeguro>();
         public DbSet<Dano> Danos => Set<Dano>();
+        public DbSet<FechamentoLocacao> FechamentosLocacao => Set<FechamentoLocacao>();
+        public DbSet<LinhaFechamento> LinhasFechamento => Set<LinhaFechamento>();
 
 
         /// <summary>
