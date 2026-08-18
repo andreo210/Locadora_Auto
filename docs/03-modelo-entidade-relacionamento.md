@@ -196,6 +196,15 @@ erDiagram
         text cidade "varchar(100)"
         boolean ativo
         integer id_endereco FK
+        integer tempo_preparacao_minutos "default 120"
+        boolean permite_transferencia "default true"
+        boolean habilitada_one_way "default true"
+        numeric taxa_retorno_one_way "10,2 — default 0"
+        integer tolerancia_minutos "default 30"
+        numeric percentual_hora_excedente "5,4 — default 0,3333"
+        numeric preco_litro_combustivel "10,2 — default 0"
+        numeric taxa_servico_abastecimento "10,2 — default 0"
+        numeric valor_limpeza_especial "10,2 — default 0"
     }
 
     tb_endereco {
@@ -231,6 +240,10 @@ erDiagram
         boolean disponivel
         integer id_filial_atual FK
         integer status "StatusVeiculo"
+        numeric capacidade_tanque_litros "6,2 — anulável"
+        text motivo_desmobilizacao "varchar(500) — anulável"
+        timestamptz data_desmobilizacao "anulável"
+        integer id_funcionario_desmobilizacao FK "anulável"
     }
 
     tb_manutencao {
@@ -315,6 +328,7 @@ erDiagram
         integer km_final
         numeric valor_previsto "10,2"
         numeric valor_final "10,2"
+        numeric valor_diaria_contratada "10,2 — congelada na abertura (RN-06)"
         text status "varchar(20) — StatusLocacao"
     }
 
@@ -357,6 +371,8 @@ erDiagram
         integer id_locacao FK
         integer id_seguro "sem FK"
         boolean ativo
+        numeric valor_diaria_contratada "10,2 — congelada na contratação (RN-18)"
+        numeric franquia_contratada "10,2 — congelada na contratação (RN-25)"
     }
 
     tb_adicional {

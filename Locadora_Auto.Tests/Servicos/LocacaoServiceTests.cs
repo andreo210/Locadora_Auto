@@ -27,6 +27,12 @@ namespace Locadora_Auto.Tests.Servicos
             public required Veiculo Veiculo { get; init; }
             public required Funcionario Funcionario { get; init; }
             public required Filial Filial { get; init; }
+
+            /// <summary>
+            /// O armazém que sustenta os fakes. Exposto para o teste poder semear a exceção do
+            /// cenário — um veículo sem categoria, um seguro de cadastro — sem remontar tudo.
+            /// </summary>
+            public required ArmazemFake Armazem { get; init; }
         }
 
         private static Cenario Montar(bool veiculoAtivo = true, StatusVeiculo status = StatusVeiculo.Disponivel)
@@ -79,7 +85,8 @@ namespace Locadora_Auto.Tests.Servicos
                 Cliente = cliente,
                 Veiculo = veiculo,
                 Funcionario = funcionario,
-                Filial = filial
+                Filial = filial,
+                Armazem = armazem
             };
         }
 
@@ -519,6 +526,63 @@ namespace Locadora_Auto.Tests.Servicos
             Assert.False(sucesso);
             Assert.True(cenario.Notificador.TemNotificacao());
             Assert.Equal(StatusVeiculo.EmPreparacao, cenario.Veiculo.Status);
+        }
+
+        // ======================= valores congelados (RN-06, RN-18, RN-25) =======================
+
+        [Fact]
+        public async Task Abertura_congela_a_diaria_da_categoria_do_veiculo()
+        {
+            // 150 é o valor de Fabrica.Categoria(); o ponto é que o número sai do cadastro no ato
+            // da abertura, e não de uma leitura futura no fechamento
+            var cenario = Montar();
+
+            var criada = await cenario.Service.CriarAsync(Dto(cenario));
+
+            Assert.False(cenario.Notificador.TemNotificacao());
+            Assert.Equal(150m, criada!.ValorDiariaContratada);
+        }
+
+        [Fact]
+        public async Task Abertura_com_categoria_ausente_notifica_em_vez_de_criar_contrato_com_diaria_zero()
+        {
+            // sem esta guarda o contrato nasceria valendo zero por diária, e o defeito só apareceria
+            // na devolução — semanas depois, com o carro já rodado
+            var cenario = Montar();
+            var semCategoria = Fabrica.Veiculo(idCategoria: 999, idFilial: cenario.Filial.IdFilial, placa: "ZZZ9Z99");
+            cenario.Armazem.Semear(semCategoria);
+
+            var dto = Dto(cenario);
+            dto.IdVeiculo = semCategoria.IdVeiculo;
+
+            var criada = await cenario.Service.CriarAsync(dto);
+
+            Assert.Null(criada);
+            Assert.True(cenario.Notificador.TemNotificacao());
+            Assert.Equal(0, cenario.Locacoes.Salvamentos);
+        }
+
+        [Fact]
+        public async Task Contratar_seguro_congela_a_diaria_e_a_franquia_do_cadastro()
+        {
+            var cenario = Montar();
+            var criada = await cenario.Service.CriarAsync(Dto(cenario));
+
+            // 40 / 1500 são os números de Fabrica.Seguro()
+            var seguro = Fabrica.Seguro();
+            cenario.Armazem.Semear(seguro);
+
+            var sucesso = await cenario.Service.AdicionarSeguroAsync(criada!.IdLocacao, seguro.IdSeguro);
+
+            Assert.True(sucesso);
+            Assert.False(cenario.Notificador.TemNotificacao());
+
+            var contratado = cenario.Armazem.Tabela<Locacao>()
+                .Single(l => l.IdLocacao == criada.IdLocacao)
+                .Seguros.Single();
+
+            Assert.Equal(40m, contratado.ValorDiariaContratada);
+            Assert.Equal(1500m, contratado.FranquiaContratada);
         }
     }
 }

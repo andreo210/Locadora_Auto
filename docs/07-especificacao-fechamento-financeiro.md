@@ -1,8 +1,9 @@
 # 07 — Especificação: fechamento financeiro da devolução
 
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
-> **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Nada do que está
-> abaixo está implementado no momento da escrita.
+> **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
+> nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6) e os dados que a apuração vai
+> consumir (§8) — **nenhuma regra de cálculo**. A §8 marca o que já está no modelo.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -193,14 +194,28 @@ vazamento de receita.
 
 ## 8. Dados que faltam no modelo
 
-| Onde | Campo | RN |
-|---|---|---|
-| `Locacao` | `ValorDiariaContratada` | RN-06 |
-| `LocacaoSeguro` | `ValorDiariaContratada`, `FranquiaContratada` | RN-18, RN-25 |
-| `Veiculo` | `CapacidadeTanqueLitros` | RN-14 |
-| `Filial` | `HabilitadaOneWay`, `TaxaRetornoOneWay` | RN-21, RN-22 |
-| Parâmetros (filial ou global) | `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`, `TaxaServicoAbastecimento`, `ValorLimpezaEspecial` | RN-03, RN-04, RN-15, RN-23 |
-| Nova entidade | `FechamentoLocacao` + `LinhaFechamento` | RN-31 |
+| Onde | Campo | RN | Situação |
+|---|---|---|---|
+| `Locacao` | `ValorDiariaContratada` | RN-06 | **existe** |
+| `LocacaoSeguro` | `ValorDiariaContratada`, `FranquiaContratada` | RN-18, RN-25 | **existe** |
+| `Veiculo` | `CapacidadeTanqueLitros` | RN-14 | **existe** (anulável) |
+| `Filial` | `HabilitadaOneWay`, `TaxaRetornoOneWay` | RN-21, RN-22 | **existe** |
+| `Filial` | `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`, `TaxaServicoAbastecimento`, `ValorLimpezaEspecial` | RN-03, RN-04, RN-15, RN-23 | **existe** |
+| Nova entidade | `FechamentoLocacao` + `LinhaFechamento` | RN-31 | falta |
+
+Os cinco parâmetros da última linha ficaram **por filial**, e não globais: é onde o
+`TempoPreparacaoMinutos` já mora, e pelo mesmo motivo — preço de litro e custo de limpeza variam de
+praça para praça. Entram por `Filial.DefinirParametrosFinanceiros`, onde nulo mantém o valor atual.
+
+Tudo isso é **só o dado**: nenhum campo acima é lido por cálculo nenhum ainda, porque a apuração
+não existe. Quem os consumir precisa fechar antes duas coisas que a especificação não determina:
+
+- **De qual filial ler cada parâmetro.** O desenho atual assume termo de contrato (tolerância, hora
+  excedente) na filial de **retirada** e custo de execução (combustível, limpeza, one-way) na de
+  **devolução** — mas isso está registrado em comentário, não em código.
+- **Se tolerância e percentual de hora excedente também deviam ser congelados no contrato**, como a
+  diária da RN-06. São termo contratual pelo mesmo argumento; hoje não são, e mudar a política com
+  contrato aberto muda a conta de quem já assinou.
 
 Toda alteração de entidade acima exige migration na mesma mudança
 (`dotnet ef migrations add <Nome> --project Locadora_Auto.Infra --startup-project Locadora_Auto.Api --output-dir Data/Migrations`).

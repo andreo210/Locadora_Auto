@@ -221,9 +221,23 @@ classDiagram
         +string Cidade
         +bool Ativo
         +int IdEndereco
+        +int TempoPreparacaoMinutos
+        +bool PermiteTransferencia
+        +bool HabilitadaOneWay
+        +decimal TaxaRetornoOneWay
+        +int ToleranciaMinutos
+        +decimal PercentualHoraExcedente
+        +decimal PrecoLitroCombustivel
+        +decimal TaxaServicoAbastecimento
+        +decimal ValorLimpezaEspecial
         +IReadOnlyCollection~FotoFilial~ Fotos
-        +Criar(nome, cidade, endereco) Filial
-        +Atualizar(nome, cidade, endereco)
+        +Criar(nome, cidade, endereco, tempoPreparacaoMinutos) Filial
+        +Atualizar(nome, cidade, endereco, tempoPreparacaoMinutos)
+        +DefinirTempoPreparacao(minutos)
+        +DefinirPermiteTransferencia(permite)
+        +DefinirParametrosFinanceiros(oneWay, taxaOneWay, tolerancia, percentualHora, precoLitro, taxaAbastecimento, limpeza)
+        +PrazoDePreparacao(inicioPreparacao) DateTime
+        +PreparacaoVencida(inicioPreparacao, agora) bool
         +AdicionarFoto(fotos)
         +Ativar()
         +Desativar()
@@ -255,6 +269,7 @@ classDiagram
         +bool Disponivel
         +int FilialAtualId
         +StatusVeiculo Status
+        +decimal? CapacidadeTanqueLitros
         +string MotivoDesmobilizacao
         +DateTime DataDesmobilizacao
         +int IdFuncionarioDesmobilizacao
@@ -262,8 +277,9 @@ classDiagram
         +IReadOnlyCollection~MovimentoVeiculo~ Movimentos
         +IReadOnlyCollection~BloqueioVeiculo~ Bloqueios
         +IReadOnlyCollection~TransferenciaVeiculo~ Transferencias
-        +Criar(placa, marca, modelo, ano, chassi, kmAtual, idCategoria, idFilialAtual) Veiculo
-        +Atualizar(kmAtual, idFilialAtual, marca, modelo, ano)
+        +Criar(placa, marca, modelo, ano, chassi, kmAtual, idCategoria, idFilialAtual, capacidadeTanqueLitros) Veiculo
+        +Atualizar(kmAtual, idFilialAtual, marca, modelo, ano, capacidadeTanqueLitros)
+        +DefinirCapacidadeTanque(litros)
         +Valida(...)
         +Ativar()
         +Desativar()
@@ -429,6 +445,7 @@ classDiagram
         +int? KmFinal
         +decimal ValorPrevisto
         +decimal? ValorFinal
+        +decimal ValorDiariaContratada
         +StatusLocacao Status
         +IReadOnlyCollection~Pagamento~ Pagamentos
         +IReadOnlyCollection~Caucao~ Caucoes
@@ -436,7 +453,7 @@ classDiagram
         +IReadOnlyCollection~Vistoria~ Vistorias
         +IReadOnlyCollection~LocacaoSeguro~ Seguros
         +IReadOnlyCollection~LocacaoAdicional~ Adicionais
-        +Criar(cliente, veiculo, funcionario, reserva, filialRetirada, dataInicio, dataFimPrevista, kmInicial, valorPrevisto) Locacao
+        +Criar(cliente, veiculo, funcionario, reserva, filialRetirada, dataInicio, dataFimPrevista, kmInicial, valorPrevisto, valorDiariaContratada) Locacao
         +RegistrarDevolucao(dataFimReal, kmFinal, filialDevolucao)
         +Fechar(valorFinal)
         +LiquidarSaldo()
@@ -456,7 +473,7 @@ classDiagram
         +PagarMulta(idMulta)
         +CompensarMultaComCaucao(idMulta)
         +CancelarMulta(idMulta)
-        +AdicionarSeguro(seguro)
+        +AdicionarSeguro(seguro, valorDiaria, franquia)
         +CancelarSeguro(idLocacaoSeguro)
         +RegistrarVistoria(idFuncionario, tipo, combustivel, km, observacoes)
         +RegistrarDanoVistoria(idVistoria, descricao, tipo, valor)
@@ -564,7 +581,9 @@ classDiagram
         +int IdLocacao
         +int IdSeguro
         +bool Ativo
-        ~Contratar(idSeguro) LocacaoSeguro
+        +decimal ValorDiariaContratada
+        +decimal FranquiaContratada
+        ~Contratar(idSeguro, valorDiaria, franquia) LocacaoSeguro
         ~Cancelar()
     }
 

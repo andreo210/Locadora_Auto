@@ -350,5 +350,49 @@ namespace Locadora_Auto.Tests.Dominio
 
             Assert.Throws<DomainException>(() => veiculo.TerminaManutencao(100m, idManutencao: 999));
         }
+
+        // ======================= capacidade do tanque (RN-14) =======================
+
+        [Fact]
+        public void Veiculo_nasce_sem_tanque_cadastrado_e_isso_e_valido()
+        {
+            // é o estado da frota inteira que já existe; a RN-14 prefere não cobrar combustível a
+            // cobrar sobre um tanque presumido
+            var veiculo = Fabrica.Veiculo();
+
+            Assert.Null(veiculo.CapacidadeTanqueLitros);
+        }
+
+        [Fact]
+        public void Criar_com_tanque_informado_guarda_a_capacidade()
+        {
+            var veiculo = Veiculo.Criar("XYZ9K88", "Fiat", "Argo", 2022, "9BWZZZ377VT004252", 0, 1, 1, 48m);
+
+            Assert.Equal(48m, veiculo.CapacidadeTanqueLitros);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        [InlineData(1001)]   // acima do teto é digitação em mililitro, não tanque
+        public void Capacidade_de_tanque_fora_da_faixa_e_recusada(int litros)
+        {
+            var veiculo = Fabrica.Veiculo();
+
+            Assert.Throws<InvalidOperationException>(() => veiculo.DefinirCapacidadeTanque(litros));
+        }
+
+        [Fact]
+        public void Tanque_ausente_na_atualizacao_mantem_o_que_estava_cadastrado()
+        {
+            // apagar o tanque silenciaria a cobrança de combustível de todo contrato futuro do
+            // carro, e é exatamente o que o cliente que não conhece o campo faria
+            var veiculo = Fabrica.Veiculo();
+            veiculo.DefinirCapacidadeTanque(48m);
+
+            veiculo.Atualizar(veiculo.KmAtual, veiculo.FilialAtualId, capacidadeTanqueLitros: null);
+
+            Assert.Equal(48m, veiculo.CapacidadeTanqueLitros);
+        }
     }
 }

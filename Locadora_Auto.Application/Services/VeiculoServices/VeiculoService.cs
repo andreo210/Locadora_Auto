@@ -149,7 +149,7 @@ public class VeiculoService : IVeiculoService
         var validacao = await ValidadorCriacaoVeiculo(dto, ct);
         if(!validacao) return null;
 
-        var veiculo = Veiculo.Criar(dto.Placa,dto.Marca,dto.Modelo,dto.Ano,dto.Chassi,dto.KmInicial,dto.IdCategoria,dto.IdFilialAtual);
+        var veiculo = Veiculo.Criar(dto.Placa,dto.Marca,dto.Modelo,dto.Ano,dto.Chassi,dto.KmInicial,dto.IdCategoria,dto.IdFilialAtual,dto.CapacidadeTanqueLitros);
 
         await _veiculoRepository.InserirSalvarAsync(veiculo, ct);
 
@@ -189,8 +189,27 @@ public class VeiculoService : IVeiculoService
         {
             _notificador.Add("Filial não encontrada");
         }
+
+        ValidarCapacidadeTanque(dto.CapacidadeTanqueLitros);
+
         if(_notificador.TemNotificacao()) return false;
         return true;
+    }
+
+    /// <summary>
+    /// RN-14. Repete aqui a guarda de <c>Veiculo.DefinirCapacidadeTanque</c> pela razão de sempre:
+    /// a entidade lança <c>InvalidOperationException</c>, que o <c>ExceptionProblemFactory</c> não
+    /// mapeia e portanto sai como 500 — capacidade inválida é recusa de regra e tem que sair 400.
+    /// </summary>
+    private void ValidarCapacidadeTanque(decimal? litros)
+    {
+        if (!litros.HasValue)
+            return;
+
+        if (litros.Value <= 0)
+            _notificador.Add("Capacidade do tanque deve ser maior que zero");
+        else if (litros.Value > Veiculo.CapacidadeTanqueMaximaLitros)
+            _notificador.Add($"Capacidade do tanque não pode passar de {Veiculo.CapacidadeTanqueMaximaLitros:0} litros");
     }
     public async Task<bool> AtualizarAsync(int id, AtualizarVeiculoDto dto, CancellationToken ct = default)
     {
@@ -221,13 +240,18 @@ public class VeiculoService : IVeiculoService
             return false;
         }
 
+        ValidarCapacidadeTanque(dto.CapacidadeTanqueLitros);
+        if (_notificador.TemNotificacao())
+            return false;
+
         // campos não informados mantêm o valor atual
         veiculo.Atualizar(
             dto.KmAtual ?? veiculo.KmAtual,
             dto.IdFilialAtual ?? veiculo.FilialAtualId,
             dto.Marca,
             dto.Modelo,
-            dto.Ano);
+            dto.Ano,
+            dto.CapacidadeTanqueLitros);
 
         await _veiculoRepository.SalvarAsync(ct);
         return true;

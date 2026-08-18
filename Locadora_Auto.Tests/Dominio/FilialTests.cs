@@ -109,5 +109,136 @@ namespace Locadora_Auto.Tests.Dominio
 
             Assert.True(filial.PreparacaoVencida(devolucao, devolucao));
         }
+
+        // ======================= parâmetros do fechamento (doc 07 §9) =======================
+
+        [Fact]
+        public void Filial_nova_nasce_com_os_parametros_de_fechamento_padrao()
+        {
+            var filial = Fabrica.Filial();
+
+            // onde existe padrão da casa, ele vale desde o cadastro
+            Assert.Equal(Filial.ToleranciaPadraoMinutos, filial.ToleranciaMinutos);
+            Assert.Equal(Filial.PercentualHoraExcedentePadrao, filial.PercentualHoraExcedente);
+
+            // RN-21: participar do one-way é o caso normal
+            Assert.True(filial.HabilitadaOneWay);
+
+            // onde o número é local, zero significa "ninguém configurou ainda"
+            Assert.Equal(0m, filial.TaxaRetornoOneWay);
+            Assert.Equal(0m, filial.PrecoLitroCombustivel);
+            Assert.Equal(0m, filial.TaxaServicoAbastecimento);
+            Assert.Equal(0m, filial.ValorLimpezaEspecial);
+        }
+
+        [Fact]
+        public void Parametro_ausente_mantem_o_valor_atual()
+        {
+            // é a garantia que protege a praça inteira do cliente que não conhece os campos: uma
+            // edição de nome de filial não pode zerar o preço do litro
+            var filial = Fabrica.Filial();
+            filial.DefinirParametrosFinanceiros(
+                habilitadaOneWay: false,
+                taxaRetornoOneWay: 250m,
+                toleranciaMinutos: 45,
+                percentualHoraExcedente: 0.25m,
+                precoLitroCombustivel: 6.19m,
+                taxaServicoAbastecimento: 35m,
+                valorLimpezaEspecial: 120m);
+
+            filial.DefinirParametrosFinanceiros();
+
+            Assert.False(filial.HabilitadaOneWay);
+            Assert.Equal(250m, filial.TaxaRetornoOneWay);
+            Assert.Equal(45, filial.ToleranciaMinutos);
+            Assert.Equal(0.25m, filial.PercentualHoraExcedente);
+            Assert.Equal(6.19m, filial.PrecoLitroCombustivel);
+            Assert.Equal(35m, filial.TaxaServicoAbastecimento);
+            Assert.Equal(120m, filial.ValorLimpezaEspecial);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(30)]
+        [InlineData(Filial.ToleranciaMaximaMinutos)]
+        public void Tolerancia_aceita_a_faixa_valida(int minutos)
+        {
+            // zero é legítimo: é a filial que cobra do minuto um
+            var filial = Fabrica.Filial();
+
+            filial.DefinirParametrosFinanceiros(toleranciaMinutos: minutos);
+
+            Assert.Equal(minutos, filial.ToleranciaMinutos);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(Filial.ToleranciaMaximaMinutos + 1)]
+        public void Tolerancia_fora_da_faixa_e_recusada(int minutos)
+        {
+            // acima de 24h a tolerância engoliria a diária seguinte inteira (RN-01)
+            var filial = Fabrica.Filial();
+
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(toleranciaMinutos: minutos));
+        }
+
+        // o parâmetro é `double` porque atributo não aceita constante decimal; a conversão é feita
+        // no corpo, e os valores são exatos em binário nas casas usadas aqui
+        [Theory]
+        [InlineData(0)]      // hora excedente de graça não é parâmetro, é defeito
+        [InlineData(-0.5)]
+        [InlineData(1.5)]    // hora custando mais que a diária é o que a RN-05 existe para impedir
+        public void Percentual_de_hora_excedente_fora_da_faixa_e_recusado(double percentual)
+        {
+            var filial = Fabrica.Filial();
+
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(percentualHoraExcedente: (decimal)percentual));
+        }
+
+        [Theory]
+        [InlineData(0.2)]
+        [InlineData(0.25)]
+        [InlineData(1)]      // hora excedente valendo uma diária inteira é limite, não erro
+        public void Percentual_de_hora_excedente_aceita_a_faixa_valida(double percentual)
+        {
+            var filial = Fabrica.Filial();
+
+            filial.DefinirParametrosFinanceiros(percentualHoraExcedente: (decimal)percentual);
+
+            Assert.Equal((decimal)percentual, filial.PercentualHoraExcedente);
+        }
+
+        [Fact]
+        public void Parametro_de_dinheiro_negativo_e_recusado()
+        {
+            var filial = Fabrica.Filial();
+
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(taxaRetornoOneWay: -1m));
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(precoLitroCombustivel: -1m));
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(taxaServicoAbastecimento: -1m));
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(valorLimpezaEspecial: -1m));
+        }
+
+        [Fact]
+        public void Parametro_recusado_nao_deixa_os_outros_gravados()
+        {
+            // valida tudo antes de atribuir qualquer coisa: meia configuração gravada seria pior
+            // que nenhuma, porque ninguém saberia qual metade valeu
+            var filial = Fabrica.Filial();
+
+            Assert.Throws<InvalidOperationException>(
+                () => filial.DefinirParametrosFinanceiros(
+                    precoLitroCombustivel: 6.19m,
+                    toleranciaMinutos: -1));
+
+            Assert.Equal(0m, filial.PrecoLitroCombustivel);
+            Assert.Equal(Filial.ToleranciaPadraoMinutos, filial.ToleranciaMinutos);
+        }
     }
 }

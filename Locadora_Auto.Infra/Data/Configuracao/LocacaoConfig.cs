@@ -59,6 +59,16 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .HasColumnName("valor_final")
                    .HasPrecision(10, 2);
 
+            // RN-06: preço unitário da diária congelado na abertura. Obrigatório porque contrato
+            // sem ele não tem como ser apurado — o default zero existe só para a migration poder
+            // criar a coluna, e as linhas antigas são preenchidas na mesma migration com a diária
+            // da categoria do veículo, que é exatamente o número que o sistema usaria hoje.
+            builder.Property(e => e.ValorDiariaContratada)
+                   .HasColumnName("valor_diaria_contratada")
+                   .HasPrecision(10, 2)
+                   .HasDefaultValue(0m)
+                   .IsRequired();
+
             builder.Property(e => e.Status)
                    .HasColumnName("status")
                    .HasConversion<string>()  // Enum -> string

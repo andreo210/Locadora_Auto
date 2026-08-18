@@ -66,6 +66,14 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                   .HasConversion<int>()
                   .IsRequired();
 
+            // RN-14: litros do tanque cheio, base do full-to-full. Anulável e sem default: a frota
+            // já cadastrada não tem esse dado, e nulo é a resposta certa — inventar um tanque
+            // padrão faria a apuração cobrar combustível calculado sobre um número que ninguém
+            // conferiu. Tanque nulo notifica e não cobra (backlog A6).
+            builder.Property(e => e.CapacidadeTanqueLitros)
+                .HasColumnName("capacidade_tanque_litros")
+                .HasPrecision(6, 2);
+
             // RN-56: por que, quando e por quem o ativo deixou a frota. Nulos enquanto ele for
             // frota — o que preenche os três é a desmobilização, que acontece uma vez só.
             builder.Property(e => e.MotivoDesmobilizacao)

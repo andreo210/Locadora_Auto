@@ -10,10 +10,11 @@ inteira** — RN-35 a RN-56 mais os seis indicadores da seção 12. O que sobrou
 tela: nenhum dos endpoints do ativo tem consumidor no front (`F5`, `F6`, e agora também bloqueio,
 transferência e desmobilização).
 
-Da `07` (fechamento financeiro) está de pé **o ciclo de vida do contrato** (`A1`) — devolução e
-fechamento deixaram de ser o mesmo ato —, mas nenhuma apuração: `Fechar` continua recebendo
-`valorFinal` pronto de quem chama. **É o buraco funcional do sistema, e agora é o único bloco de
-regra aberto na Api.**
+Da `07` (fechamento financeiro) estão de pé **o ciclo de vida do contrato** (`A1`) — devolução e
+fechamento deixaram de ser o mesmo ato — e agora também **os dados que a apuração vai precisar**
+(`A2`, `A3`): os valores congelados na abertura e os parâmetros da casa. Mas nenhuma apuração:
+`Fechar` continua recebendo `valorFinal` pronto de quem chama. **É o buraco funcional do sistema, e
+segue sendo o único bloco de regra aberto na Api.**
 
 **Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
 
@@ -24,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` já abriu o caminho, e agora é o único bloco de regra aberto |
+| Fio principal | **A4** (entidades do fechamento) → **A5** (apuração do período) → **A6**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` abriu o caminho e o `A2`/`A3` já puseram o dado no lugar — falta o cálculo |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -34,9 +35,11 @@ comece por ele num dia curto.
 
 # API
 
-## Bloco A — fechamento financeiro (doc `07`, nada implementado)
+## Bloco A — fechamento financeiro (doc `07`)
 
-Ordem obrigatória: `A1` antes de tudo, `A4` antes de `A5`–`A10`.
+`A1`, `A2` e `A3` estão feitos: o ciclo de vida do contrato, os valores congelados e os parâmetros
+da casa. **Nenhum cálculo existe** — falta do `A4` em diante. Ordem obrigatória: `A4` antes de
+`A5`–`A10`.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -61,17 +64,48 @@ Três decisões que valem para quem for pegar o resto do bloco A:
   reflexão a **migration mais recente** que define a constraint — mexer no predicado é sempre
   migration nova, nunca editar a anterior.
 
-**A2 · Campos congelados no contrato** — `M` · RN-06, RN-14, RN-18, RN-21, RN-22, RN-25
-`Locacao.ValorDiariaContratada`; `LocacaoSeguro.ValorDiariaContratada` e `FranquiaContratada`;
-`Veiculo.CapacidadeTanqueLitros`; `Filial.HabilitadaOneWay` e `TaxaRetornoOneWay`. Migration na
-mesma mudança. Sem cálculo ainda — só o dado e o preenchimento na abertura do contrato. Sem isso
-alterar uma categoria reescreveria contratos passados.
+~~**A2 · Campos congelados no contrato** — `M` · RN-06, RN-14, RN-18, RN-21, RN-22, RN-25~~ **feito.**
+Entraram `Locacao.ValorDiariaContratada`, `LocacaoSeguro.ValorDiariaContratada` e
+`FranquiaContratada`, `Veiculo.CapacidadeTanqueLitros`, `Filial.HabilitadaOneWay` e
+`TaxaRetornoOneWay`, na migration `CamposCongeladosEParametrosDeFechamento`. Nenhum é lido por
+cálculo nenhum ainda — é só o dado, como previsto.
 
-**A3 · Parâmetros da casa** — `P` · RN-03, RN-04, RN-15, RN-23
+~~**A3 · Parâmetros da casa** — `P` · RN-03, RN-04, RN-15, RN-23~~ **feito.**
 `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`,
-`TaxaServicoAbastecimento`, `ValorLimpezaEspecial`.
-**Decisão pendente:** por filial ou global. O doc `07` §9 recomenda 30 min de tolerância, hora
-excedente a 1/3 da diária com teto de 1 diária, e full-to-full no combustível.
+`TaxaServicoAbastecimento` e `ValorLimpezaEspecial`, na mesma migration.
+
+A decisão pendente era por filial ou global, e ficou **por filial**, junto com os dois do one-way:
+é onde o `TempoPreparacaoMinutos` já mora, pelo mesmo motivo — preço de litro e custo de limpeza
+variam de praça para praça, e quem conhece o número é quem opera. Tolerância e percentual de hora
+excedente na prática se repetem na rede inteira, e para isso existe o default. Todos entram por
+`Filial.DefinirParametrosFinanceiros`, onde **nulo mantém o valor atual**, mesma escolha do tempo de
+preparação: o Front de hoje não conhece esses campos, e sem isso uma edição de nome de filial
+zeraria o preço do litro da praça.
+
+Quatro decisões que valem para quem for pegar o resto do bloco A:
+
+- **Onde não há padrão da casa, o default é zero — e zero significa "não configurado", não "de
+  graça".** Tolerância nasce em 30 min e hora excedente em 1/3 da diária (doc `07` §9), porque
+  esses números são conhecidos. Preço do litro, taxa de abastecimento, limpeza e taxa de one-way
+  nascem zerados, e é o `A6`/`A8` que decide se avisa ao cobrar zero. Vale aqui a mesma escolha da
+  RN-14 sobre tanque não cadastrado: melhor perder a cobrança que inventar número.
+- **`HabilitadaOneWay` nasce `true`.** O sistema aceita devolução em qualquer filial hoje —
+  `IdFilialDevolucao` sempre foi livre. Nascer `false` faria o `A8`, ao entrar, bloquear no balcão
+  um serviço que a casa vende hoje na rede inteira, até alguém habilitar filial por filial.
+- **De qual filial a apuração lê cada parâmetro** (não implementado, é do `A5`–`A8`): termo de
+  contrato — tolerância e hora excedente — sai da filial de **retirada**, que vendeu; custo de
+  execução — combustível, limpeza, one-way — sai da filial de **devolução**, que gastou. A taxa de
+  one-way é do destino porque é ele que fica com um carro que não vendeu.
+- **A diária congelada é parâmetro explícito de `Locacao.Criar`, não `veiculo.Categoria.ValorDiaria`
+  lido lá dentro.** A navegação chega nula em qualquer chamador que não peça o `Include`, e o
+  contrato nasceria com diária zero — defeito que só apareceria no fechamento, semanas depois. Por
+  isso o `LocacaoService` ganhou o `ICategoriaVeiculosRepository`: busca por repositório funciona
+  no `RepositorioFake`, `Include` não.
+
+Fica um débito conhecido: **tolerância e percentual de hora excedente não são congelados no
+contrato**, só a diária é. Os dois são termo contratual tanto quanto o preço, e mudar a política
+com contrato aberto muda a conta de quem já assinou. O corte atual aceita isso porque contrato fecha
+em dias e esses parâmetros quase não mudam — mas é decisão a revisitar no `A5`, que é quem vai lê-los.
 
 **A4 · Entidades `FechamentoLocacao` e `LinhaFechamento`** — `M` · RN-31, RN-33
 Linha discriminada (tipo, base de cálculo, quantidade, valor unitário, total), **imutável** após o
@@ -93,7 +127,8 @@ cadastrado **notifica e não cobra** — melhor perder a cobrança que inventar 
 **A7 · Proteções e acessórios** — `M` · RN-17 a RN-20
 Recalcular `LocacaoAdicional` pelas diárias **efetivas** — hoje `Dias` congela a previsão e erra em
 toda devolução antecipada ou atrasada. Proteção pelas diárias cobradas, pró-rata quando cancelada
-no meio do contrato. Depende de `A2`.
+no meio do contrato. O `A2` já entregou o dado de que depende: `LocacaoSeguro.ValorDiariaContratada`
+e `FranquiaContratada`.
 
 **A8 · Taxas** — `P` · RN-21 a RN-23
 One-way quando a filial de devolução difere da de retirada, só entre filiais habilitadas (não
@@ -351,6 +386,18 @@ Registro com hodômetro, nível de combustível, fotos e danos. É o que aliment
 
 **F11 · Confirmação em `CriarCategoria.razor:153`** — `P`
 O `// TODO: Implementar diálogo de confirmação` continua lá, e o `ConfirmDialog.razor` já existe.
+
+**F14 · Campos do fechamento no cadastro de filial e de veículo** — `P` · nasceu do `A2`/`A3`
+`CriarFilial.razor` e `EditarFilial.razor` não têm os sete parâmetros de fechamento
+(one-way habilitado e taxa, tolerância, percentual de hora excedente, preço do litro, taxa de
+abastecimento, limpeza especial); `CriarVeiculo.razor` e `EditarVeiculo.razor` não têm a capacidade
+do tanque. **Hoje só dá para configurar isso pelo Swagger**, e enquanto for assim toda filial fica
+com preço de litro zero e toda frota sem tanque cadastrado — o que faz o `A6`/`A8`, quando entrar,
+não cobrar combustível nem limpeza de ninguém.
+
+Os `Request` do front são anuláveis do lado da Api de propósito (ausente mantém o valor atual), então
+a tela pode entrar aos poucos sem quebrar nada. Um agrupamento "Parâmetros de fechamento" recolhido
+no formulário de filial resolve — não é campo de uso diário.
 
 **F12 · Ações que faltam na reserva** — `P`
 Finalizar e expirar-vencidas não têm botão na listagem, embora o `IReservaService` do front já

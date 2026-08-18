@@ -16,6 +16,28 @@
         public StatusVeiculo Status { get; private set; }
 
         /// <summary>
+        /// RN-14: litros do tanque cheio, base do cálculo full-to-full — o enum
+        /// <c>NivelCombustivel</c> dá a fração, e é esta capacidade que a transforma em litro e
+        /// depois em dinheiro.
+        ///
+        /// É do <b>veículo</b> e não da categoria porque a categoria é agrupamento comercial:
+        /// dois carros do mesmo grupo tarifário saem de fábrica com tanques diferentes, e errar o
+        /// tanque erra a conta do cliente.
+        ///
+        /// Anulável, e o nulo é o caso real da frota já cadastrada — nenhum dos veículos de hoje
+        /// tem esse dado. Tanque não cadastrado <b>notifica e não cobra</b> (backlog A6): melhor
+        /// perder a cobrança que inventar número em cima de um tanque presumido.
+        /// </summary>
+        public decimal? CapacidadeTanqueLitros { get; private set; }
+
+        /// <summary>
+        /// Mil litros. Nenhum veículo de locadora chega perto — o teto existe para barrar o
+        /// digitador que informa mililitro, que passaria despercebido e multiplicaria por mil a
+        /// cobrança de combustível de todo contrato daquele carro.
+        /// </summary>
+        public const decimal CapacidadeTanqueMaximaLitros = 1000m;
+
+        /// <summary>
         /// RN-56: por que o carro saiu da frota — idade, quilometragem, custo acumulado de
         /// manutenção, perda total, queda de demanda do grupo.
         ///
@@ -55,7 +77,12 @@
         private readonly List<TransferenciaVeiculo> _transferencias = new();
         public IReadOnlyCollection<TransferenciaVeiculo> Transferencias => _transferencias;
 
-        public static Veiculo Criar(string placa, string marca, string modelo, int ano, string chassi, int kmAtual,int idCategoria, int idFilialAtual)
+        /// <param name="capacidadeTanqueLitros">
+        /// <c>null</c> é aceito: a RN-14 prefere não cobrar combustível a cobrar sobre tanque
+        /// presumido, então exigir o dado no cadastro travaria a entrada de frota por causa de um
+        /// número que o A6 já sabe dispensar.
+        /// </param>
+        public static Veiculo Criar(string placa, string marca, string modelo, int ano, string chassi, int kmAtual,int idCategoria, int idFilialAtual, decimal? capacidadeTanqueLitros = null)
         {
             if (string.IsNullOrWhiteSpace(placa))
                 throw new InvalidOperationException("placa é obrigatório");
@@ -88,12 +115,34 @@
                 Ativo = true
             };
 
+            veiculo.DefinirCapacidadeTanque(capacidadeTanqueLitros);
+
             veiculo.AplicarStatus(StatusVeiculo.Disponivel, TipoDocumentoOrigem.Cadastro);
 
             return veiculo;
         }
 
-        public void Atualizar(int kmAtual,int idFilialAtual, string? marca = null, string? modelo = null, int? ano = null)
+        /// <summary>
+        /// RN-14. <c>null</c> mantém o valor atual — mesma escolha do tempo de preparação da
+        /// filial: quem não conhece o campo não pode apagá-lo sem querer, e um tanque apagado
+        /// silencia a cobrança de combustível de todo contrato futuro daquele carro.
+        /// </summary>
+        public void DefinirCapacidadeTanque(decimal? litros)
+        {
+            if (!litros.HasValue)
+                return;
+
+            if (litros.Value <= 0)
+                throw new InvalidOperationException("Capacidade do tanque deve ser maior que zero");
+
+            if (litros.Value > CapacidadeTanqueMaximaLitros)
+                throw new InvalidOperationException(
+                    $"Capacidade do tanque não pode passar de {CapacidadeTanqueMaximaLitros:0} litros");
+
+            CapacidadeTanqueLitros = litros.Value;
+        }
+
+        public void Atualizar(int kmAtual,int idFilialAtual, string? marca = null, string? modelo = null, int? ano = null, decimal? capacidadeTanqueLitros = null)
         {
             // RN-56: o ativo baixado não é mais frota. Mexer no hodômetro ou na filial dele seria
             // corromper dado de um carro que já não é da casa — e a guarda do AplicarStatus não
@@ -105,6 +154,9 @@
                 throw new InvalidOperationException("idFilialAtual tem que ser um numero positivo");
             RegistrarKm(kmAtual);
             FilialAtualId = idFilialAtual;
+
+            // null mantém o atual, como marca/modelo/ano logo abaixo
+            DefinirCapacidadeTanque(capacidadeTanqueLitros);
 
             // marca/modelo/ano são opcionais: só mudam quando vêm preenchidos
             if (!string.IsNullOrWhiteSpace(marca))

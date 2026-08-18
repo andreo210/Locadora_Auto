@@ -23,6 +23,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         private readonly IFuncionarioRepository _funcionarioRepository;
         private readonly IAdicionalRepository _adicionalRepository;
         private readonly IRecusaSobreposicaoRepository _recusaRepository;
+        private readonly ICategoriaVeiculosRepository _categoriaRepository;
         private readonly INotificadorService _notificador;
 
         public LocacaoService(
@@ -38,6 +39,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             IFuncionarioRepository funcionarioRepository,
             IUploadDownloadFileService uploadDownloadFileService,
             IRecusaSobreposicaoRepository recusaRepository,
+            ICategoriaVeiculosRepository categoriaRepository,
             INotificadorService notificador)
         {
             _locacaoRepository = locacaoRepository;
@@ -53,6 +55,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             _recusaRepository = recusaRepository;
             _vistoriaRepository = vistoriaRepository;
             _adicionalRepository = adicionalRepository;
+            _categoriaRepository = categoriaRepository;
         }
 
         #region Locacao
@@ -154,6 +157,18 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                     ct: ct);
             }
 
+            // RN-06: a diária vai congelada no contrato, e o preço sai da categoria do veículo
+            // agora — não da leitura que a apuração faria no fechamento. É por repositório, e não
+            // por `Include(v => v.Categoria)`, porque o Include só existe sobre provider do EF: a
+            // navegação chegaria nula em qualquer chamador que não o pedisse, e o contrato nasceria
+            // com diária zero — defeito que só apareceria semanas depois, na devolução.
+            var categoria = await _categoriaRepository.ObterPorIdAsync(veiculo!.IdCategoria, false, ct);
+
+            if (categoria == null)
+                _notificador.Add("Categoria do veículo não encontrada");
+            else if (categoria.ValorDiaria <= 0)
+                _notificador.Add("Categoria do veículo está sem valor de diária cadastrado");
+
             if (_notificador.TemNotificacao())
                 return null;
 
@@ -166,7 +181,8 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 dto.DataInicio.Value,
                 dto.DataFimPrevista.Value,
                 dto.KmInicial.Value,
-                dto.ValorPrevisto
+                dto.ValorPrevisto,
+                categoria!.ValorDiaria
             );
 
             try
@@ -680,8 +696,10 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
 
-            locacao.AdicionarSeguro(idSeguro); // substituir por busca real
-            //locacao.AdicionarSeguro(locacaos);
+            // RN-18/RN-25: o cadastro do seguro já estava carregado e era descartado — agora é dele
+            // que saem a diária e a franquia congeladas no contrato. Reajustar a tabela de seguros
+            // deixa de reescrever o teto de avaria de quem já assinou.
+            locacao.AdicionarSeguro(idSeguro, seguro.ValorDiaria, seguro.Franquia);
             await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
             return true;
         }

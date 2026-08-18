@@ -1,8 +1,10 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Services.FilialServices;
 using Locadora_Auto.Application.Services.LocacaoServices;
 using Locadora_Auto.Application.Services.VeiculoServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Locadora_Auto.Tests.Fabricas
 {
@@ -50,6 +52,16 @@ namespace Locadora_Auto.Tests.Fabricas
         public static Seguro Seguro(string nome = "Proteção Total")
             => Domain.Entidades.Seguro.Criar(nome, "Cobertura ampla", valorDiaria: 40m, franquia: 1500m, cobertura: "Colisão, roubo e terceiros");
 
+        /// <summary>
+        /// Contrata proteção com os mesmos números do <see cref="Seguro"/> desta fábrica. Existe
+        /// porque a RN-18/RN-25 passou a exigir diária e franquia no ato — e o teste que só quer
+        /// exercitar a guarda de "um seguro ativo por contrato" não tem por que repetir dois
+        /// valores que não vai inspecionar.
+        /// </summary>
+        public static void ContratarSeguro(
+            Locacao locacao, int idSeguro, decimal valorDiaria = 40m, decimal franquia = 1500m)
+            => locacao.AdicionarSeguro(idSeguro, valorDiaria, franquia);
+
         public static Funcionario Funcionario(string matricula = "F-0001", string cargo = "Atendente")
             => Domain.Entidades.Funcionario.Criar(matricula, cargo);
 
@@ -71,7 +83,8 @@ namespace Locadora_Auto.Tests.Fabricas
             DateTime? dataFimPrevista = null,
             int kmInicial = 15_000,
             decimal valorPrevisto = 450m,
-            int idFilialRetirada = 1)
+            int idFilialRetirada = 1,
+            decimal valorDiariaContratada = 150m)
         {
             var inicio = dataInicio ?? DateTime.UtcNow;
 
@@ -84,7 +97,8 @@ namespace Locadora_Auto.Tests.Fabricas
                 inicio,
                 dataFimPrevista ?? inicio.AddDays(3),
                 kmInicial,
-                valorPrevisto);
+                valorPrevisto,
+                valorDiariaContratada);
         }
 
         /// <summary>
@@ -284,7 +298,22 @@ namespace Locadora_Auto.Tests.Fabricas
                 new FuncionarioRepositoryFake(armazem),
                 new UploadDownloadFileServiceFake(),
                 recusas ?? new RecusaSobreposicaoRepositoryFake(armazem),
+                new CategoriaVeiculosRepositoryFake(armazem),
                 notificador);
+
+        /// <summary>
+        /// <c>FilialService</c> montado sobre um armazém só. O logger é o <c>NullLogger</c>: o
+        /// serviço loga, mas nada do que se testa aqui depende do que foi logado.
+        /// </summary>
+        public static FilialService FilialService(
+            ArmazemFake armazem,
+            INotificadorService notificador,
+            FilialRepositoryFake? filiais = null)
+            => new(
+                new UploadDownloadFileServiceFake(),
+                filiais ?? new FilialRepositoryFake(armazem),
+                notificador,
+                NullLogger<FilialService>.Instance);
 
         /// <summary>
         /// <c>IndicadoresFrotaService</c> montado sobre um armazém só. Mesmo motivo dos outros dois.

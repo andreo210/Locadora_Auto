@@ -22,6 +22,7 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Disponivel = veiculo.Disponivel,
                 IdCategoria = veiculo.IdCategoria,
                 Categoria = veiculo.Categoria?.Nome ?? string.Empty,
+                CapacidadeTanqueLitros = veiculo.CapacidadeTanqueLitros,
                 MotivoDesmobilizacao = veiculo.MotivoDesmobilizacao,
                 DataDesmobilizacao = veiculo.DataDesmobilizacao,
                 IdFuncionarioDesmobilizacao = veiculo.IdFuncionarioDesmobilizacao,

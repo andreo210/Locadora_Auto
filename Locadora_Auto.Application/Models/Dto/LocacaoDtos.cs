@@ -21,6 +21,13 @@ namespace Locadora_Auto.Application.Models.Dto
         public int? KmFinal { get; set; }
         public decimal ValorPrevisto { get; set; }
         public decimal? ValorFinal { get; set; }
+
+        /// <summary>
+        /// RN-06: preço de uma diária congelado na abertura. Sai no DTO porque é cláusula do
+        /// contrato — é o número que o cliente assinou, e a base da hora excedente da RN-04.
+        /// </summary>
+        public decimal ValorDiariaContratada { get; set; }
+
         public string Status { get; set; } = null!;
         public ClienteDto ClienteDto { get; set; } = null!;
         public FuncionarioDto FuncionarioDto { get; set; } = null!;

@@ -25,6 +25,7 @@ namespace Locadora_Auto.Application.Models.Mappers
                 KmFinal = locacao.KmFinal,
                 ValorPrevisto = locacao.ValorPrevisto,
                 ValorFinal = locacao.ValorFinal,
+                ValorDiariaContratada = locacao.ValorDiariaContratada,
                 Status = locacao.Status.ToString(),
                 Multas = locacao.Multas.ToDtoList(),
                 Pagamentos = locacao.Pagamentos.ToDtoList(),

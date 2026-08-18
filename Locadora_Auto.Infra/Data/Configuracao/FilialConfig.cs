@@ -43,6 +43,57 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasDefaultValue(true)
                 .IsRequired();
 
+            // ---- Parâmetros do fechamento (doc 07 §9, backlog A2/A3) ----
+            // Todos com default, e o default é o que vale para as filiais que já existiam quando as
+            // colunas entraram. Onde o padrão da casa é conhecido (tolerância, hora excedente) ele
+            // é o default; onde o número é local (combustível, limpeza, one-way) o default é zero,
+            // que significa "não configurado" e não "de graça" — quem trata isso é a apuração.
+
+            // RN-21: true para não bloquear, quando o A8 entrar, um one-way que a rede aceita hoje
+            builder.Property(e => e.HabilitadaOneWay)
+                .HasColumnName("habilitada_one_way")
+                .HasDefaultValue(true)
+                .IsRequired();
+
+            builder.Property(e => e.TaxaRetornoOneWay)
+                .HasColumnName("taxa_retorno_one_way")
+                .HasPrecision(10, 2)
+                .HasDefaultValue(0m)
+                .IsRequired();
+
+            // RN-03
+            builder.Property(e => e.ToleranciaMinutos)
+                .HasColumnName("tolerancia_minutos")
+                .HasDefaultValue(Filial.ToleranciaPadraoMinutos)
+                .IsRequired();
+
+            // RN-04: quatro casas porque o padrão é a dízima de 1/3 truncada
+            builder.Property(e => e.PercentualHoraExcedente)
+                .HasColumnName("percentual_hora_excedente")
+                .HasPrecision(5, 4)
+                .HasDefaultValue(Filial.PercentualHoraExcedentePadrao)
+                .IsRequired();
+
+            // RN-15
+            builder.Property(e => e.PrecoLitroCombustivel)
+                .HasColumnName("preco_litro_combustivel")
+                .HasPrecision(10, 2)
+                .HasDefaultValue(0m)
+                .IsRequired();
+
+            builder.Property(e => e.TaxaServicoAbastecimento)
+                .HasColumnName("taxa_servico_abastecimento")
+                .HasPrecision(10, 2)
+                .HasDefaultValue(0m)
+                .IsRequired();
+
+            // RN-23
+            builder.Property(e => e.ValorLimpezaEspecial)
+                .HasColumnName("valor_limpeza_especial")
+                .HasPrecision(10, 2)
+                .HasDefaultValue(0m)
+                .IsRequired();
+
             //chave estrangeira
             builder.Property(e => e.IdEndereco)
                 .HasColumnName("id_endereco")

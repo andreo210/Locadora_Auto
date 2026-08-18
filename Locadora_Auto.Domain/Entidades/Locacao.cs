@@ -25,6 +25,22 @@ namespace Locadora_Auto.Domain.Entidades
         public decimal? ValorFinal { get; private set; }
 
         /// <summary>
+        /// RN-06: preço de uma diária <b>neste</b> contrato, copiado de
+        /// <c>CategoriaVeiculo.ValorDiaria</c> na abertura.
+        ///
+        /// É a diferença entre uma locadora que fecha o mês e uma que não fecha. Sem esta coluna a
+        /// apuração leria a categoria no dia da devolução, e então reajustar a tabela — que é ato
+        /// comercial rotineiro — reescreveria em silêncio o valor de todo contrato ainda aberto,
+        /// inclusive os que já foram cobrados. Também é dela que saem a hora excedente (RN-04, uma
+        /// fração desta diária) e o teto da RN-05.
+        ///
+        /// Não se confunde com <see cref="ValorPrevisto"/>, que é a estimativa do contrato inteiro
+        /// no ato da venda: este é o preço unitário, e sobrevive à devolução antecipada ou atrasada
+        /// justamente porque não embute quantidade.
+        /// </summary>
+        public decimal ValorDiariaContratada { get; private set; }
+
+        /// <summary>
         /// Doc 07 §6. O contrato tem duas vidas, e o modelo antigo só tinha uma: a física
         /// (<c>Criada</c> → <c>EmAndamento</c> → <c>Devolvida</c>) e a financeira (<c>Fechada</c>
         /// → <c>Finalizada</c> ou <c>ComSaldoResidual</c>). Enquanto receber o carro gravava
@@ -159,7 +175,8 @@ namespace Locadora_Auto.Domain.Entidades
             DateTime dataInicio,
             DateTime dataFimPrevista,
             int kmInicial,
-            decimal valorPrevisto)
+            decimal valorPrevisto,
+            decimal valorDiariaContratada)
         {
             if (veiculo == null)
                 throw new ArgumentNullException(nameof(veiculo), "Veículo é obrigatório");
@@ -172,6 +189,13 @@ namespace Locadora_Auto.Domain.Entidades
 
             if (dataFimPrevista <= dataInicio)
                 throw new InvalidOperationException("Data fim prevista deve ser posterior à data de início");
+
+            // RN-06: parâmetro explícito, e não `veiculo.Categoria.ValorDiaria` lido aqui dentro,
+            // porque a navegação chega nula sempre que o chamador não pediu o Include — e aí o
+            // contrato nasceria com diária zero, defeito que só apareceria no fechamento, semanas
+            // depois. Exigir o número obriga quem abre o contrato a tê-lo em mãos.
+            if (valorDiariaContratada <= 0)
+                throw new InvalidOperationException("Valor da diária contratada deve ser maior que zero");
 
             var locacao = new Locacao
             {
@@ -186,6 +210,7 @@ namespace Locadora_Auto.Domain.Entidades
                 DataFimPrevista = dataFimPrevista,
                 KmInicial = kmInicial,
                 ValorPrevisto = valorPrevisto,
+                ValorDiariaContratada = valorDiariaContratada,
                 Status = StatusLocacao.Criada
             };
 
@@ -488,7 +513,9 @@ namespace Locadora_Auto.Domain.Entidades
 
         #region Seguro
 
-        public void AdicionarSeguro(int seguro)
+        /// <param name="valorDiaria">RN-18: preço da proteção hoje, congelado no contrato.</param>
+        /// <param name="franquia">RN-25: teto da avaria coberta, congelado pelo mesmo motivo.</param>
+        public void AdicionarSeguro(int seguro, decimal valorDiaria, decimal franquia)
         {
             // proteção contratada depois do início é caso normal (doc 07 §4, pró-rata) — o que não
             // cabe é contratar proteção para um contrato que já acabou
@@ -498,7 +525,7 @@ namespace Locadora_Auto.Domain.Entidades
             if (_seguros.Any(s => s.Ativo == true))
                 throw new DomainException("Locação já possui seguro ativo");
 
-            var locacaoSeguro = LocacaoSeguro.Contratar(seguro);
+            var locacaoSeguro = LocacaoSeguro.Contratar(seguro, valorDiaria, franquia);
             _seguros.Add(locacaoSeguro);
         }
 

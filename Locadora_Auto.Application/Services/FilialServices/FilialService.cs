@@ -125,6 +125,18 @@ public class FilialService : IFilialService
         // RN-49: ausente vale true, que é o padrão da entidade — só quem conhece a exceção a marca
         if (filialDto.PermiteTransferencia.HasValue)
             filial.DefinirPermiteTransferencia(filialDto.PermiteTransferencia.Value);
+
+        // doc 07 §9: ausentes assumem o padrão da entidade, um a um — a própria
+        // DefinirParametrosFinanceiros trata nulo como "mantém", então não há o que checar aqui
+        filial.DefinirParametrosFinanceiros(
+            filialDto.HabilitadaOneWay,
+            filialDto.TaxaRetornoOneWay,
+            filialDto.ToleranciaMinutos,
+            filialDto.PercentualHoraExcedente,
+            filialDto.PrecoLitroCombustivel,
+            filialDto.TaxaServicoAbastecimento,
+            filialDto.ValorLimpezaEspecial);
+
         await _filialRepository.InserirSalvarAsync(filial, ct);
         return filial.ToDto();       
     }
@@ -147,6 +159,16 @@ public class FilialService : IFilialService
         // ausente mantém o valor atual, igual ao tempo de preparação
         if (filialDto.PermiteTransferencia.HasValue)
             filial.DefinirPermiteTransferencia(filialDto.PermiteTransferencia.Value);
+
+        // idem para os sete parâmetros de fechamento (doc 07 §9)
+        filial.DefinirParametrosFinanceiros(
+            filialDto.HabilitadaOneWay,
+            filialDto.TaxaRetornoOneWay,
+            filialDto.ToleranciaMinutos,
+            filialDto.PercentualHoraExcedente,
+            filialDto.PrecoLitroCombustivel,
+            filialDto.TaxaServicoAbastecimento,
+            filialDto.ValorLimpezaEspecial);
 
         var rows = await _filialRepository.SalvarAsync(ct);
         if (rows == 0)
@@ -306,7 +328,53 @@ public class FilialService : IFilialService
             return false;
         }
 
-        return true;
+        ValidarParametrosFinanceiros(
+            filialDto.TaxaRetornoOneWay,
+            filialDto.ToleranciaMinutos,
+            filialDto.PercentualHoraExcedente,
+            filialDto.PrecoLitroCombustivel,
+            filialDto.TaxaServicoAbastecimento,
+            filialDto.ValorLimpezaEspecial);
+
+        return !_notificador.TemNotificacao();
+    }
+
+    /// <summary>
+    /// Repete as guardas de <c>Filial.DefinirParametrosFinanceiros</c> pela razão de sempre: a
+    /// entidade lança <c>InvalidOperationException</c>, que o <c>ExceptionProblemFactory</c> não
+    /// mapeia e sairia como 500 — parâmetro inválido é recusa de regra e tem que sair 400.
+    /// </summary>
+    private void ValidarParametrosFinanceiros(
+        decimal? taxaRetornoOneWay,
+        int? toleranciaMinutos,
+        decimal? percentualHoraExcedente,
+        decimal? precoLitroCombustivel,
+        decimal? taxaServicoAbastecimento,
+        decimal? valorLimpezaEspecial)
+    {
+        if (toleranciaMinutos.HasValue)
+        {
+            if (toleranciaMinutos.Value < 0)
+                _notificador.Add("Tolerância não pode ser negativa");
+            else if (toleranciaMinutos.Value > Filial.ToleranciaMaximaMinutos)
+                _notificador.Add(
+                    $"Tolerância não pode passar de {Filial.ToleranciaMaximaMinutos} minutos ({Filial.ToleranciaMaximaMinutos / 60}h)");
+        }
+
+        if (percentualHoraExcedente.HasValue &&
+            (percentualHoraExcedente.Value <= 0 || percentualHoraExcedente.Value > 1))
+            _notificador.Add("Percentual de hora excedente deve estar entre 0 (exclusivo) e 1");
+
+        NotificarSeNegativo(taxaRetornoOneWay, "Taxa de retorno one-way");
+        NotificarSeNegativo(precoLitroCombustivel, "Preço do litro de combustível");
+        NotificarSeNegativo(taxaServicoAbastecimento, "Taxa de serviço de abastecimento");
+        NotificarSeNegativo(valorLimpezaEspecial, "Valor da limpeza especial");
+    }
+
+    private void NotificarSeNegativo(decimal? valor, string nome)
+    {
+        if (valor.HasValue && valor.Value < 0)
+            _notificador.Add($"{nome} não pode ser negativo");
     }
 
     public async Task<bool> ValidarAtualizacaoFilialAsync(int id, AtualizarFilialDto filialDto, CancellationToken ct = default)
@@ -337,7 +405,15 @@ public class FilialService : IFilialService
             return false;
         }
 
-        return true;
+        ValidarParametrosFinanceiros(
+            filialDto.TaxaRetornoOneWay,
+            filialDto.ToleranciaMinutos,
+            filialDto.PercentualHoraExcedente,
+            filialDto.PrecoLitroCombustivel,
+            filialDto.TaxaServicoAbastecimento,
+            filialDto.ValorLimpezaEspecial);
+
+        return !_notificador.TemNotificacao();
     }
 
     //#endregion

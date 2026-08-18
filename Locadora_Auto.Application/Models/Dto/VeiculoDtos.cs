@@ -1,4 +1,6 @@
-﻿namespace Locadora_Auto.Application.Models.Dto
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Locadora_Auto.Application.Models.Dto
 {
     public class CriarVeiculoDto
     {
@@ -11,6 +13,17 @@
 
         public int IdCategoria { get; set; }
         public int IdFilialAtual { get; set; }
+
+        /// <summary>
+        /// RN-14: litros do tanque cheio. Opcional de propósito — sem ele a apuração de
+        /// combustível avisa e não cobra (backlog A6), o que é preferível a travar a entrada de
+        /// frota ou a cobrar sobre tanque presumido.
+        /// </summary>
+        // o teto repete Veiculo.CapacidadeTanqueMaximaLitros como literal porque argumento de
+        // atributo não aceita conversão de const decimal para double — a guarda de verdade é a da
+        // entidade; esta aqui só antecipa o erro no Swagger
+        [Range(0.01, 1000, ErrorMessage = "Capacidade do tanque deve estar entre 0 e {2} litros")]
+        public decimal? CapacidadeTanqueLitros { get; set; }
     }
 
 
@@ -33,6 +46,12 @@
 
         public int IdFilialAtual { get; set; }
         public string Filial { get; set; } = null!;
+
+        /// <summary>
+        /// RN-14: litros do tanque cheio. <c>null</c> é o caso da frota cadastrada antes do
+        /// campo existir, e significa que a apuração de combustível não vai cobrar este carro.
+        /// </summary>
+        public decimal? CapacidadeTanqueLitros { get; set; }
 
         /// <summary>RN-56: preenchidos só depois que o ativo deixou a frota.</summary>
         public string? MotivoDesmobilizacao { get; set; }
@@ -58,6 +77,14 @@
         public int? Ano { get; set; }
         public int? KmAtual { get; set; }
         public int? IdFilialAtual { get; set; }
+
+        /// <summary>
+        /// RN-14. Ausente <b>mantém</b> o valor atual, como os campos acima — não há como apagar
+        /// um tanque já cadastrado por esta porta, e é proposital: apagá-lo silenciaria a cobrança
+        /// de combustível de todo contrato futuro do carro.
+        /// </summary>
+        [Range(0.01, 1000, ErrorMessage = "Capacidade do tanque deve estar entre 0 e {2} litros")]
+        public decimal? CapacidadeTanqueLitros { get; set; }
     }
 
     /// <summary>

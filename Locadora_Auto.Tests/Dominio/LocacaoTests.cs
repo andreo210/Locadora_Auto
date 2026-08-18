@@ -577,20 +577,20 @@ namespace Locadora_Auto.Tests.Dominio
         public void AdicionarSeguro_recusa_o_segundo_seguro_ativo()
         {
             var locacao = Fabrica.Locacao();
-            locacao.AdicionarSeguro(1);
+            Fabrica.ContratarSeguro(locacao, 1);
 
-            Assert.Throws<DomainException>(() => locacao.AdicionarSeguro(2));
+            Assert.Throws<DomainException>(() => Fabrica.ContratarSeguro(locacao, 2));
         }
 
         [Fact]
         public void CancelarSeguro_libera_a_contratacao_de_outro()
         {
             var locacao = Fabrica.Locacao();
-            locacao.AdicionarSeguro(1);
+            Fabrica.ContratarSeguro(locacao, 1);
             Fabrica.DefinirId(locacao.Seguros.Single(), 7);
 
             locacao.CancelarSeguro(7);
-            locacao.AdicionarSeguro(2);
+            Fabrica.ContratarSeguro(locacao, 2);
 
             Assert.Equal(2, locacao.Seguros.Count);
             Assert.Equal(2, Assert.Single(locacao.Seguros, s => s.Ativo).IdSeguro);
@@ -600,7 +600,7 @@ namespace Locadora_Auto.Tests.Dominio
         public void CancelarSeguro_duas_vezes_e_recusado()
         {
             var locacao = Fabrica.Locacao();
-            locacao.AdicionarSeguro(1);
+            Fabrica.ContratarSeguro(locacao, 1);
             Fabrica.DefinirId(locacao.Seguros.Single(), 7);
             locacao.CancelarSeguro(7);
 
@@ -612,7 +612,7 @@ namespace Locadora_Auto.Tests.Dominio
         {
             var locacao = Finalizada();
 
-            Assert.Throws<DomainException>(() => locacao.AdicionarSeguro(1));
+            Assert.Throws<DomainException>(() => Fabrica.ContratarSeguro(locacao, 1));
         }
 
         // ======================= adicionais =======================
@@ -808,6 +808,75 @@ namespace Locadora_Auto.Tests.Dominio
 
             Assert.Throws<InvalidOperationException>(() =>
                 locacao.AtualizarDados(locacao.DataFimPrevista.AddDays(1), 15_000, 450m));
+        }
+
+        // ======================= valores congelados (RN-06, RN-18, RN-25) =======================
+
+        [Fact]
+        public void Contrato_congela_a_diaria_da_abertura()
+        {
+            // é o que separa apurar do contrato de apurar da tabela vigente: reajustar a categoria
+            // depois disto não pode mexer neste número
+            var locacao = Fabrica.Locacao(valorDiariaContratada: 199.90m);
+
+            Assert.Equal(199.90m, locacao.ValorDiariaContratada);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void Contrato_sem_diaria_valida_e_recusado(int valorDiaria)
+        {
+            // zero passaria despercebido e só apareceria no fechamento, semanas depois — que é
+            // exatamente o defeito que a coluna existe para impedir
+            Assert.Throws<InvalidOperationException>(
+                () => Fabrica.Locacao(valorDiariaContratada: valorDiaria));
+        }
+
+        [Fact]
+        public void Diaria_contratada_sobrevive_a_alteracao_dos_dados_do_contrato()
+        {
+            // AtualizarDados remarca período e valor previsto; o preço unitário assinado não é
+            // dado remarcável
+            var locacao = Fabrica.Locacao(valorDiariaContratada: 199.90m);
+
+            locacao.AtualizarDados(locacao.DataFimPrevista.AddDays(2), 15_000, 900m);
+
+            Assert.Equal(199.90m, locacao.ValorDiariaContratada);
+        }
+
+        [Fact]
+        public void Seguro_contratado_congela_diaria_e_franquia()
+        {
+            var locacao = Fabrica.Locacao();
+
+            Fabrica.ContratarSeguro(locacao, idSeguro: 3, valorDiaria: 40m, franquia: 1500m);
+
+            var contratado = locacao.Seguros.Single();
+            Assert.Equal(40m, contratado.ValorDiariaContratada);
+            Assert.Equal(1500m, contratado.FranquiaContratada);
+        }
+
+        [Fact]
+        public void Seguro_sem_franquia_e_valido()
+        {
+            // proteção com franquia zero existe e se vende; o que não existe é franquia negativa
+            var locacao = Fabrica.Locacao();
+
+            Fabrica.ContratarSeguro(locacao, idSeguro: 3, valorDiaria: 40m, franquia: 0m);
+
+            Assert.Equal(0m, locacao.Seguros.Single().FranquiaContratada);
+        }
+
+        [Fact]
+        public void Seguro_com_valores_invalidos_e_recusado()
+        {
+            var locacao = Fabrica.Locacao();
+
+            Assert.Throws<DomainException>(
+                () => Fabrica.ContratarSeguro(locacao, idSeguro: 3, valorDiaria: 0m));
+            Assert.Throws<DomainException>(
+                () => Fabrica.ContratarSeguro(locacao, idSeguro: 3, franquia: -1m));
         }
     }
 }

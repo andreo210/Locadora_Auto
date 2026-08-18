@@ -47,6 +47,94 @@
         /// </summary>
         public const int PreparacaoMaximaMinutos = 1440;
 
+        #region Parâmetros do fechamento (doc 07 §9)
+
+        // Os sete abaixo são política da casa, não exigência legal, e ficam na filial pelo mesmo
+        // motivo do TempoPreparacaoMinutos: quem conhece o número é quem opera a praça. Preço de
+        // combustível e custo de limpeza variam de cidade para cidade; tolerância e percentual de
+        // hora excedente na prática se repetem em toda a rede, e é para isso que existe o default.
+        //
+        // NENHUM é lido ainda — o backlog A2/A3 é só o dado. Quem os consome é a apuração
+        // (A5–A8), e lá vale este recorte:
+        //   · termo de contrato (tolerância, hora excedente)  → filial de RETIRADA, que vendeu;
+        //   · custo de execução (combustível, limpeza, one-way) → filial de DEVOLUÇÃO, que gastou.
+
+        /// <summary>
+        /// RN-21: a filial aceita receber contrato aberto em outra filial (devolução one-way).
+        ///
+        /// Nasce <c>true</c> porque hoje o sistema já aceita one-way em qualquer filial — o modelo
+        /// tem <c>IdFilialDevolucao</c> livre desde sempre. Nascer <c>false</c> faria o A8, ao
+        /// entrar, bloquear no balcão um serviço que a casa vende hoje, em toda a rede, até alguém
+        /// habilitar filial por filial. Marcar a exceção é trabalho de quem a conhece.
+        ///
+        /// Não se confunde com <see cref="PermiteTransferencia"/>: aquela é a <b>casa</b> movendo o
+        /// próprio ativo; esta é o <b>cliente</b> devolvendo longe de onde retirou, e pagando por
+        /// isso.
+        /// </summary>
+        public bool HabilitadaOneWay { get; private set; } = true;
+
+        /// <summary>
+        /// RN-21: quanto a devolução em filial diferente da de retirada custa ao cliente. É valor
+        /// da filial de <b>destino</b> — é ela que fica com um carro que não vendeu e precisa
+        /// recolocá-lo. O doc 07 §9 só recomenda matriz origem × destino acima de 4–5 filiais.
+        ///
+        /// Zero é válido e significa one-way de cortesia, não parâmetro esquecido: o A8 é que
+        /// decide se avisa quando cobra zero.
+        /// </summary>
+        public decimal TaxaRetornoOneWay { get; private set; }
+
+        /// <summary>
+        /// RN-03: atraso até este limite não vira cobrança. Fila de balcão e trânsito são rotina —
+        /// cobrar cinco minutos custa mais em atrito do que rende.
+        /// </summary>
+        public int ToleranciaMinutos { get; private set; } = ToleranciaPadraoMinutos;
+
+        /// <summary>
+        /// RN-04: fração da diária cobrada por hora excedente iniciada, depois da tolerância. Com
+        /// o teto de 1 diária da RN-05 no lugar, a hora excedente nunca produz conta maior que
+        /// prorrogar o contrato.
+        /// </summary>
+        public decimal PercentualHoraExcedente { get; private set; } = PercentualHoraExcedentePadrao;
+
+        /// <summary>
+        /// RN-15: preço do litro usado para repor o tanque no regime full-to-full.
+        ///
+        /// Nasce zero de propósito, e zero <b>não</b> é "combustível de graça" — é parâmetro não
+        /// configurado. Vale aqui a mesma escolha da RN-14 sobre tanque não cadastrado: melhor
+        /// perder a cobrança que inventar número. Quem trata isso é o A6.
+        /// </summary>
+        public decimal PrecoLitroCombustivel { get; private set; }
+
+        /// <summary>
+        /// RN-15: o que a casa cobra pelo serviço de abastecer, uma vez por contrato e só quando
+        /// há litro a repor.
+        /// </summary>
+        public decimal TaxaServicoAbastecimento { get; private set; }
+
+        /// <summary>
+        /// RN-23: valor fixo da limpeza especial. Só entra no fechamento com registro na vistoria
+        /// de devolução e ao menos uma foto — a foto é a defesa da cobrança, não formalidade.
+        /// </summary>
+        public decimal ValorLimpezaEspecial { get; private set; }
+
+        /// <summary>Trinta minutos — equilíbrio dominante no Brasil (doc 07 §9).</summary>
+        public const int ToleranciaPadraoMinutos = 30;
+
+        /// <summary>
+        /// Um dia. Tolerância maior que o ciclo de 24h da RN-01 engoliria a diária seguinte
+        /// inteira, e aí não é tolerância: é contrato de graça.
+        /// </summary>
+        public const int ToleranciaMaximaMinutos = 1440;
+
+        /// <summary>
+        /// Um terço da diária (doc 07 §9). Não é 1/3 exato porque decimal não representa a
+        /// dízima — e não precisa ser: o teto de 1 diária da RN-05 corta o acumulado antes de a
+        /// quarta casa decimal significar centavo em qualquer diária praticável.
+        /// </summary>
+        public const decimal PercentualHoraExcedentePadrao = 0.3333m;
+
+        #endregion Parâmetros do fechamento
+
         public ICollection<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
 
         public ICollection<Reserva> Reserva { get; set; } = new List<Reserva>();
@@ -169,6 +257,59 @@
         /// algum lugar.
         /// </summary>
         public void DefinirPermiteTransferencia(bool permite) => PermiteTransferencia = permite;
+
+        /// <summary>
+        /// Ajusta os parâmetros de fechamento da filial (doc 07 §9). <b>Todo argumento nulo mantém
+        /// o valor atual</b> — a mesma regra do <c>tempoPreparacaoMinutos</c> do
+        /// <see cref="Atualizar"/>, e pelo mesmo motivo: quem não conhece o parâmetro não pode
+        /// zerá-lo sem querer, e um zero acidental aqui vale dinheiro em toda devolução da praça.
+        ///
+        /// Valida tudo antes de atribuir qualquer coisa, para que um parâmetro recusado não deixe
+        /// os outros já gravados.
+        /// </summary>
+        public void DefinirParametrosFinanceiros(
+            bool? habilitadaOneWay = null,
+            decimal? taxaRetornoOneWay = null,
+            int? toleranciaMinutos = null,
+            decimal? percentualHoraExcedente = null,
+            decimal? precoLitroCombustivel = null,
+            decimal? taxaServicoAbastecimento = null,
+            decimal? valorLimpezaEspecial = null)
+        {
+            if (toleranciaMinutos.HasValue)
+            {
+                if (toleranciaMinutos.Value < 0)
+                    throw new InvalidOperationException("Tolerância não pode ser negativa");
+                if (toleranciaMinutos.Value > ToleranciaMaximaMinutos)
+                    throw new InvalidOperationException(
+                        $"Tolerância não pode passar de {ToleranciaMaximaMinutos} minutos ({ToleranciaMaximaMinutos / 60}h)");
+            }
+
+            // acima de 1 a hora excedente custaria mais que a diária inteira, o que a RN-05 existe
+            // justamente para impedir — o teto lá embaixo não salvaria um parâmetro absurdo aqui
+            if (percentualHoraExcedente.HasValue &&
+                (percentualHoraExcedente.Value <= 0 || percentualHoraExcedente.Value > 1))
+                throw new InvalidOperationException("Percentual de hora excedente deve estar entre 0 (exclusivo) e 1");
+
+            ValidarNaoNegativo(taxaRetornoOneWay, "Taxa de retorno one-way");
+            ValidarNaoNegativo(precoLitroCombustivel, "Preço do litro de combustível");
+            ValidarNaoNegativo(taxaServicoAbastecimento, "Taxa de serviço de abastecimento");
+            ValidarNaoNegativo(valorLimpezaEspecial, "Valor da limpeza especial");
+
+            if (habilitadaOneWay.HasValue) HabilitadaOneWay = habilitadaOneWay.Value;
+            if (taxaRetornoOneWay.HasValue) TaxaRetornoOneWay = taxaRetornoOneWay.Value;
+            if (toleranciaMinutos.HasValue) ToleranciaMinutos = toleranciaMinutos.Value;
+            if (percentualHoraExcedente.HasValue) PercentualHoraExcedente = percentualHoraExcedente.Value;
+            if (precoLitroCombustivel.HasValue) PrecoLitroCombustivel = precoLitroCombustivel.Value;
+            if (taxaServicoAbastecimento.HasValue) TaxaServicoAbastecimento = taxaServicoAbastecimento.Value;
+            if (valorLimpezaEspecial.HasValue) ValorLimpezaEspecial = valorLimpezaEspecial.Value;
+        }
+
+        private static void ValidarNaoNegativo(decimal? valor, string nome)
+        {
+            if (valor.HasValue && valor.Value < 0)
+                throw new InvalidOperationException($"{nome} não pode ser negativo");
+        }
 
         public void Ativar()
         {

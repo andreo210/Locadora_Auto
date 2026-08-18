@@ -27,6 +27,21 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                   .HasColumnName("ativo")
                   .IsRequired();
 
+            // RN-18 e RN-25: diária e franquia como estavam no dia da contratação. Mesmo desenho
+            // do valor_diaria_contratada da locação — default zero só para a coluna nascer, e as
+            // linhas antigas preenchidas na migration a partir do cadastro do seguro.
+            builder.Property(ls => ls.ValorDiariaContratada)
+                  .HasColumnName("valor_diaria_contratada")
+                  .HasPrecision(10, 2)
+                  .HasDefaultValue(0m)
+                  .IsRequired();
+
+            builder.Property(ls => ls.FranquiaContratada)
+                  .HasColumnName("franquia_contratada")
+                  .HasPrecision(10, 2)
+                  .HasDefaultValue(0m)
+                  .IsRequired();
+
 
             //chave estrangeira
             builder.HasOne<Locacao>()
