@@ -2,9 +2,9 @@
 
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
-> nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração vai
-> consumir e a conta discriminada em que ela vai escrever (§8) — **nenhuma regra de cálculo**. A §8
-> marca o que já está no modelo.
+> nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
+> consome, a conta discriminada em que ela escreve (§8) e a **apuração do período** (§3.1). O resto
+> do cálculo — km, combustível, proteção, taxas, avaria, multa e composição — continua por fazer.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -48,6 +48,16 @@ não com o carro no pátio. Devolução é a vistoria; o contrato só morre no f
 ## 3. Regras obrigatórias
 
 ### 3.1 Período e diárias
+
+**Implantado** (backlog `A5`). `ApuracaoDePeriodo.Calcular` faz a conta e
+`Locacao.ApurarPeriodo(filialRetirada)` escreve as linhas. Três leituras que a implantação teve de
+fechar, porque o texto abaixo comporta mais de uma:
+
+- **As horas da RN-04 contam a partir da tolerância**, não do fim do ciclo — é a única leitura que
+  fecha com o cenário 3 do §10 (2h30 de sobra com 30 min de tolerância dão 2 horas, não 3).
+- **A diária mínima da RN-02 cobre o primeiro ciclo inteiro**: contrato de 22h é uma diária e nada
+  mais, sem hora excedente sobre o mesmo período.
+- **"Atingir" na RN-05 inclui o empate**: 3 horas que somam exatamente 1 diária já viram a diária.
 
 | RN | Regra | Porquê |
 |---|---|---|
@@ -273,7 +283,7 @@ Cenário: teto de uma diária substitui as horas excedentes
   Dado um contrato com retirada em 10/03 às 09:00, diária de R$ 150,00
   E tolerância de 30 minutos e hora excedente de 1/3 da diária
   Quando o veículo for devolvido em 12/03 às 13:00
-  Então deve ser cobrada 1 diária cheia no lugar das 3 horas excedentes
+  Então deve ser cobrada 1 diária cheia no lugar das 4 horas excedentes
   E devem ser cobradas 3 diárias no total, R$ 450,00
 
 Cenário: km livre não cobra excedente

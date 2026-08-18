@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A5** (apuração do período) → **A6**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` abriu o caminho, o `A2`/`A3` puseram o dado no lugar e o `A4` fez o livro — falta escrever nele |
+| Fio principal | **A6** (km e combustível) → **A7**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A5` já apura o período e escreve as linhas dele; o `A6` é o mesmo padrão, sobre a vistoria |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A4` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa
-e a conta discriminada onde a apuração vai escrever. **Nenhum cálculo existe** — falta do `A5` em
-diante.
+`A1` a `A5` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
+a conta discriminada e a apuração do **período**. O que falta é o resto da conta — km, combustível,
+proteção, acessório, taxas, avaria, multa — e a composição com a caução.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -144,12 +144,39 @@ Duas armadilhas registradas:
   saldo negativo, que é crédito a devolver ao cliente; hoje `Fechar` o recusaria, e o
   `FechamentoLocacao` já sabe produzi-lo.
 
-**A5 · Apuração do período** — `M` · RN-01 a RN-07 · **é por aqui que se começa**
-Diária = ciclo de 24h a partir de `DataInicio` (nunca calendário), mínimo 1; tolerância; hora
-excedente por hora iniciada; **teto de 1 diária** substituindo as horas. É domínio puro — testa
-sem banco, e os quatro primeiros cenários gherkin do doc `07` §10 já servem de teste.
+~~**A5 · Apuração do período** — `M` · RN-01 a RN-07~~ **feito.**
+`ApuracaoDePeriodo.Calcular` faz a conta e `Locacao.ApurarPeriodo(filialRetirada)` escreve as
+linhas — `Diaria`, `HoraExcedente` e, quando o teto entra, `DiariaPorTetoDeHoras`. Os quatro
+cenários gherkin do doc `07` §10 estão em `ApuracaoDePeriodoTests`, literais.
 
-**A6 · Quilometragem e combustível** — `M` · RN-08 a RN-16
+Quatro decisões que valem para o `A6` em diante:
+
+- **A tolerância é tempo livre, e as horas contam a partir dela** — não do fim do ciclo. 2h30 de
+  sobra com 30 min de tolerância dão **2** horas excedentes, não 3, que é o que o cenário 3 do
+  doc `07` §10 fixa. Era a única leitura das RN-03/RN-04 que fecha com os critérios de aceite.
+- **A diária mínima da RN-02 cobre o primeiro ciclo inteiro.** Contrato de 22h é uma diária e nada
+  mais; cobrar hora excedente sobre esse resto seria cobrar o mesmo período duas vezes.
+- **O valor da hora excedente é arredondado a 2 casas antes de virar linha.** Não é enfeite: a
+  coluna é `numeric(10,2)`, então um unitário com mais casas seria arredondado pelo banco e a linha
+  gravada passaria a discordar do total que ela mesma declara. Com o padrão da casa é também o que
+  faz a conta bater — 150 × 0,3333 = 49,995, que vira 50,00 e devolve o "1/3 da diária" prometido.
+- **A divisão do período é sobre `Ticks`, não sobre `TotalHours`.** `TotalHours` é `double`, e um
+  contrato de exatamente 48h pode sair como 47,999999999 — que viraria uma diária a menos na conta
+  do cliente, sem ninguém entender por quê.
+
+`ApurarPeriodo` recebe a **`Filial` de retirada em objeto**, e não os dois parâmetros soltos, por
+dois motivos: `Locacao.FilialRetirada` chega nula em qualquer chamador que não peça o `Include`, e
+dois `decimal` na assinatura são dois argumentos que alguém troca de ordem um dia sem o compilador
+reclamar. A guarda de identidade recusa filial que não seja a de retirada do contrato.
+
+Um erro do próprio doc `07` foi corrigido: o cenário 4 do §10 dizia "1 diária cheia no lugar das
+**3** horas excedentes", mas 4h de sobra menos 30 min de tolerância dão 3h30, que por hora iniciada
+são **4** horas. O resultado que importa — 3 diárias, R$ 450,00 — não muda.
+
+**A6 · Quilometragem e combustível** — `M` · RN-08 a RN-16 · **é por aqui que se começa**
+Siga o molde do `A5`: cálculo puro num tipo próprio, `Locacao.Apurar...` escrevendo as linhas, e a
+franquia multiplicando `ApuracaoDePeriodo.DiariasCobradas` (que já soma a diária do teto). Os
+parâmetros de combustível saem da filial de **devolução**, não da de retirada.
 Franquia = `LimiteKm × diárias cobradas`; excedente sobre isso. `KmAtual` já avança na devolução
 (RN-12, feito no bloco anterior). Combustível full-to-full pelo enum `NivelCombustivel` ×
 `CapacidadeTanqueLitros` + taxa de serviço cobrada uma vez; devolver com mais não gera crédito.

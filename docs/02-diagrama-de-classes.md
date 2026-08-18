@@ -461,6 +461,7 @@ classDiagram
         +Fechar(valorFinal)
         +LiquidarSaldo()
         +AbrirFechamento(idFuncionarioApuracao) FechamentoLocacao
+        +ApurarPeriodo(filialRetirada) ApuracaoDePeriodo
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -583,6 +584,22 @@ classDiagram
         +Desativar()
     }
 
+    class ApuracaoDePeriodo {
+        +int Diarias
+        +int DiariasPorTeto
+        +int HorasExcedentes
+        +int HorasApuradas
+        +int DiariasCobradas
+        +decimal ValorDiaria
+        +decimal ValorHoraExcedente
+        +TimeSpan RestoDoUltimoCiclo
+        +decimal Total
+        +Calcular(dataInicio, dataFimReal, valorDiariaContratada, toleranciaMinutos, percentualHoraExcedente)$ ApuracaoDePeriodo
+        +BaseCalculoDasDiarias(dataInicio, duracao) string
+        +BaseCalculoDasHoras(toleranciaMinutos) string
+        +BaseCalculoDoTeto(toleranciaMinutos) string
+    }
+
     class FechamentoLocacao {
         +int IdFechamento
         +int IdLocacao
@@ -668,6 +685,8 @@ classDiagram
     Locacao "1" *-- "0..*" LocacaoAdicional : Adicionais
     Locacao "1" *-- "0..1" FechamentoLocacao : Fechamento
     FechamentoLocacao "1" *-- "0..*" LinhaFechamento : Linhas
+    Locacao ..> ApuracaoDePeriodo : ApurarPeriodo()
+    Filial ..> ApuracaoDePeriodo : tolerância e percentual
     Locacao "1" --> "0..*" HistoricoStatusLocacao
     Vistoria "1" *-- "0..*" Dano : Danos
     Vistoria "1" *-- "0..*" FotoVistoria : Fotos

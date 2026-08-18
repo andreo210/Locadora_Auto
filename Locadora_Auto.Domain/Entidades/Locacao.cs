@@ -382,6 +382,80 @@ namespace Locadora_Auto.Domain.Entidades
         }
 
         /// <summary>
+        /// RN-01 a RN-07: apura o <b>tempo</b> do contrato e escreve as linhas correspondentes —
+        /// diárias, horas excedentes e, quando o teto da RN-05 entra, a diária que as substitui.
+        ///
+        /// A política vem da filial de <b>retirada</b>, que é quem vendeu: tolerância e percentual
+        /// de hora excedente são termo do contrato, não custo de execução (esse sai da filial de
+        /// devolução, e é o A6/A8 que o lê).
+        /// </summary>
+        /// <param name="filialRetirada">
+        /// A filial em objeto, e não os dois números soltos, por dois motivos: <c>FilialRetirada</c>
+        /// chega nula em qualquer chamador que não peça o <c>Include</c>, e dois <c>decimal</c> na
+        /// assinatura são dois argumentos que alguém troca de ordem um dia sem o compilador
+        /// reclamar. A guarda de identidade abaixo é o que impede aplicar a política da praça errada.
+        /// </param>
+        public ApuracaoDePeriodo ApurarPeriodo(Filial filialRetirada)
+        {
+            ArgumentNullException.ThrowIfNull(filialRetirada);
+
+            var fechamento = Fechamento
+                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+            if (filialRetirada.IdFilial != IdFilialRetirada)
+                throw new InvalidOperationException("A filial informada não é a filial de retirada do contrato");
+
+            var dataFimReal = DataFimReal
+                ?? throw new InvalidOperationException("Contrato sem devolução registrada não tem período a apurar");
+
+            // guarda do mesmo ciclo de apuração: relançar o período dobraria a conta do cliente.
+            // Só enxerga as linhas carregadas — a idempotência que sobrevive a duas requisições é
+            // a do A10; esta pega o caso real, que é a apuração ser chamada duas vezes no mesmo
+            // fluxo entre `AbrirFechamento` e `SelarFechamento`
+            if (fechamento.Linhas.Any(l => TiposDePeriodo.Contains(l.Tipo)))
+                throw new DomainException("O período deste contrato já foi apurado");
+
+            var apuracao = ApuracaoDePeriodo.Calcular(
+                DataInicio,
+                dataFimReal,
+                ValorDiariaContratada,
+                filialRetirada.ToleranciaMinutos,
+                filialRetirada.PercentualHoraExcedente);
+
+            fechamento.Lancar(
+                TipoLinhaFechamento.Diaria,
+                apuracao.BaseCalculoDasDiarias(DataInicio, dataFimReal - DataInicio),
+                apuracao.Diarias,
+                apuracao.ValorDiaria);
+
+            if (apuracao.DiariasPorTeto > 0)
+                fechamento.Lancar(
+                    TipoLinhaFechamento.DiariaPorTetoDeHoras,
+                    apuracao.BaseCalculoDoTeto(filialRetirada.ToleranciaMinutos),
+                    apuracao.DiariasPorTeto,
+                    apuracao.ValorDiaria);
+            else if (apuracao.HorasExcedentes > 0)
+                fechamento.Lancar(
+                    TipoLinhaFechamento.HoraExcedente,
+                    apuracao.BaseCalculoDasHoras(filialRetirada.ToleranciaMinutos),
+                    apuracao.HorasExcedentes,
+                    apuracao.ValorHoraExcedente);
+
+            return apuracao;
+        }
+
+        /// <summary>
+        /// As linhas que representam tempo. Existem para a guarda de reapuração acima saber o que
+        /// procurar — e para o A6/A7, que multiplicam pelas diárias cobradas, saberem onde lê-las.
+        /// </summary>
+        public static readonly TipoLinhaFechamento[] TiposDePeriodo =
+        {
+            TipoLinhaFechamento.Diaria,
+            TipoLinhaFechamento.DiariaPorTetoDeHoras,
+            TipoLinhaFechamento.HoraExcedente
+        };
+
+        /// <summary>
         /// Encerra a apuração e devolve o saldo (RN-27). Daqui em diante a conta é histórico e só
         /// aceita correção.
         /// </summary>
