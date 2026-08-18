@@ -312,7 +312,14 @@ namespace Locadora_Auto.Application.Services.ReservaServices
                      && v.FilialAtualId == dto.IdFilial
                      && v.Ativo
                      && v.Status != StatusVeiculo.EmManutencao
-                     && v.Status != StatusVeiculo.Indisponivel, ct);
+                     && v.Status != StatusVeiculo.Bloqueado
+                     // RN-49: quem está na estrada não conta na oferta de filial nenhuma — nem da
+                     // origem, de onde já saiu, nem do destino, onde ainda não chegou
+                     && v.Status != StatusVeiculo.EmTransferencia
+                     // RN-56: carro vendido não é frota. Redundante com o `v.Ativo` acima, porque
+                     // desmobilizar já desativa — está aqui para a fórmula continuar correta se um
+                     // dia as duas coisas se separarem
+                     && v.Status != StatusVeiculo.Desmobilizado, ct);
 
             if (frota == 0)
             {

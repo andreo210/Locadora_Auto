@@ -25,8 +25,24 @@
         public const int PreparacaoPadraoMinutos = 120;
 
         /// <summary>
+        /// RN-49: a filial participa do remanejamento programado de frota, mandando e recebendo
+        /// veículos.
+        ///
+        /// Nasce <c>true</c> porque o caso normal é participar — a exceção é a loja que não tem
+        /// pátio para receber carro sem contrato, o ponto de atendimento dentro de um hotel, ou a
+        /// filial em abertura. Marcar a exceção é o trabalho de quem a conhece; obrigar toda filial
+        /// já cadastrada a se habilitar deixaria a rede inteira sem transferência até alguém
+        /// perceber.
+        ///
+        /// Não se confunde com <c>HabilitadaOneWay</c> (backlog A2): aquela é sobre o
+        /// <b>cliente</b> devolver em outra filial e paga taxa de retorno; esta é sobre a
+        /// <b>casa</b> mover o próprio ativo.
+        /// </summary>
+        public bool PermiteTransferencia { get; private set; } = true;
+
+        /// <summary>
         /// Um dia. Acima disso não é preparação e sim indisponibilidade, que tem estado próprio
-        /// (`EmManutencao`, `Indisponivel`) — o teto existe para barrar erro de digitação que
+        /// (`EmManutencao`, `Bloqueado`) — o teto existe para barrar erro de digitação que
         /// esconderia frota inteira da oferta sem ninguém perceber.
         /// </summary>
         public const int PreparacaoMaximaMinutos = 1440;
@@ -146,6 +162,13 @@
                 throw new DomainException("Foto não encontrada");
             _fotos.Remove(foto);
         }
+
+        /// <summary>
+        /// Liga ou desliga a participação da filial no remanejamento de frota (RN-49). Desligar
+        /// não mexe em transferência já em trânsito: o carro que está na estrada precisa chegar em
+        /// algum lugar.
+        /// </summary>
+        public void DefinirPermiteTransferencia(bool permite) => PermiteTransferencia = permite;
 
         public void Ativar()
         {

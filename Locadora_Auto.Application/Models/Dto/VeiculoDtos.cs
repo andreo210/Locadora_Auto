@@ -33,7 +33,24 @@
 
         public int IdFilialAtual { get; set; }
         public string Filial { get; set; } = null!;
+
+        /// <summary>RN-56: preenchidos só depois que o ativo deixou a frota.</summary>
+        public string? MotivoDesmobilizacao { get; set; }
+        public DateTime? DataDesmobilizacao { get; set; }
+        public int? IdFuncionarioDesmobilizacao { get; set; }
     }
+    /// <summary>
+    /// RN-56: o ativo deixa a frota. Motivo e responsável são obrigatórios pelo mesmo motivo do
+    /// bloqueio — baixa de ativo sem justificativa registrada é apontamento de auditoria na hora.
+    /// </summary>
+    public class DesmobilizarVeiculoDto
+    {
+        /// <summary>Idade, quilometragem, custo de manutenção, perda total, queda de demanda.</summary>
+        public string Motivo { get; set; } = null!;
+
+        public int IdFuncionarioResponsavel { get; set; }
+    }
+
     public class AtualizarVeiculoDto
     {
         public string? Marca { get; set; }

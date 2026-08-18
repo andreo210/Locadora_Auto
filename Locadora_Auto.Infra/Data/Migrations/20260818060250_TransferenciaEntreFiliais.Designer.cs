@@ -3,6 +3,7 @@ using System;
 using Locadora_Auto.Infra.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Locadora_Auto.Infra.Data.Migrations
 {
     [DbContext(typeof(LocadoraDbContext))]
-    partial class LocadoraDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260818060250_TransferenciaEntreFiliais")]
+    partial class TransferenciaEntreFiliais
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1550,10 +1553,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("chassi");
 
-                    b.Property<DateTime?>("DataDesmobilizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_desmobilizacao");
-
                     b.Property<bool>("Disponivel")
                         .HasColumnType("boolean")
                         .HasColumnName("disponivel");
@@ -1565,10 +1564,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                     b.Property<int>("IdCategoria")
                         .HasColumnType("integer")
                         .HasColumnName("id_categoria");
-
-                    b.Property<int?>("IdFuncionarioDesmobilizacao")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_funcionario_desmobilizacao");
 
                     b.Property<int>("KmAtual")
                         .HasColumnType("integer")
@@ -1583,11 +1578,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("modelo");
-
-                    b.Property<string>("MotivoDesmobilizacao")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("motivo_desmobilizacao");
 
                     b.Property<string>("Placa")
                         .IsRequired()
@@ -1618,9 +1608,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
 
                     b.HasIndex("IdCategoria")
                         .HasDatabaseName("ix_tb_veiculo_id_categoria");
-
-                    b.HasIndex("IdFuncionarioDesmobilizacao")
-                        .HasDatabaseName("ix_tb_veiculo_id_funcionario_desmobilizacao");
 
                     b.HasIndex("Placa")
                         .IsUnique()
@@ -2224,12 +2211,6 @@ namespace Locadora_Auto.Infra.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_tb_veiculo_tb_categoria_veiculo_id_categoria");
-
-                    b.HasOne("Locadora_Auto.Domain.Entidades.Funcionario", null)
-                        .WithMany()
-                        .HasForeignKey("IdFuncionarioDesmobilizacao")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_tb_veiculo_tb_funcionario_id_funcionario_desmobilizacao");
 
                     b.Navigation("Categoria");
 

@@ -15,6 +15,8 @@ public class VeiculoService : IVeiculoService
     private readonly ICategoriaVeiculosRepository _categoriaRepository;
     private readonly IFilialRepository _filialRepository;
     private readonly IMovimentoVeiculoRepository _movimentoRepository;
+    private readonly IFuncionarioRepository _funcionarioRepository;
+    private readonly ILocacaoRepository _locacaoRepository;
     private readonly INotificadorService _notificador;
 
     public VeiculoService(
@@ -22,12 +24,16 @@ public class VeiculoService : IVeiculoService
         ICategoriaVeiculosRepository categoriaRepository,
         IFilialRepository filialRepository,
         IMovimentoVeiculoRepository movimentoRepository,
+        IFuncionarioRepository funcionarioRepository,
+        ILocacaoRepository locacaoRepository,
         INotificadorService notificador)
     {
         _veiculoRepository = veiculoRepository;
         _categoriaRepository = categoriaRepository;
         _filialRepository = filialRepository;
         _movimentoRepository = movimentoRepository;
+        _funcionarioRepository = funcionarioRepository;
+        _locacaoRepository = locacaoRepository;
         _notificador = notificador;
     }
 
@@ -151,9 +157,22 @@ public class VeiculoService : IVeiculoService
     }
     private async Task<bool> ValidadorCriacaoVeiculo(CriarVeiculoDto dto, CancellationToken ct = default)
     {
-        if (await _veiculoRepository.ExisteAsync(v => v.Placa == dto.Placa, ct))
+        // RN-55: a comparação tem que usar a mesma forma que Veiculo.Criar grava (trim + maiúscula).
+        // Comparar o texto cru deixava "abc1d23" passar pela checagem e estourar no índice do banco
+        // logo depois — recusa de regra saindo como 500.
+        var placa = Normalizar(dto.Placa);
+        var chassi = Normalizar(dto.Chassi);
+
+        // RN-55: a unicidade é entre os **ativos**, igual ao índice parcial de VeiculoConfig. Os
+        // dois têm que dizer a mesma coisa: aqui sai a recusa amigável, lá está a garantia.
+        if (await _veiculoRepository.ExisteAsync(v => v.Ativo && v.Placa == placa, ct))
         {
-            _notificador.Add("Placa já cadastrada");
+            _notificador.Add("Placa já cadastrada em veículo ativo");
+        }
+
+        if (await _veiculoRepository.ExisteAsync(v => v.Ativo && v.Chassi == chassi, ct))
+        {
+            _notificador.Add("Chassi já cadastrado em veículo ativo");
         }
 
         if (dto.KmInicial < 0)
@@ -179,6 +198,13 @@ public class VeiculoService : IVeiculoService
         if (veiculo == null)
         {
             _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        // RN-56: terminal também para o cadastro — dado de carro vendido não se altera
+        if (veiculo.Status == StatusVeiculo.Desmobilizado)
+        {
+            _notificador.Add("Veículo desmobilizado não pode ser alterado");
             return false;
         }
 
@@ -236,11 +262,30 @@ public class VeiculoService : IVeiculoService
     {
         // rastreado: Ativar() é transição de status e, desde a RN-37, também acrescenta um
         // MovimentoVeiculo à coleção — filho novo só chega ao banco pela instância rastreada,
-        // porque o SetValues do AtualizarSalvarAsync copia escalares e ignora navegação
-        var veiculo = await _veiculoRepository.ObterPorIdAsync(id, true, ct);
+        // porque o SetValues do AtualizarSalvarAsync copia escalares e ignora navegação.
+        //
+        // E com os bloqueios: Ativar() consulta TemBloqueioEmAberto() para não devolver à oferta um
+        // carro que a RN-52 tirou dela. Não há lazy loading no contexto, então sem o Include a
+        // coleção viria vazia e a guarda passaria batido — o furo é silencioso, que é o pior tipo
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Bloqueios),
+            ct: ct);
+
         if (veiculo == null)
         {
             _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        // RN-55: reativar é a única operação que pode colidir no índice parcial — enquanto o
+        // veículo estava inativo, nada impedia recadastrar a placa dele. A checagem é aqui e não
+        // em Veiculo.Ativar() porque o domínio não enxerga os outros veículos.
+        if (await _veiculoRepository.ExisteAsync(
+                v => v.Ativo && v.IdVeiculo != id && (v.Placa == veiculo.Placa || v.Chassi == veiculo.Chassi), ct))
+        {
+            _notificador.Add("Já existe veículo ativo com esta placa ou chassi");
             return false;
         }
 
@@ -264,7 +309,7 @@ public class VeiculoService : IVeiculoService
     /// <summary>
     /// RN-45: o pátio declara o carro pronto e ele volta à oferta. Sem esta porta o veículo
     /// devolvido fica preso em <see cref="StatusVeiculo.EmPreparacao"/>, fora da disponibilidade.
-    /// Veículo inativo volta para <see cref="StatusVeiculo.Indisponivel"/>, não para a oferta.
+    /// Veículo inativo volta para <see cref="StatusVeiculo.Bloqueado"/>, não para a oferta.
     /// </summary>
     public async Task<bool> LiberarDaPreparacaoAsync(int id, CancellationToken ct = default)
     {
@@ -365,7 +410,7 @@ public class VeiculoService : IVeiculoService
                 resultado.SemCarimbo++;
             }
 
-            // veículo inativo não volta para a oferta: SairParaOferta o manda para Indisponivel
+            // veículo inativo não volta para a oferta: SairParaOferta o manda para Bloqueado
             // (RN-53). A transição é a mesma; o que muda é o destino
             veiculo.LiberarDaPreparacaoPorPrazo();
             resultado.Liberados++;
@@ -378,6 +423,341 @@ public class VeiculoService : IVeiculoService
     }
 
     #endregion
+
+    #region Bloqueio
+
+    /// <summary>
+    /// RN-52: tira o veículo da oferta com motivo, prazo e responsável.
+    ///
+    /// As guardas de <c>Veiculo.Bloquear</c> e de <c>BloqueioVeiculo.Criar</c> são repetidas aqui
+    /// de propósito, como no resto do serviço: <c>DomainException</c> é <c>internal</c> e não está
+    /// no <c>ExceptionProblemFactory</c> — se escapar, a recusa de regra vira 500 em vez de 4xx.
+    /// </summary>
+    public async Task<BloqueioVeiculoDto?> BloquearAsync(int id, BloquearVeiculoDto dto, CancellationToken ct = default)
+    {
+        // rastreado e com os bloqueios: Bloquear() acrescenta filho novo à coleção, e filho novo só
+        // chega ao banco pela instância rastreada. Sem o Include, TemBloqueioEmAberto() olharia uma
+        // coleção vazia e deixaria abrir o segundo bloqueio
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Bloqueios),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return null;
+        }
+
+        var motivo = (MotivoBloqueio)dto.IdMotivo;
+        if (!Enum.IsDefined(motivo))
+            _notificador.Add("Motivo de bloqueio inválido");
+
+        var prazo = NormalizarUtc(dto.DataPrevistaLiberacao) ?? DateTime.UtcNow;
+        if (prazo <= DateTime.UtcNow)
+            _notificador.Add("A data prevista de liberação tem que ser futura");
+
+        // mesma razão de BloqueioVeiculo.Criar: int.IsPositive(0) é true
+        if (dto.IdFuncionarioResponsavel <= 0)
+            _notificador.Add("Bloqueio exige um funcionário responsável");
+        else if (!await _funcionarioRepository.ExisteAsync(f => f.IdFuncionario == dto.IdFuncionarioResponsavel, ct))
+            _notificador.Add("Funcionário responsável não encontrado");
+
+        if (veiculo.TemBloqueioEmAberto())
+            _notificador.Add("Veículo já possui bloqueio em aberto");
+        else if (!Veiculo.PodeSerBloqueado(veiculo.Status))
+            _notificador.Add($"Veículo não pode ser bloqueado na situação atual ({veiculo.Status})");
+
+        if (_notificador.TemNotificacao()) return null;
+
+        var bloqueio = veiculo.Bloquear(motivo, prazo, dto.IdFuncionarioResponsavel, dto.Observacao);
+
+        await _veiculoRepository.SalvarAsync(ct);
+
+        return bloqueio.ToDto(DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Encerra o bloqueio. O veículo volta para a situação em que estava quando foi bloqueado, não
+    /// direto para a oferta — quem decide isso é o domínio, pelo <c>StatusAnterior</c> gravado.
+    /// </summary>
+    public async Task<bool> LiberarBloqueioAsync(int id, int idBloqueio, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Bloqueios),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        if (veiculo.Status != StatusVeiculo.Bloqueado)
+        {
+            _notificador.Add($"Veículo não está bloqueado (situação atual: {veiculo.Status})");
+            return false;
+        }
+
+        if (!veiculo.Bloqueios.Any(b => b.IdBloqueioVeiculo == idBloqueio && b.EmAberto))
+        {
+            _notificador.Add($"Bloqueio {idBloqueio} não encontrado em aberto para este veículo");
+            return false;
+        }
+
+        veiculo.LiberarBloqueio(idBloqueio);
+        await _veiculoRepository.SalvarAsync(ct);
+        return true;
+    }
+
+    public async Task<IReadOnlyList<BloqueioVeiculoDto>> ObterBloqueiosAsync(int id, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            incluir: q => q.Include(v => v.Bloqueios)
+                           .ThenInclude(b => b.Responsavel),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return new List<BloqueioVeiculoDto>();
+        }
+
+        // um relógio só para a lista inteira: duas linhas da mesma resposta não podem discordar
+        // sobre o que está vencido
+        var agora = DateTime.UtcNow;
+
+        return veiculo.Bloqueios
+            .OrderByDescending(b => b.DataBloqueio)
+            .ToDtoList(agora);
+    }
+
+    #endregion Bloqueio
+
+    #region Transferencia entre filiais
+
+    /// <summary>
+    /// RN-49: tira o veículo da oferta da origem e o coloca na estrada.
+    ///
+    /// A checagem das duas filiais mora aqui, e não no domínio: <c>Filial</c> é outro agregado e o
+    /// <c>Veiculo</c> não a enxerga. O que ele garante sozinho é o que é dele — estar ativo, estar
+    /// disponível e não ter viagem em curso.
+    /// </summary>
+    public async Task<TransferenciaVeiculoDto?> EnviarParaTransferenciaAsync(
+        int id, EnviarTransferenciaDto dto, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Transferencias),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return null;
+        }
+
+        var origem = await _filialRepository.ObterPrimeiroAsync(f => f.IdFilial == veiculo.FilialAtualId, ct: ct);
+        var destino = await _filialRepository.ObterPrimeiroAsync(f => f.IdFilial == dto.IdFilialDestino, ct: ct);
+
+        if (destino == null)
+            _notificador.Add("Filial de destino não encontrada");
+        else if (destino.IdFilial == veiculo.FilialAtualId)
+            _notificador.Add("A filial de destino tem que ser diferente da de origem");
+        else
+        {
+            // as duas pontas precisam participar do remanejamento: mandar carro para uma filial que
+            // não o recebe é criar viagem que ninguém vai confirmar
+            if (!destino.Ativo)
+                _notificador.Add("Filial de destino está inativa");
+            if (!destino.PermiteTransferencia)
+                _notificador.Add("Filial de destino não aceita transferência de veículo");
+            if (origem is { PermiteTransferencia: false })
+                _notificador.Add("Filial de origem não participa de transferência de veículo");
+        }
+
+        var chegada = NormalizarUtc(dto.DataPrevistaChegada) ?? DateTime.UtcNow;
+        if (chegada <= DateTime.UtcNow)
+            _notificador.Add("A data prevista de chegada tem que ser futura");
+
+        // mesma razão de BloqueioVeiculo.Criar: int.IsPositive(0) é true
+        if (dto.IdFuncionarioResponsavel <= 0)
+            _notificador.Add("Transferência exige um funcionário responsável");
+        else if (!await _funcionarioRepository.ExisteAsync(f => f.IdFuncionario == dto.IdFuncionarioResponsavel, ct))
+            _notificador.Add("Funcionário responsável não encontrado");
+
+        // guardas do domínio repetidas para a recusa sair como ProblemDetails 4xx
+        if (!veiculo.Ativo)
+            _notificador.Add("Veículo inativo não pode ser transferido");
+        else if (veiculo.TemTransferenciaEmTransito())
+            _notificador.Add("Veículo já está em transferência");
+        else if (veiculo.Status != StatusVeiculo.Disponivel)
+            _notificador.Add($"Só veículo disponível pode ser transferido (situação atual: {veiculo.Status})");
+
+        if (_notificador.TemNotificacao()) return null;
+
+        var transferencia = veiculo.EnviarParaTransferencia(
+            dto.IdFilialDestino, chegada, dto.IdFuncionarioResponsavel, dto.Observacao);
+
+        await _veiculoRepository.SalvarAsync(ct);
+
+        return transferencia.ToDto(DateTime.UtcNow);
+    }
+
+    public async Task<bool> ConfirmarChegadaTransferenciaAsync(
+        int id, int idTransferencia, ChegadaTransferenciaDto dto, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Transferencias),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        if (veiculo.Status != StatusVeiculo.EmTransferencia)
+        {
+            _notificador.Add($"Veículo não está em transferência (situação atual: {veiculo.Status})");
+            return false;
+        }
+
+        if (!veiculo.Transferencias.Any(t => t.IdTransferenciaVeiculo == idTransferencia && t.EmTransito))
+        {
+            _notificador.Add($"Transferência {idTransferencia} não encontrada em trânsito para este veículo");
+            return false;
+        }
+
+        // RN-54: o hodômetro não retrocede. A recusa sai por notificação porque digitar km errado na
+        // chegada é rotina de pátio, não erro de programa
+        if (dto.KmChegada < veiculo.KmAtual)
+        {
+            _notificador.Add($"Km não pode ser menor que o atual ({veiculo.KmAtual})");
+            return false;
+        }
+
+        veiculo.ConfirmarChegadaTransferencia(idTransferencia, dto.KmChegada);
+        await _veiculoRepository.SalvarAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> CancelarTransferenciaAsync(int id, int idTransferencia, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Transferencias),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        if (veiculo.Status != StatusVeiculo.EmTransferencia)
+        {
+            _notificador.Add($"Veículo não está em transferência (situação atual: {veiculo.Status})");
+            return false;
+        }
+
+        if (!veiculo.Transferencias.Any(t => t.IdTransferenciaVeiculo == idTransferencia && t.EmTransito))
+        {
+            _notificador.Add($"Transferência {idTransferencia} não encontrada em trânsito para este veículo");
+            return false;
+        }
+
+        veiculo.CancelarTransferencia(idTransferencia);
+        await _veiculoRepository.SalvarAsync(ct);
+        return true;
+    }
+
+    public async Task<IReadOnlyList<TransferenciaVeiculoDto>> ObterTransferenciasAsync(int id, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            incluir: q => q.Include(v => v.Transferencias).ThenInclude(t => t.FilialOrigem)
+                           .Include(v => v.Transferencias).ThenInclude(t => t.FilialDestino)
+                           .Include(v => v.Transferencias).ThenInclude(t => t.Responsavel),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return new List<TransferenciaVeiculoDto>();
+        }
+
+        var agora = DateTime.UtcNow;
+
+        return veiculo.Transferencias
+            .OrderByDescending(t => t.DataEnvio)
+            .ToDtoList(agora);
+    }
+
+    #endregion Transferencia entre filiais
+
+    #region Desmobilizacao
+
+    /// <summary>
+    /// RN-56: o ativo deixa a frota, em definitivo.
+    ///
+    /// A guarda que só o serviço consegue fazer é a do <b>contrato</b>. O status do veículo é um
+    /// retrato de agora e não enxerga período: um carro <c>Disponivel</c> hoje pode ter contrato
+    /// vendido para a semana que vem, e desmobilizá-lo criaria cliente no balcão sem carro — a
+    /// mesma falha que a RN-40 fecha do outro lado. Por isso a consulta é por status não terminal,
+    /// e não por "contrato em andamento".
+    /// </summary>
+    public async Task<bool> DesmobilizarAsync(int id, DesmobilizarVeiculoDto dto, CancellationToken ct = default)
+    {
+        var veiculo = await _veiculoRepository.ObterPrimeiroAsync(
+            v => v.IdVeiculo == id,
+            rastreado: true,
+            incluir: q => q.Include(v => v.Bloqueios),
+            ct: ct);
+
+        if (veiculo == null)
+        {
+            _notificador.Add("Veículo não encontrado");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Motivo))
+            _notificador.Add("Desmobilização exige o motivo");
+
+        // mesma razão de BloqueioVeiculo.Criar: int.IsPositive(0) é true
+        if (dto.IdFuncionarioResponsavel <= 0)
+            _notificador.Add("Desmobilização exige um funcionário responsável");
+        else if (!await _funcionarioRepository.ExisteAsync(f => f.IdFuncionario == dto.IdFuncionarioResponsavel, ct))
+            _notificador.Add("Funcionário responsável não encontrado");
+
+        if (veiculo.Status == StatusVeiculo.Desmobilizado)
+            _notificador.Add("Veículo já está desmobilizado");
+        else if (!Veiculo.PodeSerDesmobilizado(veiculo.Status))
+            _notificador.Add($"Veículo não pode ser desmobilizado na situação atual ({veiculo.Status})");
+
+        // contrato aberto **ou futuro**: os dois impedem, e é o segundo que o status não revela
+        if (await _locacaoRepository.ExisteAsync(
+                l => l.IdVeiculo == id && !Locacao.StatusTerminais.Contains(l.Status), ct))
+        {
+            _notificador.Add("Veículo possui contrato não encerrado e não pode ser desmobilizado");
+        }
+
+        if (_notificador.TemNotificacao()) return false;
+
+        veiculo.Desmobilizar(dto.Motivo, dto.IdFuncionarioResponsavel);
+        await _veiculoRepository.SalvarAsync(ct);
+        return true;
+    }
+
+    #endregion Desmobilizacao
 
     #region Trilha do ativo
 
@@ -466,6 +846,12 @@ public class VeiculoService : IVeiculoService
             TotalPaginas = 0,
             ItensPorPagina = consulta.ItensPorPagina
         };
+
+    /// <summary>
+    /// Placa e chassi como <c>Veiculo.Criar</c> os grava: sem espaço nas pontas e em maiúscula.
+    /// A checagem de unicidade (RN-55) precisa comparar na forma gravada, não na digitada.
+    /// </summary>
+    private static string Normalizar(string? texto) => (texto ?? string.Empty).Trim().ToUpper();
 
     /// <summary>
     /// Mesma regra do conversor global do <c>LocadoraDbContext</c> (e do

@@ -57,6 +57,12 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(e => e.IdManutencaoOrigem)
                 .HasColumnName("id_manutencao_origem");
 
+            builder.Property(e => e.IdBloqueioOrigem)
+                .HasColumnName("id_bloqueio_origem");
+
+            builder.Property(e => e.IdTransferenciaOrigem)
+                .HasColumnName("id_transferencia_origem");
+
             builder.HasOne<Veiculo>()
                    .WithMany(v => v.Movimentos)
                    .HasForeignKey(e => e.IdVeiculo)
@@ -74,6 +80,19 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.HasOne(e => e.ManutencaoOrigem)
                    .WithMany()
                    .HasForeignKey(e => e.IdManutencaoOrigem)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            //mesmo motivo da manutenção: o bloqueio sai junto com o veículo, e o movimento que o
+            //cita tem de sair junto também
+            builder.HasOne(e => e.BloqueioOrigem)
+                   .WithMany()
+                   .HasForeignKey(e => e.IdBloqueioOrigem)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            //mesmo motivo do bloqueio: a transferência sai junto com o veículo
+            builder.HasOne(e => e.TransferenciaOrigem)
+                   .WithMany()
+                   .HasForeignKey(e => e.IdTransferenciaOrigem)
                    .OnDelete(DeleteBehavior.Cascade);
 
             //a consulta natural é "o que aconteceu com este carro, em ordem" — e é dela que sai

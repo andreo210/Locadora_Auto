@@ -27,6 +27,9 @@ namespace Locadora_Auto.Application.Models.Dto
             /// <summary>Minutos entre a devolução e o carro voltar à oferta desta filial.</summary>
             public int TempoPreparacaoMinutos { get; set; }
 
+            /// <summary>RN-49: a filial manda e recebe veículo em remanejamento de frota.</summary>
+            public bool PermiteTransferencia { get; set; }
+
             // Estatísticas (opcional)
             public int TotalVeiculos { get; set; }
             public int VeiculosDisponiveis { get; set; }
@@ -52,6 +55,9 @@ namespace Locadora_Auto.Application.Models.Dto
             /// <summary>Ausente assume o padrão da casa (<c>Filial.PreparacaoPadraoMinutos</c>).</summary>
             [Range(0, Filial.PreparacaoMaximaMinutos, ErrorMessage = "Tempo de preparação deve estar entre 0 e {2} minutos")]
             public int? TempoPreparacaoMinutos { get; set; }
+
+            /// <summary>Ausente assume <c>true</c>: o caso normal é a filial participar (RN-49).</summary>
+            public bool? PermiteTransferencia { get; set; }
         }
 
         public class AtualizarFilialDto
@@ -70,6 +76,14 @@ namespace Locadora_Auto.Application.Models.Dto
             /// </summary>
             [Range(0, Filial.PreparacaoMaximaMinutos, ErrorMessage = "Tempo de preparação deve estar entre 0 e {2} minutos")]
             public int? TempoPreparacaoMinutos { get; set; }
+
+            /// <summary>
+            /// Anulável pelo mesmo motivo do tempo de preparação: ausente <b>mantém</b> o valor
+            /// atual. Se fosse <c>bool</c>, todo cliente que não conhece o campo tiraria a filial
+            /// do remanejamento a cada edição, e a frota pararia de circular sem ninguém ter
+            /// pedido isso.
+            /// </summary>
+            public bool? PermiteTransferencia { get; set; }
         }
 
         public class FilialResumoDto

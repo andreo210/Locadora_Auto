@@ -176,7 +176,17 @@ namespace Locadora_Auto.Application.Services.VeiculoServices
             {
                 var total = _tempoPorStatus.Values.Aggregate(TimeSpan.Zero, (soma, t) => soma + t);
                 var locado = Tempo(StatusVeiculo.Locado);
-                var frotaAtiva = total - Tempo(StatusVeiculo.Indisponivel);
+                // o denominador é a frota operacional: sai o tempo fora da oferta por decisão da
+                // casa (Bloqueado) e o tempo em que o carro já não era da casa (Desmobilizado).
+                //
+                // EmTransferencia **fica** de propósito. Também é decisão administrativa, mas é
+                // meio para alugar o carro em outro lugar, não renúncia a alugá-lo: mantê-lo no
+                // denominador faz a utilização cair quando a estrada demora, que é exatamente a
+                // pressão que se quer sobre quem remaneja frota. Ele continua visível à parte em
+                // TempoPorSituacao.
+                var frotaAtiva = total
+                                 - Tempo(StatusVeiculo.Bloqueado)
+                                 - Tempo(StatusVeiculo.Desmobilizado);
 
                 indicadores.VeiculosComTrilha = _veiculosComTrilha;
                 indicadores.DiasLocado = Arredondar(locado.TotalDays);

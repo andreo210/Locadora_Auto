@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -50,7 +50,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             Assert.False(veiculo.Ativo);
             Assert.False(veiculo.Disponivel);
-            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, veiculo.Status);
         }
 
         [Fact]
@@ -161,7 +161,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             veiculo.LiberarDaPreparacao();
 
-            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
         }
 
@@ -199,7 +199,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             veiculo.LiberarDaPreparacaoPorPrazo();
 
-            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
         }
 
@@ -276,7 +276,7 @@ namespace Locadora_Auto.Tests.Dominio
                     veiculo.Locar(contrato);
                     veiculo.RegistrarDevolucao(kmFinal: 15_900, idFilialDevolucao: 1, contrato);
                     break;
-                case StatusVeiculo.Indisponivel:
+                case StatusVeiculo.Bloqueado:
                     veiculo.Desativar();
                     break;
             }
@@ -323,7 +323,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             veiculo.TerminaManutencao(custo: 800m, idManutencao: 10);
 
-            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
         }
 

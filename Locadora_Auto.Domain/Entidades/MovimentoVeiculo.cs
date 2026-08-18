@@ -25,6 +25,8 @@ namespace Locadora_Auto.Domain.Entidades
         public TipoDocumentoOrigem TipoOrigem { get; private set; }
         public int? IdLocacaoOrigem { get; private set; }
         public int? IdManutencaoOrigem { get; private set; }
+        public int? IdBloqueioOrigem { get; private set; }
+        public int? IdTransferenciaOrigem { get; private set; }
 
         /// <summary>
         /// Quando a transição aconteceu. Vem do domínio, e não do <c>DataCriacao</c> da auditoria,
@@ -42,6 +44,8 @@ namespace Locadora_Auto.Domain.Entidades
         /// </summary>
         public Locacao? LocacaoOrigem { get; private set; }
         public Manutencao? ManutencaoOrigem { get; private set; }
+        public BloqueioVeiculo? BloqueioOrigem { get; private set; }
+        public TransferenciaVeiculo? TransferenciaOrigem { get; private set; }
 
         //auditoria: é daqui que sai o autor da transição, sem plumbing novo — o SaveChangesAsync
         //já preenche IdUsuarioCriacao com o usuário corrente (ou "SYSTEM", enquanto a autenticação
@@ -66,7 +70,9 @@ namespace Locadora_Auto.Domain.Entidades
             StatusVeiculo statusDestino,
             TipoDocumentoOrigem tipoOrigem,
             Locacao? contrato = null,
-            Manutencao? ordemServico = null)
+            Manutencao? ordemServico = null,
+            BloqueioVeiculo? bloqueio = null,
+            TransferenciaVeiculo? transferencia = null)
         {
             // RN-37: transição sem documento de origem é proibida. Contrato e ordem de serviço são
             // os tipos que têm documento; pátio e cadastro são o próprio ato, e o registro deles é
@@ -77,6 +83,12 @@ namespace Locadora_Auto.Domain.Entidades
             if (tipoOrigem == TipoDocumentoOrigem.OrdemServico && ordemServico == null)
                 throw new DomainException("Movimento com origem em ordem de serviço exige a ordem");
 
+            if (tipoOrigem == TipoDocumentoOrigem.Bloqueio && bloqueio == null)
+                throw new DomainException("Movimento com origem em bloqueio exige o bloqueio");
+
+            if (tipoOrigem == TipoDocumentoOrigem.Transferencia && transferencia == null)
+                throw new DomainException("Movimento com origem em transferência exige a transferência");
+
             return new MovimentoVeiculo
             {
                 IdVeiculo = idVeiculo,
@@ -85,11 +97,15 @@ namespace Locadora_Auto.Domain.Entidades
                 TipoOrigem = tipoOrigem,
                 LocacaoOrigem = contrato,
                 ManutencaoOrigem = ordemServico,
+                BloqueioOrigem = bloqueio,
+                TransferenciaOrigem = transferencia,
 
                 // documento já gravado entra pelo id; documento que está nascendo entra só pela
                 // navegação, e o EF resolve a chave na hora do insert
                 IdLocacaoOrigem = contrato is { IdLocacao: > 0 } ? contrato.IdLocacao : null,
                 IdManutencaoOrigem = ordemServico is { IdManutencao: > 0 } ? ordemServico.IdManutencao : null,
+                IdBloqueioOrigem = bloqueio is { IdBloqueioVeiculo: > 0 } ? bloqueio.IdBloqueioVeiculo : null,
+                IdTransferenciaOrigem = transferencia is { IdTransferenciaVeiculo: > 0 } ? transferencia.IdTransferenciaVeiculo : null,
 
                 DataMovimento = DateTime.UtcNow
             };
@@ -97,8 +113,7 @@ namespace Locadora_Auto.Domain.Entidades
     }
 
     /// <summary>
-    /// Que documento autorizou a transição (RN-37). Transferência e bloqueio entram quando as
-    /// RN-48/RN-49 e RN-52 forem implantadas — hoje não há de onde originar esses movimentos.
+    /// Que documento autorizou a transição (RN-37).
     /// </summary>
     public enum TipoDocumentoOrigem
     {
@@ -125,6 +140,35 @@ namespace Locadora_Auto.Domain.Entidades
         /// nenhum. Assim a liberação sem conferência fica contável por filial e a métrica continua
         /// medindo o pátio.
         /// </summary>
-        Prazo = 5
+        Prazo = 5,
+
+        /// <summary>
+        /// Bloqueio da RN-52: o carro sai da oferta por decisão da casa, com motivo, prazo e
+        /// responsável. O documento é o <see cref="BloqueioVeiculo"/>, e ele aparece nas duas
+        /// pontas — no movimento que tira o carro da oferta e no que o devolve —, que é o que
+        /// permite medir quanto tempo cada motivo segurou a frota.
+        ///
+        /// Separado de <see cref="Cadastro"/> porque desativar um veículo também o leva a
+        /// <c>Bloqueado</c>: sem os dois tipos, o indicador de bloqueios vencidos contaria carro
+        /// que saiu do cadastro como carro esquecido na oficina.
+        /// </summary>
+        Bloqueio = 6,
+
+        /// <summary>
+        /// Transferência programada entre filiais (RN-48/RN-49). O documento é a
+        /// <see cref="TransferenciaVeiculo"/>, e ela também aparece nas duas pontas: no movimento
+        /// que tira o carro da oferta da origem e no que o coloca na do destino. É esse par que
+        /// mede o tempo de estrada — o custo que o remanejamento de frota tem e que ninguém
+        /// enxerga enquanto ele for só uma troca de filial no cadastro.
+        /// </summary>
+        Transferencia = 7,
+
+        /// <summary>
+        /// RN-56: o ativo deixou a frota. Não tem documento de entidade própria — o registro é
+        /// esta linha somada ao motivo, à data e ao responsável gravados no próprio veículo, pela
+        /// mesma razão que <see cref="Cadastro"/> e <see cref="Patio"/> não têm: desmobilização é
+        /// terminal e acontece uma vez só, então não há duas pontas para amarrar.
+        /// </summary>
+        Desmobilizacao = 8
     }
 }

@@ -45,10 +45,10 @@ namespace Locadora_Auto.Tests.Dominio
             var volta = UltimoMovimento(veiculo);
 
             Assert.Equal(StatusVeiculo.Disponivel, saida.StatusOrigem);
-            Assert.Equal(StatusVeiculo.Indisponivel, saida.StatusDestino);
+            Assert.Equal(StatusVeiculo.Bloqueado, saida.StatusDestino);
             Assert.Equal(TipoDocumentoOrigem.Cadastro, saida.TipoOrigem);
 
-            Assert.Equal(StatusVeiculo.Indisponivel, volta.StatusOrigem);
+            Assert.Equal(StatusVeiculo.Bloqueado, volta.StatusOrigem);
             Assert.Equal(StatusVeiculo.Disponivel, volta.StatusDestino);
         }
 

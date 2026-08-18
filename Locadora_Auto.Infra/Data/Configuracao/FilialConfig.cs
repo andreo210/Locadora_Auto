@@ -35,6 +35,14 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                 .HasDefaultValue(Filial.PreparacaoPadraoMinutos)
                 .IsRequired();
 
+            // RN-49: a filial participa do remanejamento programado de frota. O default true vale
+            // para as filiais que já existiam quando a coluna entrou — obrigá-las a se habilitar
+            // deixaria a rede inteira sem transferência até alguém perceber.
+            builder.Property(e => e.PermiteTransferencia)
+                .HasColumnName("permite_transferencia")
+                .HasDefaultValue(true)
+                .IsRequired();
+
             //chave estrangeira
             builder.Property(e => e.IdEndereco)
                 .HasColumnName("id_endereco")

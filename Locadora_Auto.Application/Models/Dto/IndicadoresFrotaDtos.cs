@@ -31,8 +31,11 @@
 
         /// <summary>
         /// Denominador da utilização: todo o tempo apurado menos o que o veículo passou em
-        /// <c>Indisponivel</c> — carro fora da oferta por decisão administrativa não é frota
-        /// operacional e não pode puxar a utilização para baixo.
+        /// <c>Bloqueado</c> e em <c>Desmobilizado</c> — carro fora da oferta por decisão
+        /// administrativa não é frota operacional, e carro vendido não é frota nenhuma.
+        ///
+        /// <c>EmTransferencia</c> continua no denominador: é meio para alugar o carro em outro
+        /// lugar, não renúncia a alugá-lo, e a utilização deve mesmo cair quando a estrada demora.
         /// </summary>
         public double DiasFrotaAtiva { get; set; }
 
@@ -56,6 +59,7 @@
         /// parada por pátio é problema de processo.
         /// </summary>
         public List<TempoPorSituacaoDto> TempoPorSituacao { get; set; } = new();
+
     }
 
     public class TempoPorSituacaoDto

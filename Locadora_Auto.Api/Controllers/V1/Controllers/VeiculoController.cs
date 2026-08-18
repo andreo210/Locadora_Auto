@@ -130,6 +130,111 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
         }
 
         /// <summary>
+        /// RN-52: tira o veículo da oferta com motivo, prazo e responsável. Bloqueio sem prazo é
+        /// carro que some da frota e ninguém percebe — por isso os três campos são obrigatórios.
+        /// </summary>
+        [HttpPost("{id:int}/bloquear")]
+        public async Task<ActionResult> Bloquear(int id, [FromBody] BloquearVeiculoDto dto, CancellationToken ct)
+        {
+            var result = await _veiculoService.BloquearAsync(id, dto, ct);
+            if (result == null)
+                return CustomResponse();
+
+            return CustomResponse(result, HttpStatusCode.Created);
+        }
+
+        /// <summary>
+        /// Encerra o bloqueio. O veículo volta para a situação em que estava antes dele, e não
+        /// direto para a oferta: carro bloqueado no pátio volta para o pátio, carro bloqueado por
+        /// não devolução volta para locado.
+        /// </summary>
+        [HttpPatch("{id:int}/bloqueios/{idBloqueio:int}/liberar")]
+        public async Task<ActionResult> LiberarBloqueio(int id, int idBloqueio, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.LiberarBloqueioAsync(id, idBloqueio, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Bloqueios do veículo, abertos e encerrados, do mais recente para o mais antigo.
+        /// </summary>
+        [HttpGet("{id:int}/bloqueios")]
+        public async Task<ActionResult> ObterBloqueios(int id, CancellationToken ct)
+        {
+            var result = await _veiculoService.ObterBloqueiosAsync(id, ct);
+            return CustomResponse(result);
+        }
+
+        /// <summary>
+        /// RN-56: o ativo deixa a frota, em definitivo. Recusado com contrato aberto — ou já
+        /// vendido para o futuro, que o status do veículo não revela.
+        /// </summary>
+        [HttpPatch("{id:int}/desmobilizar")]
+        public async Task<ActionResult> Desmobilizar(
+            int id, [FromBody] DesmobilizarVeiculoDto dto, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.DesmobilizarAsync(id, dto, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// RN-49: manda o veículo para outra filial. Ele sai da oferta da origem agora e só entra
+        /// na do destino quando a chegada for confirmada — contá-lo nas duas durante o trecho é
+        /// overbooking involuntário.
+        /// </summary>
+        [HttpPost("{id:int}/transferencias")]
+        public async Task<ActionResult> EnviarParaTransferencia(
+            int id, [FromBody] EnviarTransferenciaDto dto, CancellationToken ct)
+        {
+            var result = await _veiculoService.EnviarParaTransferenciaAsync(id, dto, ct);
+            if (result == null)
+                return CustomResponse();
+
+            return CustomResponse(result, HttpStatusCode.Created);
+        }
+
+        /// <summary>
+        /// Chegada ao destino: a filial de destino vira a atual e o veículo volta à oferta de lá.
+        /// </summary>
+        [HttpPatch("{id:int}/transferencias/{idTransferencia:int}/chegada")]
+        public async Task<ActionResult> ConfirmarChegadaTransferencia(
+            int id, int idTransferencia, [FromBody] ChegadaTransferenciaDto dto, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.ConfirmarChegadaTransferenciaAsync(id, idTransferencia, dto, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Aborta a viagem: o veículo volta à oferta da filial de origem.
+        /// </summary>
+        [HttpPatch("{id:int}/transferencias/{idTransferencia:int}/cancelar")]
+        public async Task<ActionResult> CancelarTransferencia(int id, int idTransferencia, CancellationToken ct)
+        {
+            var sucesso = await _veiculoService.CancelarTransferenciaAsync(id, idTransferencia, ct);
+            if (!sucesso)
+                return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>Transferências do veículo, da mais recente para a mais antiga.</summary>
+        [HttpGet("{id:int}/transferencias")]
+        public async Task<ActionResult> ObterTransferencias(int id, CancellationToken ct)
+        {
+            var result = await _veiculoService.ObterTransferenciasAsync(id, ct);
+            return CustomResponse(result);
+        }
+
+        /// <summary>
         /// Indicadores de frota da seção 12, apurados sobre a trilha (RN-37): utilização real e
         /// tempo médio de preparação. Sem período informado, vale a janela dos últimos 30 dias.
         /// </summary>

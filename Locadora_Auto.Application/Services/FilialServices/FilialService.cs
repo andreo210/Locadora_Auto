@@ -121,6 +121,10 @@ public class FilialService : IFilialService
 
         // Criar entidade
         var filial = Filial.Criar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity(), filialDto.TempoPreparacaoMinutos);
+
+        // RN-49: ausente vale true, que é o padrão da entidade — só quem conhece a exceção a marca
+        if (filialDto.PermiteTransferencia.HasValue)
+            filial.DefinirPermiteTransferencia(filialDto.PermiteTransferencia.Value);
         await _filialRepository.InserirSalvarAsync(filial, ct);
         return filial.ToDto();       
     }
@@ -139,6 +143,10 @@ public class FilialService : IFilialService
             return false;
 
         filial.Atualizar(filialDto.Nome, filialDto.Cidade,filialDto.Endereco.ToEntity(), filialDto.TempoPreparacaoMinutos);
+
+        // ausente mantém o valor atual, igual ao tempo de preparação
+        if (filialDto.PermiteTransferencia.HasValue)
+            filial.DefinirPermiteTransferencia(filialDto.PermiteTransferencia.Value);
 
         var rows = await _filialRepository.SalvarAsync(ct);
         if (rows == 0)

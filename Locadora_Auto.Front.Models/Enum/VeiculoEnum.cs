@@ -6,10 +6,12 @@
     public enum StatusVeiculoEnum
     {
         Disponivel = 1,
-        Indisponivel = 2,
+        Bloqueado = 2,
         Locado = 3,
         EmManutencao = 4,
-        EmPreparacao = 5
+        EmPreparacao = 5,
+        EmTransferencia = 6,
+        Desmobilizado = 7
     }
 
     /// <summary>
@@ -42,10 +44,12 @@
             return status switch
             {
                 StatusVeiculoEnum.Disponivel => "Disponível",
-                StatusVeiculoEnum.Indisponivel => "Indisponível",
+                StatusVeiculoEnum.Bloqueado => "Bloqueado",
                 StatusVeiculoEnum.Locado => "Locado",
                 StatusVeiculoEnum.EmManutencao => "Em manutenção",
                 StatusVeiculoEnum.EmPreparacao => "Em preparação",
+                StatusVeiculoEnum.EmTransferencia => "Em transferência",
+                StatusVeiculoEnum.Desmobilizado => "Desmobilizado",
                 _ => status.ToString()
             };
         }
@@ -55,10 +59,12 @@
             return status switch
             {
                 StatusVeiculoEnum.Disponivel => "bg-success",
-                StatusVeiculoEnum.Indisponivel => "bg-secondary",
+                StatusVeiculoEnum.Bloqueado => "bg-dark",
                 StatusVeiculoEnum.Locado => "bg-primary",
                 StatusVeiculoEnum.EmManutencao => "bg-warning text-dark",
                 StatusVeiculoEnum.EmPreparacao => "bg-info text-dark",
+                StatusVeiculoEnum.EmTransferencia => "bg-primary text-white",
+                StatusVeiculoEnum.Desmobilizado => "bg-danger",
                 _ => "bg-secondary"
             };
         }

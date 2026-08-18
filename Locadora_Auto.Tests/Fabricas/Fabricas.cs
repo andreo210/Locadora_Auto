@@ -1,3 +1,4 @@
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fakes;
 
@@ -229,6 +230,32 @@ namespace Locadora_Auto.Tests.Fabricas
         /// </summary>
         public static void DatarMovimento(MovimentoVeiculo movimento, DateTime data)
             => DefinirPropriedade(movimento, nameof(MovimentoVeiculo.DataMovimento), data);
+
+        /// <summary>
+        /// <c>VeiculoService</c> montado sobre um armazém só, com todos os repositórios fake que
+        /// ele exige.
+        ///
+        /// Existe porque o construtor do serviço cresce a cada regra nova do ativo — bloqueio
+        /// trouxe o funcionário, desmobilização trouxe a locação — e sem isto cada regra nova
+        /// obriga a editar meia dúzia de arquivos de teste que não têm nada a ver com ela.
+        /// </summary>
+        /// <param name="veiculos">
+        /// O fake de veículo que o teste quer inspecionar depois — <c>Salvamentos</c> é contado por
+        /// instância, então quem verifica gravação precisa entregar a sua. Os demais repositórios o
+        /// teste não observa, e por isso nascem aqui.
+        /// </param>
+        public static VeiculoService VeiculoService(
+            ArmazemFake armazem,
+            INotificadorService notificador,
+            VeiculosRepositoryFake? veiculos = null)
+            => new(
+                veiculos ?? new VeiculosRepositoryFake(armazem),
+                new CategoriaVeiculosRepositoryFake(armazem),
+                new FilialRepositoryFake(armazem),
+                new MovimentoVeiculoRepositoryFake(armazem),
+                new FuncionarioRepositoryFake(armazem),
+                new LocacaoRepositoryFake(armazem),
+                notificador);
 
         /// <summary>Escreve em propriedade de set privado — o que o EF e o relógio fazem em produção.</summary>
         private static void DefinirPropriedade(object entidade, string propriedade, object valor)

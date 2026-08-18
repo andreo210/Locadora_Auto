@@ -1,4 +1,4 @@
-using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Locadora_Auto.Tests.Fakes;
@@ -60,12 +60,7 @@ namespace Locadora_Auto.Tests.Servicos
             var notificador = new NotificadorService();
             var veiculos = new VeiculosRepositoryFake(armazem);
 
-            var service = new VeiculoService(
-                veiculos,
-                new CategoriaVeiculosRepositoryFake(armazem),
-                new FilialRepositoryFake(armazem),
-                new MovimentoVeiculoRepositoryFake(armazem),
-                notificador);
+            var service = Fabrica.VeiculoService(armazem, notificador, veiculos);
 
             return new Cenario
             {
@@ -129,7 +124,7 @@ namespace Locadora_Auto.Tests.Servicos
             var sucesso = await cenario.Service.LiberarDaPreparacaoAsync(cenario.Veiculo.IdVeiculo);
 
             Assert.True(sucesso);
-            Assert.Equal(StatusVeiculo.Indisponivel, cenario.Veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, cenario.Veiculo.Status);
             Assert.False(cenario.Veiculo.Disponivel);
         }
 

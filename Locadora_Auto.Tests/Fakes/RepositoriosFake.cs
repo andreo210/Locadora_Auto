@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Domain.IRepositorio;
 
 namespace Locadora_Auto.Tests.Fakes
@@ -42,6 +42,16 @@ namespace Locadora_Auto.Tests.Fakes
     public class MovimentoVeiculoRepositoryFake : RepositorioFake<MovimentoVeiculo>, IMovimentoVeiculoRepository
     {
         public MovimentoVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class BloqueioVeiculoRepositoryFake : RepositorioFake<BloqueioVeiculo>, IBloqueioVeiculoRepository
+    {
+        public BloqueioVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class TransferenciaVeiculoRepositoryFake : RepositorioFake<TransferenciaVeiculo>, ITransferenciaVeiculoRepository
+    {
+        public TransferenciaVeiculoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
     public class LocacaoRepositoryFake : RepositorioFake<Locacao>, ILocacaoRepository

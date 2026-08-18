@@ -37,12 +37,7 @@ namespace Locadora_Auto.Tests.Servicos
                 Armazem = armazem,
                 Notificador = notificador,
                 Veiculos = veiculos,
-                Service = new VeiculoService(
-                    veiculos,
-                    new CategoriaVeiculosRepositoryFake(armazem),
-                    new FilialRepositoryFake(armazem),
-                    new MovimentoVeiculoRepositoryFake(armazem),
-                    notificador)
+                Service = Fabrica.VeiculoService(armazem, notificador, veiculos)
             };
         }
 
@@ -249,7 +244,7 @@ namespace Locadora_Auto.Tests.Servicos
             var resultado = await cenario.Service.LiberarPreparacoesVencidasAsync();
 
             Assert.Equal(1, resultado.Liberados);
-            Assert.Equal(StatusVeiculo.Indisponivel, veiculo.Status);
+            Assert.Equal(StatusVeiculo.Bloqueado, veiculo.Status);
             Assert.False(veiculo.Disponivel);
         }
 

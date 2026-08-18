@@ -52,12 +52,7 @@ namespace Locadora_Auto.Tests.Servicos
 
             var notificador = new NotificadorService();
 
-            var service = new VeiculoService(
-                new VeiculosRepositoryFake(armazem),
-                new CategoriaVeiculosRepositoryFake(armazem),
-                new FilialRepositoryFake(armazem),
-                new MovimentoVeiculoRepositoryFake(armazem),
-                notificador);
+            var service = Fabrica.VeiculoService(armazem, notificador);
 
             return new Cenario
             {

@@ -21,6 +21,7 @@ namespace Locadora_Auto.Application.Models.Mappers
                 Ativo = filial.Ativo,
                 Endereco = filial.Endereco?.ToDto(),
                 TempoPreparacaoMinutos = filial.TempoPreparacaoMinutos,
+                PermiteTransferencia = filial.PermiteTransferencia,
                 TotalVeiculos = totalVeiculos,
                 VeiculosDisponiveis = veiculosDisponiveis,
                 TotalLocacoesMes = totalLocacoesMes,
