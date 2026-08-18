@@ -5,11 +5,15 @@
 > uma RN das especificações `07`/`08`, uma armadilha registrada no `CLAUDE.md`, ou o próprio
 > código. Quando um item for concluído, risque a linha aqui e atualize o documento de origem.
 
-Estado da base em 15/08/2026: a especificação `08` (invariante do ativo) está implantada até a
-RN-47, agora com a RN-45 inteira (a liberação da preparação virou automática); da `07` (fechamento
-financeiro) está de pé **o ciclo de vida do contrato** (`A1`) — devolução e fechamento deixaram de
-ser o mesmo ato —, mas nenhuma apuração: `Fechar` continua recebendo `valorFinal` pronto de quem
-chama.
+Estado da base em 18/08/2026: a especificação `08` (invariante do ativo) está **implantada
+inteira** — RN-35 a RN-56 mais os seis indicadores da seção 12. O que sobrou dela não é regra, é
+tela: nenhum dos endpoints do ativo tem consumidor no front (`F5`, `F6`, e agora também bloqueio,
+transferência e desmobilização).
+
+Da `07` (fechamento financeiro) está de pé **o ciclo de vida do contrato** (`A1`) — devolução e
+fechamento deixaram de ser o mesmo ato —, mas nenhuma apuração: `Fechar` continua recebendo
+`valorFinal` pronto de quem chama. **É o buraco funcional do sistema, e agora é o único bloco de
+regra aberto na Api.**
 
 **Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
 
@@ -19,8 +23,8 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 
 | Frente | Primeiro item | Por quê |
 |---|---|---|
-| Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente |
-| Fio principal | **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` já abriu o caminho |
+| Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
+| Fio principal | **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` já abriu o caminho, e agora é o único bloco de regra aberto |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -120,6 +124,9 @@ Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no 
 
 ## Bloco B — o que resta do doc `08`
 
+**Fechado.** A especificação `08` está implantada da RN-35 à RN-56, com os seis indicadores da
+seção 12. O que resta do ativo é front, e está no bloco D.
+
 ~~**B1 · Liberação automática da preparação** — `M` · RN-45 (parte automática)~~ **feito.**
 `LiberacaoPreparacaoBackgroundService` varre o pátio a cada 5 min e solta quem passou do
 `TempoPreparacaoMinutos` da filial. A decisão do agendador foi **`BackgroundService`**, não
@@ -128,31 +135,83 @@ porquê inteiro está no doc `08`). A liberação por prazo grava `TipoDocumento
 da do pátio, para o tempo médio de preparação continuar medindo o pátio e não premiar quem nunca
 declara nada.
 
-**B1.1 · As outras duas varreduras** — `P`
-O host do agendador já existe; cada varredura nova é um método. Faltam expirar reservas vencidas
-(hoje só o endpoint manual `PATCH reservas/expirar-vencidas`, com `ExpirarVencidasAsync` pronto) e o
-`//TODO: isso é um job` de `Locacao.cs` (`MarcarComoAtrasada`, pronto na entidade e sem ninguém
-chamando). O segundo já está destravado pelo `A1`: `MarcarComoAtrasada` exige `EmAndamento` e
-compara por instante, e `Atrasada` voltou a ter saída. Falta só a tolerância da casa, que é `A3`.
+~~**B1.1 · As outras duas varreduras** — `P`~~ **feito.**
+`ExpiracaoReservaBackgroundService` (15 min) e `AtrasoLocacaoBackgroundService` (10 min), este
+último sobre `LocacaoService.MarcarAtrasadasAsync`, que é o chamador que faltava para o
+`MarcarComoAtrasada` da entidade.
 
-**B2 · Bloqueio com prazo e responsável** — `M` · RN-52
-`Indisponivel` vira `Bloqueado`, com motivo, data prevista de liberação e responsável. Bloqueio sem
-prazo é carro que some da oferta e ninguém percebe.
+A decisão foi **um `BackgroundService` por varredura**, e não um host com três métodos: cada uma
+tem cadência própria (a preparação se mede em minutos, a reserva em horas), chave de configuração
+própria (`Jobs:<Nome>:Habilitado` / `IntervaloSegundos`) e falha isolada — uma exceção que
+escapasse do laço de uma não pode levar as outras duas junto. O custo aceito é a repetição do
+laço/espera/escopo nos três.
 
-**B3 · Transferência entre filiais** — `G` · RN-48, RN-49
-`StatusVeiculo.EmTransferencia`, `Filial.PermiteTransferencia`, `TipoDocumentoOrigem.Transferencia`.
-O veículo sai da oferta da origem **antes** de entrar na do destino. Destrava também o recorte
-histórico por filial dos indicadores (hoje é pela filial atual do cadastro, por falta de dado).
+Fica um débito conhecido: o atraso é marcado **sem tolerância**, no instante do fim previsto. O doc
+`07` §9 recomenda 30 minutos, mas o parâmetro é o `A3`. O corte atual é o lado conservador — marca
+cedo demais, nunca tarde demais — e `Atrasada` hoje não cobra nada, só torna o contrato visível.
 
-**B4 · Unicidade de placa e chassi restrita aos ativos** — `P` · RN-55
-O índice hoje é global; passa a índice filtrado por `Ativo`.
+Isso também **fecha a decisão do `C11`**: como cada varredura ganhou serviço próprio, o
+`TarefaDiariaBackgroundService` não vira a casa de nada. Resta apagá-lo, e isso continua no `C11`.
 
-**B5 · Desmobilização** — `M` · RN-56
-`Desmobilizado` como estado terminal, recusado com contrato aberto.
+~~**B2 · Bloqueio com prazo e responsável** — `M` · RN-52~~ **feito.**
+`Indisponivel` virou `Bloqueado` (mesmo valor 2, nada a migrar) e ganhou documento: a entidade
+`BloqueioVeiculo`, com motivo tipado, data prevista de liberação e **funcionário responsável** —
+FK de verdade, não o autor da auditoria, que hoje grava `"SYSTEM"` para todo mundo.
 
-**B6 · Indicadores que faltam** — `M` · doc `08` §12
-Bloqueios vencidos; tentativas de sobreposição recusadas por filial (contar o `23P01`); transições
-sem documento de origem — este último tem que dar **zero**, é controle de auditoria.
+Três decisões que valem para quem mexer nisso depois:
+
+- **Desativar o veículo não é bloqueio da RN-52.** Os dois levam a `Bloqueado`, e a trilha os
+  separa pelo `TipoDocumentoOrigem`. A desativação não é temporária, sai por `Ativar()` e aparece
+  em qualquer filtro por `Ativo` — ela não é o carro que "some da oferta e ninguém percebe". Fica
+  fora do indicador de bloqueios vencidos, e `Ativar()` **não** libera bloqueio.
+- **Liberar devolve o carro ao `StatusAnterior`**, não à oferta. Bloqueio suspende a situação, não
+  a apaga: carro bloqueado no pátio volta ao pátio, carro bloqueado por não devolução volta a
+  `Locado`.
+- **Um bloqueio aberto por vez**, senão a liberação fica sem resposta para "voltar para onde".
+
+~~**B3 · Transferência entre filiais** — `G` · RN-48, RN-49~~ **feito.**
+`StatusVeiculo.EmTransferencia`, `TipoDocumentoOrigem.Transferencia`, `Filial.PermiteTransferencia`
+(default `true`) e a entidade `TransferenciaVeiculo`, com envio e chegada como dois atos.
+
+`FilialAtualId` **não** muda no envio, só na chegada: enquanto o carro roda, quem responde por ele é
+a origem, e trocar antes faria o destino contá-lo como frota antes de ele existir lá. A RN-48
+continua valendo — devolução one-way não passa por aqui.
+
+Isso **destrava o recorte histórico por filial dos indicadores**? Não ainda: a trilha continua sem
+guardar filial, e o `TransferenciaVeiculo` só sabe da viagem, não de onde o carro estava em cada
+instante do período. O recorte segue sendo "onde o carro está hoje" — mas agora existe de onde tirar
+o dado, então isso virou item de indicador e não de modelo.
+
+~~**B4 · Unicidade de placa e chassi restrita aos ativos** — `P` · RN-55~~ **feito.**
+Índice parcial (`WHERE ativo`) na migration `UnicidadeEntreVeiculosAtivos`. O serviço repete a regra
+com o texto já normalizado (trim + maiúscula) — antes a minúscula passava pela checagem e estourava
+no índice como 500 — e `AtivarAsync` ganhou a guarda: reativar é a única operação que pode colidir,
+porque enquanto o veículo estava inativo nada impedia recadastrar a placa dele.
+
+~~**B5 · Desmobilização** — `M` · RN-56~~ **feito.**
+`Desmobilizado` como estado terminal, com motivo, data e responsável em colunas do próprio veículo —
+não vira entidade porque acontece uma vez só e não tem duas pontas. A guarda do terminal mora no
+`AplicarStatus`, que é a escrita única de status, então nenhuma transição nova pode ressuscitar
+carro vendido.
+
+A guarda que só o serviço faz é a do **contrato futuro**: o status é retrato de agora, e um carro
+`Disponivel` hoje pode ter contrato vendido para a semana que vem. Desmobilizar continua sendo
+recusado com contrato aberto **ou** futuro.
+
+~~**B6 · Indicadores que faltam** — `M` · doc `08` §12~~ **feito.**
+Os três entraram no `GET veiculos/indicadores`: `BloqueiosVencidos`, `TransicoesSemDocumento` (que
+tem que dar zero) e `TentativasSobreposicaoRecusadas`, aberto em `RecusasPorFilial`.
+
+O terceiro exigiu tabela nova, `RecusaSobreposicao`, gravada pelo `LocacaoService` nos dois
+caminhos de recusa — a consulta do serviço e o `23P01` do banco —, contados à parte porque dizem
+coisas diferentes: consulta é atendente escolhendo placa comprometida, banco é concorrência real
+entre dois pontos de venda. A tabela **não tem FK** de propósito: a série histórica tem de
+sobreviver ao veículo ser excluído ou desmobilizado.
+
+O caminho do `23P01` não tem teste automatizado — o `RepositorioFake` não tem constraint, e
+reproduzi-lo exigiria integração com Postgres, que não existe. Ele grava depois de um
+`LimparRastreamento()`, porque a locação recusada continua `Added` no contexto e gravar sem limpar
+mandaria os três de novo.
 
 ## Bloco C — dívida técnica e consistência
 
@@ -174,8 +233,9 @@ como em `Reserva`/`Seguro`/`Veiculo`. É o que sustenta a listagem de `F1`.
 
 **C5 · `DomainException` escapando vira 500** — `P`
 Ela é `internal`, não deriva de `InvalidOperationException` e não está no `ExceptionProblemFactory`.
-Hoje a proteção é os serviços repetirem as guardas do domínio antes de chamá-lo. Mapear para 400/409
-ou fixar por teste que ela nunca escapa.
+Hoje a proteção é os serviços repetirem as guardas do domínio antes de chamá-lo — e o bloco B
+triplicou essa repetição: bloqueio, transferência e desmobilização têm cada um a guarda no domínio
+e a cópia dela no serviço. Mapear para 400/409 ou fixar por teste que ela nunca escapa.
 
 **C6 · Valores de negócio na rota e na query** — `P`
 `POST {id}/caucao/{valor:decimal}`, `caucao/{idCaucao}/bloquear?motivo=`,
@@ -205,8 +265,11 @@ Escolher um e uniformizar — mexe na URL, portanto no `Front.Services` junto.
 chama `SaveChangesAsync` sem ter alterado nada e tem a única linha de lógica comentada. E **não está
 registrado no DI**: o `InjecaoDependenciaApplicationExtensions` só sobe o
 `MessageSenderBackgroundService` e o `LiberacaoPreparacaoBackgroundService`, então isso nunca roda.
-Ainda usa `DateTime.Now`, contra a regra do `CLAUDE.md`. Ou vira a casa das varreduras diárias, ou
-sai — **decidir junto com o `B1.1`**, que é quem precisa de agendador novo.
+Ainda usa `DateTime.Now`, contra a regra do `CLAUDE.md`.
+
+**Decidido no `B1.1`: ele sai.** Como cada varredura ganhou `BackgroundService` próprio — cadência
+própria, configuração própria, falha isolada —, ele não vira a casa de coisa nenhuma. Resta apagar
+o arquivo.
 
 **C12 · `HistoricoStatusLocacao` não é alimentado por ninguém** — `M` · RN-62
 A entidade, a configuração e o mapper existem; nenhuma transição de `Locacao` grava linha nela.
@@ -247,6 +310,21 @@ O menu tem "Dashboard → `/teste`", rota que não existe. Construir sobre
 aberto e tempo por situação. **Leia as duas ressalvas do doc `08` §Estado antes de rotular os
 números** — a utilização é física e não comercial, e `VeiculosComTrilha` vem abaixo de
 `VeiculosNoRecorte` enquanto a trilha for recente.
+
+O endpoint cresceu com o `B6`: além da utilização e do tempo de preparação, ele agora devolve
+bloqueios vencidos, transições sem documento e tentativas de sobreposição recusadas por filial. Os
+três são de **controle**, não de operação, e pedem tratamento visual diferente — em especial
+`TransicoesSemDocumento`, que tem que dar zero e portanto só merece destaque quando **não** dá.
+
+**F6.1 · Bloqueio, transferência e desmobilização do veículo** — `M`
+Nasceu com o bloco B: `POST veiculos/{id}/bloquear`, `PATCH .../bloqueios/{id}/liberar`,
+`GET .../bloqueios`, `POST .../transferencias` (+ chegada e cancelar), `GET .../transferencias` e
+`PATCH .../desmobilizar`. **Nenhum tem tela nem método no `IVeiculoService` do front**, então hoje
+o gerente de frota não consegue bloquear nem transferir carro pelo sistema.
+
+A lista de bloqueios cabe na `TabelaGenerica`, dentro de `VisualizarVeiculo`, ao lado da trilha do
+`F6`. Os três formulários pedem funcionário responsável — e o front ainda não tem seletor de
+funcionário.
 
 **F6 · Trilha do ativo** — `M`
 `GET veiculos/{id}/movimentos` na `TabelaGenerica`, dentro de `VisualizarVeiculo` — paginado, com

@@ -1,9 +1,9 @@
 # 08 — Especificação: invariante do ativo (veículo)
 
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
-> **faz hoje**, aqui está o que o controle do veículo **precisa fazer**. A implementação está
-> em andamento — o que já está de pé é a máquina de estados do domínio; veja
-> [Estado da implementação](#estado-da-implementação).
+> **faz hoje**, aqui está o que o controle do veículo **precisa fazer**. As RN-35 a RN-56 estão
+> **implantadas**, com os indicadores da seção 12; o que falta é tela, e está no backlog `09`.
+> Veja [Estado da implementação](#estado-da-implementação).
 
 Continuação de [07 — Fechamento financeiro](07-especificacao-fechamento-financeiro.md). A
 numeração das regras segue de onde aquele documento parou (RN-35 em diante), para as RNs não
@@ -37,6 +37,9 @@ A implantação foi fatiada. O que está **de pé no domínio** (`Veiculo` e `Lo
 | RN-53 | Toda saída de indisponibilidade (oficina, preparação) só devolve à oferta se `Ativo` |
 | RN-54 | `KmAtual` não retrocede, nem na devolução nem na atualização do cadastro |
 | RN-37 | `MovimentoVeiculo` registra cada transição: situação de origem e destino, documento que a autorizou e data. Como `AplicarStatus` já era a escrita única de status, virou também o registro único do movimento — e a origem é parâmetro obrigatório dele, então **transição sem documento não compila** |
+| RN-52 | `Indisponivel` virou `Bloqueado` (mesmo valor 2) e ganhou documento: `BloqueioVeiculo`, com motivo tipado, data prevista de liberação e funcionário responsável. Um bloqueio aberto por vez; liberar devolve o carro à situação em que ele estava, e não à oferta |
+| RN-48, RN-49 | `EmTransferencia` e `TransferenciaVeiculo`: o veículo sai da oferta da origem no envio e só entra na do destino na chegada — durante o trecho não conta em filial nenhuma. `Filial.PermiteTransferencia` gate as duas pontas. A RN-48 continua valendo: devolução one-way **não** passa por aqui |
+| RN-56 | `Desmobilizado` como estado terminal, com motivo, data e responsável no próprio veículo. A guarda mora no `AplicarStatus`, então nenhuma transição nova pode ressuscitar carro vendido |
 
 E o que está **ligado à Application e à Api** — sem isso a máquina de estados acima existia mas
 não era alcançada por nenhum endpoint:
@@ -55,6 +58,12 @@ não era alcançada por nenhum endpoint:
 | RN-37 (autor) | O autor sai do `IAuditoria` que `MovimentoVeiculo` implementa, preenchido pelo `AplicarAuditoria` do `SaveChangesAsync` — nenhum serviço precisou de `ICurrentUser`. Enquanto a autenticação estiver comentada no `Program.cs` grava `"SYSTEM"`, e volta a gravar o usuário sozinho quando ela for reativada. O par `DataModificacao`/`IdUsuarioModificacao` fica nulo de propósito: movimento não se altera |
 | RN-37 (leitura) | `GET api/v1/veiculos/{id}/movimentos` → `VeiculoService.ObterMovimentosAsync`, paginado, com filtro por período e por tipo de documento, e `termo` procurando o autor. Consulta `MovimentoVeiculo` pelo repositório próprio, e não `veiculo.Movimentos` por `Include`: não há como paginar dentro de um Include, e a trilha de um carro antigo tem centenas de linhas |
 | Seção 12 | `GET api/v1/veiculos/indicadores` → `IndicadoresFrotaService`: utilização real e tempo médio de preparação, mais o tempo por situação (a "frota parada por motivo" medida em tempo). Janela padrão de 30 dias |
+| RN-52 (porta) | `POST veiculos/{id}/bloquear`, `PATCH veiculos/{id}/bloqueios/{idBloqueio}/liberar` e `GET veiculos/{id}/bloqueios`. O serviço repete as guardas do domínio para a recusa sair 4xx, e confere no `IFuncionarioRepository` que o responsável existe |
+| RN-49 (porta) | `POST veiculos/{id}/transferencias`, `PATCH .../chegada`, `PATCH .../cancelar` e `GET veiculos/{id}/transferencias`. A checagem das duas filiais (existir, estar ativa, aceitar transferência) mora no serviço porque `Filial` é outro agregado |
+| RN-56 (porta) | `PATCH veiculos/{id}/desmobilizar`. A guarda que só o serviço faz é a do contrato **futuro**: o status do veículo é retrato de agora e não enxerga período |
+| RN-55 | Índice único **parcial** (`WHERE ativo`) sobre placa e chassi, na migration `UnicidadeEntreVeiculosAtivos`. O serviço repete a regra com o texto já normalizado (trim + maiúscula), e `AtivarAsync` ganhou a guarda: reativar é a única operação que pode colidir |
+| RN-45/RN-60 (agendador) | Três `BackgroundService`, um por varredura: preparação vencida (5 min), reserva vencida (15 min) e locação atrasada (10 min). Um por varredura e não um host com três métodos — cadência própria, chave de configuração própria e falha isolada |
+| Seção 12 | Os três indicadores de controle: bloqueios vencidos, transições sem documento (tem que dar zero) e tentativas de sobreposição recusadas por filial, esta última sobre a tabela `RecusaSobreposicao` |
 | RN-45 (automática) | `LiberacaoPreparacaoBackgroundService` varre o pátio a cada 5 min e solta quem passou do `TempoPreparacaoMinutos` da filial, por `VeiculoService.LiberarPreparacoesVencidasAsync`. Sem porta na Api: é lote de agendador, e a liberação manual já tem a dela. Desligável por `Jobs:LiberacaoPreparacao:Habilitado` |
 
 A constraint foi aplicada e exercitada contra um PostgreSQL de verdade (`locadora_autos`, Npgsql,
@@ -135,14 +144,37 @@ uma instância as duas varreriam junto sem estragar nada: a segunda encontra o c
 `EmPreparacao` e a guarda do domínio o descarta; empatando na leitura, o `xmin` derruba a segunda
 gravação.
 
+Seis decisões do bloqueio, da transferência e da desmobilização que o código não explica sozinho:
+
+| Decisão | Porquê |
+|---|---|
+| O responsável do bloqueio é **funcionário**, com FK, e não o autor da auditoria | São perguntas diferentes: a auditoria responde "quem digitou", a RN-52 quer "a quem cobrar o carro de volta". E é a única que funciona hoje — enquanto a autenticação estiver comentada no `Program.cs`, o autor de tudo é `"SYSTEM"` |
+| Desativar o veículo **não** é bloqueio da RN-52 | Os dois levam a `Bloqueado`, e a trilha os separa pelo `TipoDocumentoOrigem` (`Cadastro` × `Bloqueio`). A desativação não é temporária, sai por `Ativar()` e aparece em qualquer filtro por `Ativo` — ela não é o carro que "some da oferta e ninguém percebe", que é o defeito que a RN-52 fecha. Por isso ela fica fora do indicador de bloqueios vencidos, e por isso `Ativar()` recusa liberar bloqueio pela porta dos fundos |
+| Liberar bloqueio devolve o carro ao `StatusAnterior`, não à oferta | Bloqueio **suspende** a situação do ativo, não a apaga. Carro bloqueado no pátio volta ao pátio (ainda não foi conferido) e carro bloqueado por não devolução volta a `Locado` (o contrato segue aberto e ele segue na rua). Soltar os dois direto na venda ofertaria um carro sujo e um carro que nem está na filial |
+| Um bloqueio aberto por vez | Dois simultâneos deixariam a liberação sem resposta para "voltar para onde", e o carro só pode estar fora da oferta por um motivo de cada vez. O segundo motivo é observação do primeiro, ou é bloqueio novo depois de liberar este |
+| `FilialAtualId` **não** muda no envio da transferência, só na chegada | Enquanto o carro roda, quem responde por ele é a origem. Trocar no envio faria o destino contá-lo como frota antes de ele existir lá — o mesmo overbooking da RN-49, só que do outro lado |
+| `EmTransferencia` **fica** no denominador da utilização; `Desmobilizado` sai | Transferência é meio para alugar o carro em outro lugar, não renúncia a alugá-lo: a utilização deve mesmo cair quando a estrada demora, e essa é a pressão que se quer sobre quem remaneja frota. Carro vendido não é frota nenhuma e sai da conta |
+
+E duas do indicador de tentativas recusadas, que é o único deste bloco que **grava** dado novo:
+
+| Decisão | Porquê |
+|---|---|
+| A recusa vira **tabela** (`RecusaSobreposicao`), não linha de log | A leitura do número é comparativa e no tempo: se sobe numa filial, o problema é processo de balcão — agenda de pátio desatualizada, treinamento, frota curta — e não sistema. Contagem que mora no arquivo de log ninguém acompanha, e some a cada restart |
+| As duas origens são contadas à parte (`Consulta` × `Banco`) | Recusa pela consulta é o atendente escolhendo placa comprometida: erro de processo. Recusa pelo `23P01` é concorrência real — dois pontos de venda disputando o mesmo carro no mesmo instante, e aí o que falta é frota ou coordenação entre canais, não treinamento. Somadas num número só, as duas causas ficariam indistinguíveis |
+
+A tabela não tem chave estrangeira **de propósito**: a recusa precisa sobreviver ao veículo ser
+excluído ou desmobilizado. Uma FK `Restrict` travaria a exclusão do veículo por causa de uma
+tentativa recusada meses atrás, e uma `Cascade` apagaria a série histórica, que é exatamente o que
+se quer acompanhar.
+
 Ainda **não** implementado:
 
-- **Tela da trilha e dos indicadores** — os dois endpoints existem e nenhuma tela os consome. A
-  trilha cabe na `TabelaGenerica`; os indicadores são painel, que o front ainda não tem.
-- **RN-48/RN-49** (transferência), **RN-52** (bloqueio com prazo e responsável), **RN-55**
-  (unicidade restrita aos ativos — hoje o índice é global) e **RN-56** (desmobilização).
-  `EmTransferencia` e `Desmobilizado` seguem fora do enum, conforme a versão mínima da seção 4, e
-  pelo mesmo motivo `TipoDocumentoOrigem` ainda não tem `Transferencia` nem `Bloqueio`.
+- **Tela da trilha, dos indicadores, do bloqueio, da transferência e da desmobilização** — os
+  endpoints existem e nenhuma tela os consome. A trilha e os bloqueios cabem na `TabelaGenerica`;
+  os indicadores são painel, que o front ainda não tem. Está no backlog `09` (`F5`, `F6`).
+- **A recusa registrada pelo banco não tem teste automatizado.** O `RepositorioFake` não tem
+  constraint, e reproduzir o `23P01` exigiria teste de integração com Postgres, que não existe. O
+  caminho está no `catch` de `LocacaoService.CriarAsync`, junto do `throw` que preserva o 409.
 
 ---
 
@@ -251,9 +283,9 @@ Três estados novos em relação ao enum atual (`EmPreparacao`, `EmTransferencia
 `Desmobilizado`); `Indisponivel` é renomeado conceitualmente para `Bloqueado` e passa a exigir
 motivo e prazo.
 
-> **Versão mínima**, se for preciso cortar escopo: implantar só `EmPreparacao` e adiar
-> `EmTransferencia` e `Desmobilizado`. `EmPreparacao` é o que trava a agenda de reservas hoje;
-> os outros dois só doem em operação com várias filiais.
+> A **versão mínima** prevista aqui (implantar só `EmPreparacao` e adiar `EmTransferencia` e
+> `Desmobilizado`) não foi necessária: os três estão no enum, com `Bloqueado` no lugar de
+> `Indisponivel`. O texto fica como registro da alternativa que existia.
 
 ## 5. Exceções
 
@@ -478,14 +510,24 @@ Cenário: desmobilizar com contrato aberto é recusado
 | Utilização real | dias em `Locado` ÷ dias de frota ativa | **Implantado** em `GET api/v1/veiculos/indicadores`. Medida física: é o que o ativo fez, não o que foi faturado |
 | Tempo médio de preparação | média de permanência em `EmPreparacao` | **Implantado** no mesmo endpoint, com as preparações em aberto contadas à parte. Mede o pátio; entra direto no cálculo de disponibilidade |
 | Frota parada por motivo | % em `EmManutencao`, `Bloqueado`, `EmTransferencia` | **Implantado** como `TempoPorSituacao`, em tempo e não em contagem de carros. Carro parado custa igual — depreciação, IPVA, seguro, capital |
-| Bloqueios vencidos | nº com data de liberação no passado | Carro que sumiu da oferta e ninguém percebeu |
-| Tentativas de sobreposição recusadas | nº por filial | Se subir, indica processo de balcão errado, não sistema |
-| Transições sem documento de origem | deve ser **zero** | Controle de auditoria |
+| Bloqueios vencidos | nº com data de liberação no passado | **Implantado** como `BloqueiosVencidos`, sobre `BloqueioVeiculo` em aberto. Carro que sumiu da oferta e ninguém percebeu |
+| Tentativas de sobreposição recusadas | nº por filial | **Implantado** como `TentativasSobreposicaoRecusadas` e `RecusasPorFilial`, aberto por origem (consulta × banco). Se subir, indica processo de balcão errado, não sistema |
+| Transições sem documento de origem | deve ser **zero** | **Implantado** como `TransicoesSemDocumento`, apurado sobre as linhas da trilha que já estão em memória. Controle de auditoria |
+
+O recorte por filial dos dois primeiros **não é o mesmo**. `BloqueiosVencidos` segue o recorte do
+resto do relatório — a filial atual do veículo, "onde o carro está". `RecusasPorFilial` usa a filial
+de **retirada da tentativa**, "onde alguém tentou vendê-lo indevidamente", que é o balcão que
+precisa aparecer. São perguntas diferentes de propósito.
 
 ## 13. Sequência de implantação
 
-1. **RN-35 a RN-39** — o status vira verdadeiro. Sem isso nada mais é medível.
-2. **RN-40 a RN-43** — sobreposição, com a constraint no banco.
-3. **RN-44 a RN-46** — preparação e correção do cálculo de disponibilidade.
-4. **RN-47 a RN-49** — localização e transferência.
-5. **RN-50 a RN-56** — manutenção, bloqueio e consistência de frota.
+A sequência foi cumprida inteira. Fica como registro da ordem, que continua sendo a certa para
+quem for reimplantar isto em outra base:
+
+1. ~~**RN-35 a RN-39** — o status vira verdadeiro. Sem isso nada mais é medível.~~
+2. ~~**RN-40 a RN-43** — sobreposição, com a constraint no banco.~~
+3. ~~**RN-44 a RN-46** — preparação e correção do cálculo de disponibilidade.~~
+4. ~~**RN-47 a RN-49** — localização e transferência.~~
+5. ~~**RN-50 a RN-56** — manutenção, bloqueio e consistência de frota.~~
+
+O que sobrou não é regra, é tela: nenhum endpoint deste documento tem consumidor no front.

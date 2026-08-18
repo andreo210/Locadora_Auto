@@ -85,65 +85,116 @@ stateDiagram-v2
     direction LR
 
     state "Locacao.Criar()" as Criar
-    state "Locacao.Finalizar()" as Fin
+    state "Locacao.RegistrarDevolucao()" as Dev
     state "Locacao.Cancelar()" as Can
 
     [*] --> Criar
-    Criar --> V1 : Veiculo.Indisponibilizar()
+    Criar --> V1 : Veiculo.Locar(contrato)
     Criar --> R1 : Reserva.Finalizar()<br/>se veio de uma reserva
-    Fin --> V2 : Veiculo.Disponibilizar()
-    Can --> V2 : Veiculo.Disponibilizar()
+    Dev --> V2 : Veiculo.RegistrarDevolucao(km, filial, contrato)
+    Can --> V3 : Veiculo.ReverterLocacao(contrato)
 
-    state "Veiculo.Disponivel = false" as V1
-    state "Veiculo.Disponivel = true" as V2
+    state "Veiculo.Status = Locado" as V1
+    state "Veiculo.Status = EmPreparacao<br/>KmAtual e FilialAtualId avançam" as V2
+    state "Veiculo.Status = Disponivel" as V3
     state "Reserva.Status = Finalizado" as R1
 ```
+
+O cancelamento devolve o carro **direto** à oferta, e a devolução não: no cancelamento o contrato
+foi anulado antes da retirada e o carro não rodou, então não há o que vistoriar, limpar ou
+abastecer (RN-44). Quem tira o carro de `EmPreparacao` é o pátio ou o prazo da filial (RN-45).
 
 ---
 
 ## 2. Veículo
 
-O veículo carrega **três indicadores independentes**. Só `Disponivel` e `Status` mudam por
-comportamento; `Ativo` é uma flag administrativa.
+`Status` é a **fonte única de verdade** do ativo (RN-35). `Disponivel` continua existindo como
+coluna — o filtro precisa traduzir para SQL — mas virou **derivado**, e `Ativo` é a flag
+administrativa que entra nesse cálculo.
 
-### 2.1 Flag `Disponivel`
+### 2.1 A flag `Disponivel` deixou de ser decidida
 
-```mermaid
-stateDiagram-v2
-    direction LR
-
-    [*] --> Disponivel : Criar()<br/>Disponivel = true
-
-    Disponivel --> Indisponivel : Indisponibilizar()<br/>chamado por Locacao.Criar()
-    Indisponivel --> Disponivel : Disponibilizar()<br/>chamado por Finalizar() e Cancelar()
-
-    state "Disponivel = true" as Disponivel
-    state "Disponivel = false" as Indisponivel
 ```
+Disponivel = Ativo && Status == Disponivel
+```
+
+Recalculada em **toda** transição, dentro de `AplicarStatus` — que é o único ponto do sistema que
+escreve `Status`. Não existem mais `Disponibilizar()` e `Indisponibilizar()`: eram eles que
+permitiam um carro na rua ficar com `Status = Disponivel` e `Disponivel = false`, divergência que
+nenhum relatório por status enxergava.
 
 ### 2.2 Enum `StatusVeiculo`
 
 ```mermaid
 stateDiagram-v2
-    direction LR
+    [*] --> Disponivel : Criar()
 
-    [*] --> SemStatus : Criar()<br/>não atribui Status → fica 0
+    Disponivel --> Locado : Locar(contrato)
+    Locado --> EmPreparacao : RegistrarDevolucao(km, filial, contrato)
+    Locado --> Disponivel : ReverterLocacao(contrato)
+    EmPreparacao --> Disponivel : LiberarDaPreparacao() / LiberarDaPreparacaoPorPrazo()
 
-    SemStatus --> EmManutencao : IniciarManutencao(tipo, descricao)
-    EmManutencao --> Disponivel : TerminaManutencao(custo, idManutencao)
-    EmManutencao --> Disponivel : CancelarManutencao(idManutencao)
-    EmManutencao --> Disponivel : AtualizarDescricaoManutencao(...)
     Disponivel --> EmManutencao : IniciarManutencao(tipo, descricao)
+    EmManutencao --> Disponivel : TerminaManutencao() / CancelarManutencao()
 
-    Locado : Locado — inalcançável
-    Indisponivel : Indisponivel — inalcançável
+    Disponivel --> EmTransferencia : EnviarParaTransferencia(destino, prazo, responsavel)
+    EmTransferencia --> Disponivel : ConfirmarChegadaTransferencia(id, km)<br/>CancelarTransferencia(id)
 
-    state "valor 0, fora do enum" as SemStatus
+    Disponivel --> Bloqueado : Bloquear(motivo, prazo, responsavel)
+    EmPreparacao --> Bloqueado : Bloquear(...)
+    Locado --> Bloqueado : Bloquear(...)
+    Bloqueado --> Disponivel : LiberarBloqueio(id)
+    Bloqueado --> EmPreparacao : LiberarBloqueio(id)
+    Bloqueado --> Locado : LiberarBloqueio(id)
+
+    Disponivel --> Desmobilizado : Desmobilizar(motivo, responsavel)
+    EmPreparacao --> Desmobilizado : Desmobilizar(...)
+    Bloqueado --> Desmobilizado : Desmobilizar(...)
+
+    Desmobilizado --> [*]
 ```
 
-Os quatro métodos de manutenção recusam a operação quando `Status == Locado`, mas nenhum
-método atribui `Locado` — a guarda nunca dispara. `AtualizarDescricaoManutencao` também
-devolve o veículo para `Disponivel`, mesmo sendo apenas uma edição de texto.
+**Toda** transição do diagrama grava um `MovimentoVeiculo` (RN-37) com situação de origem, situação
+de destino, documento que a autorizou, autor e data. A origem é parâmetro obrigatório de
+`AplicarStatus`, então transição sem documento **não compila**.
+
+### 2.3 Transições proibidas
+
+| Proibida | Porquê |
+|---|---|
+| `Locado → Disponivel` (pela devolução) | Devolução passa obrigatoriamente por `EmPreparacao` (RN-44): o carro devolvido às 10h não está disponível às 10h. A seta `Locado → Disponivel` do diagrama é só o cancelamento da abertura, em que o carro não rodou |
+| `Locado → EmManutencao` | Carro na rua não entra em oficina (RN-50) |
+| `EmManutencao → Bloqueado` | Já está fora da oferta com uma OS respondendo por ele; sobrepor o bloqueio apagaria de qual ordem ele depende |
+| `Locado`, `EmPreparacao`, `EmManutencao`, `Bloqueado` `→ EmTransferencia` | Só carro disponível pega a estrada: os outros estão com o cliente, sujos, desmontados ou com motivo próprio para estar parados |
+| `Locado`, `EmManutencao`, `EmTransferencia` `→ Desmobilizado` | Vender carro com cliente dentro é o pior desfecho possível; em oficina há custo a apurar; em trânsito ele nem chegou a lugar nenhum |
+| `Desmobilizado → qualquer` | Terminal (RN-56). A guarda mora no `AplicarStatus`, que é a escrita única, então vale inclusive para `Ativar()` — nenhuma transição nova pode ressuscitar carro vendido por esquecimento de quem a escreveu |
+| Qualquer transição pela reserva | Reserva vende categoria, contrato entrega placa (RN-39). Prender placa na reserva trava frota e cria falta artificial |
+
+### 2.4 `Bloqueado` chega por dois caminhos diferentes
+
+A distinção é de negócio e a trilha a preserva no `TipoDocumentoOrigem`:
+
+| Caminho | Origem na trilha | Tem prazo e responsável? | Entra no indicador de bloqueios vencidos? |
+|---|---|---|---|
+| `Bloquear(...)` — RN-52 | `Bloqueio`, com o `BloqueioVeiculo` como documento | Sim, obrigatórios | Sim |
+| `Desativar()` — cadastro | `Cadastro` | Não, e nem faria sentido | Não |
+
+A desativação não é temporária: a saída dela é `Ativar()`, e ela aparece em qualquer filtro por
+`Ativo`. Ela não é o carro que "some da oferta e ninguém percebe", que é o defeito que a RN-52
+existe para fechar. Por isso `Ativar()` **não** libera bloqueio: sem essa guarda, a reativação
+cadastral devolveria à venda um carro que alguém tirou dela com motivo, prazo e responsável
+registrados.
+
+Liberar o bloqueio devolve o veículo ao `StatusAnterior` gravado nele, e não à oferta — é por isso
+que o diagrama tem três setas saindo de `Bloqueado`. Bloqueio **suspende** a situação do ativo, não
+a apaga.
+
+### 2.5 O que a transferência não é
+
+`EmTransferencia` é remanejamento **programado** de frota (RN-49). Devolução one-way não passa por
+ele: pela RN-48 o carro fica disponível no destino, porque a taxa de retorno já pagou o
+desequilíbrio e prendê-lo cobraria duas vezes pelo mesmo fato. Na devolução one-way o caminho é o
+normal — `Locado → EmPreparacao`, com `FilialAtualId` já apontando para o destino (RN-47).
 
 ---
 
@@ -382,16 +433,22 @@ Resumo dos estados sem transição de entrada em todo o código:
 
 | Enum | Membro inalcançável |
 |---|---|
-| `StatusVeiculo` | `Locado`, `Indisponivel` |
 | `StatusCaucao` | `Utilizada` |
 | `StatusManutencao` | `EmAndamento` |
 
-`StatusLocacao` saiu da lista: `EmAndamento` passou a ser atribuído pela vistoria de retirada e
-`Pendente` foi removido — era a `Reserva` com outro nome, já que `Criar` compromete a placa.
+`StatusVeiculo` saiu da lista inteira: `Locado` é atribuído por `Locar()`, `Bloqueado` (o antigo
+`Indisponivel`) por `Bloquear()` e por `Desativar()`, `EmPreparacao` pela devolução,
+`EmTransferencia` pelo envio e `Desmobilizado` pela baixa do ativo. `StatusLocacao` também saiu:
+`EmAndamento` passou a ser atribuído pela vistoria de retirada e `Pendente` foi removido — era a
+`Reserva` com outro nome, já que `Criar` compromete a placa.
 
 E os pontos em que o comportamento diverge do nome:
 
-- `Veiculo.AtualizarDescricaoManutencao()` também altera o `Status` do veículo.
-- `Veiculo.Criar()` deixa `Status` em `0`, valor fora do intervalo do enum (que começa em `1`).
 - `StatusDano.EmAnalise` e `StatusDano.Cancelado` valem ambos `6`.
 - `Clientes.Atualizar()` reabilita cliente bloqueado ou inadimplente.
+- `Caucao.Devolver()` só aceita `Pendente`, então caução `Bloqueada` — que é o fluxo normal — nunca
+  pode ser devolvida. Está no backlog `09` (`A10`).
+
+Dois defeitos que estavam nesta lista foram corrigidos junto com a RN-35: `Veiculo.Criar()` não
+deixa mais `Status` em `0` (chama `AplicarStatus(Disponivel, Cadastro)`), e
+`AtualizarDescricaoManutencao()` não mexe mais no status — edita só o texto, como o nome promete.

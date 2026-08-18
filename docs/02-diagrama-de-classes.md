@@ -255,18 +255,93 @@ classDiagram
         +bool Disponivel
         +int FilialAtualId
         +StatusVeiculo Status
+        +string MotivoDesmobilizacao
+        +DateTime DataDesmobilizacao
+        +int IdFuncionarioDesmobilizacao
         +IReadOnlyCollection~Manutencao~ Manutencoes
+        +IReadOnlyCollection~MovimentoVeiculo~ Movimentos
+        +IReadOnlyCollection~BloqueioVeiculo~ Bloqueios
+        +IReadOnlyCollection~TransferenciaVeiculo~ Transferencias
         +Criar(placa, marca, modelo, ano, chassi, kmAtual, idCategoria, idFilialAtual) Veiculo
-        +Atualizar(kmAtual, idFilialAtual)
+        +Atualizar(kmAtual, idFilialAtual, marca, modelo, ano)
         +Valida(...)
         +Ativar()
         +Desativar()
-        +Disponibilizar()
-        +Indisponibilizar()
+        +Locar(contrato)
+        +RegistrarDevolucao(kmFinal, idFilialDevolucao, contrato)
+        +ReverterLocacao(contrato)
+        +LiberarDaPreparacao()
+        +LiberarDaPreparacaoPorPrazo()
+        +Bloquear(motivo, dataPrevistaLiberacao, idResponsavel, observacao) BloqueioVeiculo
+        +LiberarBloqueio(idBloqueio)
+        +EnviarParaTransferencia(idFilialDestino, dataPrevistaChegada, idResponsavel, obs) TransferenciaVeiculo
+        +ConfirmarChegadaTransferencia(idTransferencia, kmChegada)
+        +CancelarTransferencia(idTransferencia)
+        +Desmobilizar(motivo, idResponsavel)
         +IniciarManutencao(tipo, descricao)
         +TerminaManutencao(custo, idManutencao)
         +CancelarManutencao(idManutencao)
         +AtualizarDescricaoManutencao(idManutencao, descricao)
+        -AplicarStatus(novoStatus, tipoOrigem, contrato, os, bloqueio, transferencia)
+    }
+
+    class MovimentoVeiculo {
+        +int IdMovimentoVeiculo
+        +int IdVeiculo
+        +StatusVeiculo StatusOrigem
+        +StatusVeiculo StatusDestino
+        +TipoDocumentoOrigem TipoOrigem
+        +int IdLocacaoOrigem
+        +int IdManutencaoOrigem
+        +int IdBloqueioOrigem
+        +int IdTransferenciaOrigem
+        +DateTime DataMovimento
+        ~Criar(idVeiculo, origem, destino, tipoOrigem, contrato, os, bloqueio, transferencia) MovimentoVeiculo
+    }
+
+    class BloqueioVeiculo {
+        +int IdBloqueioVeiculo
+        +int IdVeiculo
+        +MotivoBloqueio Motivo
+        +string Observacao
+        +DateTime DataBloqueio
+        +DateTime DataPrevistaLiberacao
+        +DateTime DataLiberacao
+        +StatusVeiculo StatusAnterior
+        +int IdFuncionarioResponsavel
+        +bool EmAberto
+        +Vencido(agora) bool
+        ~Criar(idVeiculo, motivo, prazo, idResponsavel, statusAnterior, obs) BloqueioVeiculo
+        ~Encerrar()
+    }
+
+    class TransferenciaVeiculo {
+        +int IdTransferenciaVeiculo
+        +int IdVeiculo
+        +int IdFilialOrigem
+        +int IdFilialDestino
+        +DateTime DataEnvio
+        +DateTime DataPrevistaChegada
+        +DateTime DataChegada
+        +StatusTransferencia Status
+        +int IdFuncionarioResponsavel
+        +bool EmTransito
+        +Atrasada(agora) bool
+        ~Criar(idVeiculo, origem, destino, prazo, idResponsavel, obs) TransferenciaVeiculo
+        ~ConfirmarChegada()
+        ~Cancelar()
+    }
+
+    class RecusaSobreposicao {
+        +int IdRecusaSobreposicao
+        +int IdVeiculo
+        +int IdFilialRetirada
+        +DateTime InicioSolicitado
+        +DateTime FimSolicitado
+        +DateTime DataRecusa
+        +OrigemRecusa Origem
+        +int IdLocacaoEmExtensao
+        +Criar(idVeiculo, idFilial, inicio, fim, origem, idLocacaoEmExtensao) RecusaSobreposicao
     }
 
     class Manutencao {
@@ -312,6 +387,16 @@ classDiagram
     CategoriaVeiculo "1" --> "0..*" Veiculo : Veiculos
     Filial "1" --> "0..*" Veiculo : Veiculos / FilialAtual
     Veiculo "1" *-- "0..*" Manutencao : Manutencoes
+    Veiculo "1" *-- "0..*" MovimentoVeiculo : Movimentos
+    Veiculo "1" *-- "0..*" BloqueioVeiculo : Bloqueios
+    Veiculo "1" *-- "0..*" TransferenciaVeiculo : Transferencias
+    MovimentoVeiculo --> Locacao : LocacaoOrigem
+    MovimentoVeiculo --> Manutencao : ManutencaoOrigem
+    MovimentoVeiculo --> BloqueioVeiculo : BloqueioOrigem
+    MovimentoVeiculo --> TransferenciaVeiculo : TransferenciaOrigem
+    BloqueioVeiculo --> Funcionario : Responsavel
+    TransferenciaVeiculo --> Filial : FilialOrigem / FilialDestino
+    TransferenciaVeiculo --> Funcionario : Responsavel
     Filial "1" *-- "0..*" FotoFilial : Fotos
     CategoriaVeiculo "1" *-- "0..*" FotoCategoriaVeiculo : Fotos
     Filial "1" -- "1" Endereco
@@ -549,9 +634,48 @@ classDiagram
     class StatusVeiculo {
         <<enumeration>>
         Disponivel = 1
-        Indisponivel = 2
+        Bloqueado = 2
         Locado = 3
         EmManutencao = 4
+        EmPreparacao = 5
+        EmTransferencia = 6
+        Desmobilizado = 7
+    }
+
+    class TipoDocumentoOrigem {
+        <<enumeration>>
+        Cadastro = 1
+        Contrato = 2
+        OrdemServico = 3
+        Patio = 4
+        Prazo = 5
+        Bloqueio = 6
+        Transferencia = 7
+        Desmobilizacao = 8
+    }
+
+    class MotivoBloqueio {
+        <<enumeration>>
+        Documental = 1
+        Comercial = 2
+        Evento = 3
+        Sinistro = 4
+        NaoDevolvido = 5
+        Desmobilizacao = 6
+        Outro = 7
+    }
+
+    class StatusTransferencia {
+        <<enumeration>>
+        EmTransito = 1
+        Concluida = 2
+        Cancelada = 3
+    }
+
+    class OrigemRecusa {
+        <<enumeration>>
+        Consulta = 1
+        Banco = 2
     }
 
     class StatusLocacao {
@@ -752,11 +876,29 @@ classDiagram
         <<interface>>
         +ObterPorIdAsync(id, ct) VeiculoDto
         +ObterTodosAsync(ct) IReadOnlyList~VeiculoDto~
+        +ObterTodosPaginadoAsync(consulta, idCategoria, idFilial, idStatus, ativo, ct) PaginatedResult~VeiculoDto~
         +ObterDisponiveisAsync(idFilial, ct) IReadOnlyList~VeiculoDto~
         +CriarAsync(dto, ct) VeiculoDto
         +AtualizarAsync(id, dto, ct) bool
+        +ExcluirAsync(id, ct) bool
         +AtivarAsync(id, ct) bool
         +DesativarAsync(id, ct) bool
+        +LiberarDaPreparacaoAsync(id, ct) bool
+        +LiberarPreparacoesVencidasAsync(ct) LiberacaoPreparacaoDto
+        +BloquearAsync(id, dto, ct) BloqueioVeiculoDto
+        +LiberarBloqueioAsync(id, idBloqueio, ct) bool
+        +ObterBloqueiosAsync(id, ct) IReadOnlyList~BloqueioVeiculoDto~
+        +EnviarParaTransferenciaAsync(id, dto, ct) TransferenciaVeiculoDto
+        +ConfirmarChegadaTransferenciaAsync(id, idTransferencia, dto, ct) bool
+        +CancelarTransferenciaAsync(id, idTransferencia, ct) bool
+        +ObterTransferenciasAsync(id, ct) IReadOnlyList~TransferenciaVeiculoDto~
+        +DesmobilizarAsync(id, dto, ct) bool
+        +ObterMovimentosAsync(id, consulta, de, ate, idTipoOrigem, ct) PaginatedResult~MovimentoVeiculoDto~
+    }
+
+    class IIndicadoresFrotaService {
+        <<interface>>
+        +ObterAsync(de, ate, idFilial, idCategoria, ct) IndicadoresFrotaDto
     }
 
     class IFilialService {
@@ -854,6 +996,7 @@ classDiagram
     IClienteService ..> INotificadorService
     ILocacaoService ..> INotificadorService
     IVeiculoService ..> INotificadorService
+    IIndicadoresFrotaService ..> INotificadorService
     IFilialService ..> INotificadorService
     ICategoriaVeiculoService ..> INotificadorService
     IFuncionarioService ..> INotificadorService
