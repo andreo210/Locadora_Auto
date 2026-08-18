@@ -160,9 +160,11 @@ Transições **proibidas**:
 - Liberar caução antes de `Fechada`.
 - Alterar qualquer linha do fechamento depois de `Fechada`.
 
-Isso exige três estados que hoje não existem (`Devolvida`, `Fechada`, `ComSaldoResidual`), e
-aproveita os dois que estão órfãos no enum (`Pendente` e `EmAndamento` nunca são atribuídos).
-O `Cancelada` ausente — que hoje faz `Locacao.Cancelar()` gravar `Finalizada` — entra junto.
+**Implantado** (backlog `A1`). O enum ficou `Criada → EmAndamento → Devolvida → Fechada →
+Finalizada`, com `Atrasada` e `ComSaldoResidual` nos ramos e `Cancelada` como estado próprio.
+`EmAndamento` deixou de ser órfão — é a vistoria de retirada que o atribui (RN-57) — e `Pendente`
+foi removido, porque era a `Reserva` com outro nome. A máquina viva, com as transições proibidas e
+os métodos que as fazem, está no doc `05` §1.
 
 ```mermaid
 stateDiagram-v2

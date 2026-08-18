@@ -243,9 +243,16 @@ namespace Locadora_Auto.Tests.Servicos
             var cenario = Montar(veiculosDisponiveis: 1);
             var contrato = SemearContrato(cenario, Frota(cenario).Single(), diasAteInicio: 2, diasAteFim: 8);
 
-            contrato.Finalizar(Fabrica.DaquiADias(4), kmFinal: 16_000, valorFinal: 500m, filialDevolucao: IdFilial);
+            Fabrica.Devolver(
+                Fabrica.Retirar(contrato),
+                dataFimReal: Fabrica.DaquiADias(4),
+                kmFinal: 16_000,
+                filialDevolucao: IdFilial);
 
-            var resultado = await cenario.Service.CriarAsync(Dto());
+            // a venda é para depois da devolução real. O contrato devolvido continua ocupando o
+            // período que de fato rodou (RN-61: só Finalizada e Cancelada soltam a placa), e é isso
+            // que se quer: o que a devolução libera é o futuro, não o passado dela
+            var resultado = await cenario.Service.CriarAsync(Dto(diasAteInicio: 5, diasAteFim: 8));
 
             Assert.NotNull(resultado);
             Assert.False(cenario.Notificador.TemNotificacao());

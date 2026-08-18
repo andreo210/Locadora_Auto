@@ -84,9 +84,9 @@ namespace Locadora_Auto.Tests.Dominio
         public void Devolucao_registra_movimento_para_a_preparacao_com_origem_no_contrato()
         {
             var veiculo = Fabrica.Veiculo();
-            var contrato = Fabrica.Locacao(veiculo: veiculo);
+            var contrato = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
 
-            contrato.Finalizar(contrato.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
+            Fabrica.Devolver(contrato, kmFinal: 15_400, filialDevolucao: 1);
 
             var movimento = UltimoMovimento(veiculo);
             Assert.Equal(StatusVeiculo.Locado, movimento.StatusOrigem);
@@ -143,8 +143,8 @@ namespace Locadora_Auto.Tests.Dominio
         public void Liberacao_do_patio_registra_movimento_com_origem_no_patio()
         {
             var veiculo = Fabrica.Veiculo();
-            var contrato = Fabrica.Locacao(veiculo: veiculo);
-            contrato.Finalizar(contrato.DataFimPrevista, 15_400, 520m, filialDevolucao: 1);
+            var contrato = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
+            Fabrica.Devolver(contrato, kmFinal: 15_400, filialDevolucao: 1);
 
             veiculo.LiberarDaPreparacao();
 
@@ -165,8 +165,8 @@ namespace Locadora_Auto.Tests.Dominio
             // é a distinção que sustenta o indicador do §12: fundida com a do pátio, a média de
             // tempo de preparação passaria a premiar exatamente o pátio que nunca declara nada
             var veiculo = Fabrica.Veiculo();
-            var contrato = Fabrica.Locacao(veiculo: veiculo);
-            contrato.Finalizar(contrato.DataFimPrevista, 15_400, 520m, filialDevolucao: 1);
+            var contrato = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
+            Fabrica.Devolver(contrato, kmFinal: 15_400, filialDevolucao: 1);
 
             veiculo.LiberarDaPreparacaoPorPrazo();
 
@@ -216,8 +216,8 @@ namespace Locadora_Auto.Tests.Dominio
         {
             // é o indicador do §12: "transições sem documento de origem" tem de ser zero
             var veiculo = Fabrica.Veiculo();
-            var contrato = Fabrica.Locacao(veiculo: veiculo);
-            contrato.Finalizar(contrato.DataFimPrevista, 15_400, 520m, filialDevolucao: 1);
+            var contrato = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
+            Fabrica.Devolver(contrato, kmFinal: 15_400, filialDevolucao: 1);
             veiculo.LiberarDaPreparacao();
 
             Assert.Equal(

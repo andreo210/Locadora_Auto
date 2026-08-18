@@ -85,6 +85,88 @@ namespace Locadora_Auto.Tests.Fabricas
         }
 
         /// <summary>
+        /// RN-57: registra a vistoria de retirada, que é o que promove o contrato a
+        /// <c>EmAndamento</c> — o carro na rua. Quase todo teste que antes bastava
+        /// <c>Fabrica.Locacao(...)</c> hoje precisa disto, porque só de <c>EmAndamento</c> em
+        /// diante o contrato aceita devolução.
+        /// </summary>
+        public static Locacao Retirar(Locacao locacao, int idFuncionario = 1)
+        {
+            locacao.RegistrarVistoria(
+                idFuncionario,
+                TipoVistoria.Retirada,
+                NivelCombustivel.Cheio,
+                locacao.KmInicial,
+                observacoes: null);
+
+            return locacao;
+        }
+
+        /// <summary>Contrato com o carro já na rua: <c>Criar</c> seguido de <see cref="Retirar"/>.</summary>
+        public static Locacao LocacaoEmAndamento(
+            Clientes? cliente = null,
+            Veiculo? veiculo = null,
+            Funcionario? funcionario = null,
+            Reserva? reserva = null,
+            DateTime? dataInicio = null,
+            DateTime? dataFimPrevista = null,
+            int kmInicial = 15_000,
+            decimal valorPrevisto = 450m,
+            int idFilialRetirada = 1)
+            => Retirar(Locacao(
+                cliente, veiculo, funcionario, reserva,
+                dataInicio, dataFimPrevista, kmInicial, valorPrevisto, idFilialRetirada));
+
+        /// <summary>
+        /// Leva o contrato até <c>Devolvida</c>: vistoria de devolução (RN-57 exige o par) e o
+        /// registro da devolução em si. Para o contrato com a conta apurada, use
+        /// <see cref="LocacaoFechada"/> — receber o carro não fecha mais o contrato (RN-58).
+        /// </summary>
+        public static Locacao Devolver(
+            Locacao locacao,
+            DateTime? dataFimReal = null,
+            int kmFinal = 15_400,
+            int filialDevolucao = 1,
+            int idFuncionario = 1)
+        {
+            locacao.RegistrarVistoria(
+                idFuncionario,
+                TipoVistoria.Devolucao,
+                NivelCombustivel.Meio,
+                kmFinal,
+                observacoes: null);
+
+            locacao.RegistrarDevolucao(dataFimReal ?? locacao.DataFimPrevista, kmFinal, filialDevolucao);
+
+            return locacao;
+        }
+
+        /// <summary>
+        /// Contrato do começo ao fim da conta. <paramref name="valorFinal"/> zero é o padrão de
+        /// propósito: sem saldo a cobrar o contrato cai em <c>Finalizada</c>, que é o estado que a
+        /// maioria dos testes de multa e de pós-contrato quer como ponto de partida. Com valor e
+        /// sem pagamento, ele para em <c>ComSaldoResidual</c>.
+        /// </summary>
+        public static Locacao LocacaoFechada(
+            Veiculo? veiculo = null,
+            decimal valorFinal = 0m,
+            DateTime? dataFimReal = null,
+            int kmFinal = 15_400,
+            int filialDevolucao = 1)
+        {
+            var locacao = Devolver(
+                LocacaoEmAndamento(veiculo: veiculo),
+                dataFimReal,
+                kmFinal,
+                filialDevolucao);
+
+            locacao.Fechar(valorFinal);
+            locacao.LiquidarSaldo();
+
+            return locacao;
+        }
+
+        /// <summary>
         /// Contrato descartável, para os testes do <c>Veiculo</c> que precisam apenas satisfazer o
         /// documento de origem que a RN-37 exige nas transições. Ele nasce sobre um veículo
         /// próprio, e não sobre o que está sob teste — quem quer contrato e veículo casados usa

@@ -211,14 +211,24 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
 
         public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
         {
-            var locacao = await _locacaoRepository.ObterPrimeiroAsync(x=>x.IdLocacao == id,incluir: q => q.Include(c => c.Veiculo),rastreado:true);
+            // as vistorias entram no Include por duas razões: a RN-57 exige o par delas para
+            // aceitar a devolução, e AbrirManutencaoPorAvaria varre os danos da vistoria de
+            // devolução — sem carregá-las, a avaria nunca virava ordem corretiva
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(
+                x => x.IdLocacao == id,
+                incluir: q => q.Include(c => c.Veiculo)
+                               .Include(c => c.Pagamentos)
+                               .Include(c => c.Vistorias)
+                                   .ThenInclude(v => v.Danos),
+                rastreado: true);
+
             if (locacao == null)
             {
                 _notificador.Add("Locação não encontrada");
                 return false;
             }
 
-            // RN-44/RN-54: Locacao.Finalizar delega a devolução ao ativo, e as guardas de
+            // RN-44/RN-54: Locacao.RegistrarDevolucao delega a devolução ao ativo, e as guardas de
             // Veiculo.RegistrarDevolucao são DomainException. Repetidas aqui, viram 4xx e não 500
             if (locacao.Veiculo.Status != StatusVeiculo.Locado)
                 _notificador.Add($"Veículo da locação não está locado (situação atual: {locacao.Veiculo.Status})");
@@ -229,12 +239,27 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             if (!await _filialRepository.ExisteAsync(f => f.IdFilial == filialDevolucao, ct))
                 _notificador.Add("Filial de devolução não encontrada");
 
+            // RN-57: sem o par de vistorias não há base comparável, e nada do que a apuração
+            // cobraria se sustenta. O domínio recusa de qualquer forma; aqui a recusa vira mensagem
+            if (!locacao.Vistorias.Any(v => v.Tipo == TipoVistoria.Retirada))
+                _notificador.Add("Contrato sem vistoria de retirada não pode ser devolvido");
+
+            if (!locacao.Vistorias.Any(v => v.Tipo == TipoVistoria.Devolucao))
+                _notificador.Add("Registre a vistoria de devolução antes de encerrar a posse");
+
             if (_notificador.TemNotificacao())
                 return false;
 
             try
             {
-                locacao.Finalizar(dataFimReal, kmFinal, valorFinal, filialDevolucao);
+                // RN-58: são dois atos, não um. A devolução encerra a posse; o fechamento encerra o
+                // contrato. Enquanto a apuração real não existir (backlog A5–A10), valorFinal chega
+                // pronto de quem chama e o fechamento é provisório — mas o ciclo de vida já é o
+                // definitivo, e o A11 só precisa separar esta chamada em duas portas da Api.
+                locacao.RegistrarDevolucao(dataFimReal, kmFinal, filialDevolucao);
+                locacao.Fechar(valorFinal);
+                locacao.LiquidarSaldo();
+
                 await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
                 return true;
             }

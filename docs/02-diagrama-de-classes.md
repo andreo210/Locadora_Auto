@@ -352,7 +352,10 @@ classDiagram
         +IReadOnlyCollection~LocacaoSeguro~ Seguros
         +IReadOnlyCollection~LocacaoAdicional~ Adicionais
         +Criar(cliente, veiculo, funcionario, reserva, filialRetirada, dataInicio, dataFimPrevista, kmInicial, valorPrevisto) Locacao
-        +Finalizar(dataFimReal, kmFinal, valorFinal, filialDevolucao)
+        +RegistrarDevolucao(dataFimReal, kmFinal, filialDevolucao)
+        +Fechar(valorFinal)
+        +LiquidarSaldo()
+        +SaldoEmAberto() decimal
         +Cancelar()
         +AtualizarDados(dataFimPrevista, kmInicial, valorPrevisto)
         +MarcarComoAtrasada(agora)
@@ -553,11 +556,14 @@ classDiagram
 
     class StatusLocacao {
         <<enumeration>>
-        Pendente
         Criada
-        Atrasada
-        Finalizada
         EmAndamento
+        Atrasada
+        Devolvida
+        Fechada
+        ComSaldoResidual
+        Finalizada
+        Cancelada
     }
 
     class StatusReserva {
@@ -938,10 +944,7 @@ Pontos do modelo que divergem do que os nomes sugerem — registrados como estã
 
 - **`StatusDano`** tem valor duplicado: `EmAnalise = 6` e `Cancelado = 6`. Os dois membros
   compartilham o mesmo valor inteiro, então são indistinguíveis depois de persistidos.
-- **`Locacao.Cancelar()`** define `Status = StatusLocacao.Finalizada`, não um status de
-  cancelamento — `StatusLocacao` não tem membro `Cancelada`.
-- **`StatusLocacao.EmAndamento`** e **`StatusCaucao.Utilizada`** estão declarados mas nunca são
-  atribuídos por nenhum método.
+- **`StatusCaucao.Utilizada`** está declarado mas nunca é atribuído por nenhum método.
 - **`Veiculo`** carrega três indicadores de disponibilidade em paralelo: `Ativo`, `Disponivel`
   e `Status` (`StatusVeiculo`). `Criar` inicializa `Ativo`/`Disponivel` mas deixa `Status` no
   default (`0`, que não corresponde a nenhum membro — o enum começa em `1`); os métodos de

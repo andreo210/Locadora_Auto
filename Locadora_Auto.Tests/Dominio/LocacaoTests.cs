@@ -16,14 +16,13 @@ namespace Locadora_Auto.Tests.Dominio
     /// </summary>
     public class LocacaoTests
     {
-        /// <summary>Locação já devolvida, que é o pré-requisito das multas.</summary>
+        /// <summary>
+        /// Contrato do começo ao fim: retirada, devolução e conta fechada sem saldo a cobrar — ou
+        /// seja, <c>Finalizada</c>. É o pré-requisito das multas e o ponto a partir do qual o
+        /// contrato para de aceitar alteração.
+        /// </summary>
         private static Locacao Finalizada(Veiculo? veiculo = null)
-        {
-            var locacao = Fabrica.Locacao(veiculo: veiculo);
-            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
-
-            return locacao;
-        }
+            => Fabrica.LocacaoFechada(veiculo: veiculo);
 
         // ======================= criação =======================
 
@@ -108,19 +107,53 @@ namespace Locadora_Auto.Tests.Dominio
                 Fabrica.Locacao(dataInicio: inicio, dataFimPrevista: inicio.AddHours(-1)));
         }
 
+        // ======================= retirada =======================
+
+        [Fact]
+        public void Vistoria_de_retirada_poe_o_carro_na_rua()
+        {
+            // RN-57: o contrato nasce com a placa comprometida, mas o carro só é liberado ao
+            // cliente quando existe a vistoria que servirá de base de comparação na volta
+            var locacao = Fabrica.Locacao();
+            Assert.Equal(StatusLocacao.Criada, locacao.Status);
+
+            Fabrica.Retirar(locacao);
+
+            Assert.Equal(StatusLocacao.EmAndamento, locacao.Status);
+        }
+
+        [Fact]
+        public void Segunda_vistoria_de_retirada_e_recusada()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento();
+
+            Assert.Throws<DomainException>(() => Fabrica.Retirar(locacao));
+        }
+
+        [Fact]
+        public void Vistoria_de_devolucao_com_o_carro_ainda_no_patio_e_recusada()
+        {
+            var locacao = Fabrica.Locacao();
+
+            Assert.Throws<DomainException>(() => locacao.RegistrarVistoria(
+                3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null));
+        }
+
         // ======================= devolução =======================
 
         [Fact]
-        public void Finalizar_registra_a_devolucao_e_manda_o_veiculo_para_preparacao()
+        public void Devolver_encerra_a_posse_sem_encerrar_o_contrato()
         {
             var veiculo = Fabrica.Veiculo();
-            var locacao = Fabrica.Locacao(veiculo: veiculo, kmInicial: 15_000);
+            var locacao = Fabrica.LocacaoEmAndamento(veiculo: veiculo, kmInicial: 15_000);
 
-            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 2);
+            Fabrica.Devolver(locacao, kmFinal: 15_400, filialDevolucao: 2);
 
-            Assert.Equal(StatusLocacao.Finalizada, locacao.Status);
+            // RN-58: receber o carro não fecha a conta. Enquanto isso gravava Finalizada, tudo o
+            // que a apuração cobraria se perdia com o contrato já constando concluído
+            Assert.Equal(StatusLocacao.Devolvida, locacao.Status);
+            Assert.Null(locacao.ValorFinal);
             Assert.Equal(15_400, locacao.KmFinal);
-            Assert.Equal(520m, locacao.ValorFinal);
             Assert.Equal(2, locacao.IdFilialDevolucao);
 
             // o carro devolvido não está disponível ainda: entra na fila do pátio
@@ -129,27 +162,47 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void Finalizar_avanca_o_odometro_e_a_filial_do_veiculo()
+        public void Devolver_sem_vistoria_de_retirada_e_recusado()
+        {
+            // RN-57: sem o par de vistorias não há base comparável, e nenhuma cobrança de avaria,
+            // km ou combustível se sustenta numa contestação
+            var locacao = Fabrica.Locacao();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_400, filialDevolucao: 1));
+        }
+
+        [Fact]
+        public void Devolver_sem_vistoria_de_devolucao_e_recusado()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_400, filialDevolucao: 1));
+        }
+
+        [Fact]
+        public void Devolver_avanca_o_odometro_e_a_filial_do_veiculo()
         {
             var veiculo = Fabrica.Veiculo(idFilial: 1);
-            var locacao = Fabrica.Locacao(veiculo: veiculo, kmInicial: 15_000, idFilialRetirada: 1);
+            var locacao = Fabrica.LocacaoEmAndamento(veiculo: veiculo, kmInicial: 15_000, idFilialRetirada: 1);
 
-            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 7);
+            Fabrica.Devolver(locacao, kmFinal: 15_400, filialDevolucao: 7);
 
             Assert.Equal(15_400, veiculo.KmAtual);
             Assert.Equal(7, veiculo.FilialAtualId);
         }
 
         [Fact]
-        public void Finalizar_com_avaria_na_devolucao_manda_o_veiculo_para_a_oficina()
+        public void Devolver_com_avaria_manda_o_veiculo_para_a_oficina()
         {
             var veiculo = Fabrica.Veiculo();
-            var locacao = Fabrica.Locacao(veiculo: veiculo);
+            var locacao = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
-            Fabrica.DefinirId(locacao.Vistorias.Single(), 8);
+            Fabrica.DefinirId(locacao.Vistorias.Single(v => v.Tipo == TipoVistoria.Devolucao), 8);
             locacao.RegistrarDanoVistoria(8, "Risco na porta direita", TipoDano.Risco, 350m);
 
-            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
+            locacao.RegistrarDevolucao(locacao.DataFimPrevista, kmFinal: 15_400, filialDevolucao: 1);
 
             var manutencao = Assert.Single(veiculo.Manutencoes);
             Assert.Equal(TipoManutencao.Corretiva, manutencao.Tipo);
@@ -158,17 +211,144 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void Finalizar_sem_avaria_nao_abre_manutencao()
+        public void Devolver_sem_avaria_nao_abre_manutencao()
         {
             var veiculo = Fabrica.Veiculo();
-            var locacao = Fabrica.Locacao(veiculo: veiculo);
-            locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
 
-            locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 15_400, valorFinal: 520m, filialDevolucao: 1);
+            Fabrica.Devolver(Fabrica.LocacaoEmAndamento(veiculo: veiculo));
 
             Assert.Empty(veiculo.Manutencoes);
             Assert.Equal(StatusVeiculo.EmPreparacao, veiculo.Status);
         }
+
+        [Fact]
+        public void Devolver_em_filial_diferente_da_retirada_e_permitido()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento(idFilialRetirada: 1);
+
+            Fabrica.Devolver(locacao, filialDevolucao: 9);
+
+            Assert.Equal(1, locacao.IdFilialRetirada);
+            Assert.Equal(9, locacao.IdFilialDevolucao);
+        }
+
+        [Fact]
+        public void Devolver_com_km_menor_que_o_inicial_e_recusado()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento(kmInicial: 15_000);
+            locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 14_999, null);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, kmFinal: 14_999, filialDevolucao: 1));
+        }
+
+        [Fact]
+        public void Devolver_com_data_anterior_ao_inicio_e_recusado()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento();
+            locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                locacao.RegistrarDevolucao(locacao.DataInicio.AddHours(-1), 15_400, 1));
+        }
+
+        [Fact]
+        public void Devolver_duas_vezes_e_recusado()
+        {
+            var locacao = Finalizada();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_500, 1));
+        }
+
+        // ======================= fechamento =======================
+
+        [Fact]
+        public void Fechar_sem_saldo_leva_o_contrato_a_finalizada()
+        {
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+
+            locacao.Fechar(0m);
+            locacao.LiquidarSaldo();
+
+            Assert.Equal(StatusLocacao.Finalizada, locacao.Status);
+            Assert.Equal(0m, locacao.SaldoEmAberto());
+        }
+
+        [Fact]
+        public void Fechar_com_saldo_a_cobrar_leva_a_com_saldo_residual()
+        {
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+
+            locacao.Fechar(520m);
+            locacao.LiquidarSaldo();
+
+            Assert.Equal(StatusLocacao.ComSaldoResidual, locacao.Status);
+            Assert.Equal(520m, locacao.SaldoEmAberto());
+        }
+
+        [Fact]
+        public void Pagamento_confirmado_quita_o_saldo_residual()
+        {
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+            locacao.Fechar(520m);
+            locacao.LiquidarSaldo();
+
+            locacao.AdicionarPagamento(520m, FormaPagamento.Pix);
+            Fabrica.DefinirId(locacao.Pagamentos.Single(), 11);
+            locacao.ConfirmarPagamento(11);
+
+            Assert.Equal(StatusLocacao.Finalizada, locacao.Status);
+            Assert.Equal(0m, locacao.SaldoEmAberto());
+        }
+
+        [Fact]
+        public void Pagamento_parcial_deixa_o_contrato_com_saldo_residual()
+        {
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+            locacao.Fechar(520m);
+            locacao.LiquidarSaldo();
+
+            locacao.AdicionarPagamento(200m, FormaPagamento.Dinheiro);
+            Fabrica.DefinirId(locacao.Pagamentos.Single(), 11);
+            locacao.ConfirmarPagamento(11);
+
+            Assert.Equal(StatusLocacao.ComSaldoResidual, locacao.Status);
+            Assert.Equal(320m, locacao.SaldoEmAberto());
+        }
+
+        [Fact]
+        public void Pagamento_pendente_nao_quita_o_contrato()
+        {
+            // RN-28: dinheiro que ainda não caiu não abate saldo
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+            locacao.Fechar(520m);
+            locacao.AdicionarPagamento(520m, FormaPagamento.Boleto);
+
+            locacao.LiquidarSaldo();
+
+            Assert.Equal(StatusLocacao.ComSaldoResidual, locacao.Status);
+        }
+
+        [Fact]
+        public void Fechar_locacao_que_nao_foi_devolvida_e_recusado()
+        {
+            var locacao = Fabrica.LocacaoEmAndamento();
+
+            Assert.Throws<InvalidOperationException>(() => locacao.Fechar(520m));
+        }
+
+        [Fact]
+        public void Fechar_duas_vezes_e_recusado()
+        {
+            // doc 07 §6: Fechada → Devolvida é proibido. Correção é lançamento novo, não reabertura
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
+            locacao.Fechar(520m);
+
+            Assert.Throws<InvalidOperationException>(() => locacao.Fechar(600m));
+        }
+
+        // ======================= cancelamento =======================
 
         [Fact]
         public void Cancelar_devolve_o_veiculo_para_a_oferta_sem_preparacao()
@@ -179,60 +359,69 @@ namespace Locadora_Auto.Tests.Dominio
             locacao.Cancelar();
 
             // o contrato foi anulado e o carro não rodou: não há o que preparar
+            Assert.Equal(StatusLocacao.Cancelada, locacao.Status);
             Assert.Equal(StatusVeiculo.Disponivel, veiculo.Status);
             Assert.True(veiculo.Disponivel);
         }
 
         [Fact]
-        public void Finalizar_em_filial_diferente_da_retirada_e_permitido()
+        public void Cancelar_com_o_carro_na_rua_e_recusado()
         {
-            var locacao = Fabrica.Locacao(idFilialRetirada: 1);
+            // RN-59: cancelamento depois da retirada apagaria o contrato e o quilômetro rodado
+            // junto — com o carro fora, a saída é registrar a devolução
+            var locacao = Fabrica.LocacaoEmAndamento();
 
-            locacao.Finalizar(locacao.DataFimPrevista, 15_400, 520m, filialDevolucao: 9);
-
-            Assert.Equal(1, locacao.IdFilialRetirada);
-            Assert.Equal(9, locacao.IdFilialDevolucao);
+            Assert.Throws<InvalidOperationException>(() => locacao.Cancelar());
         }
 
         [Fact]
-        public void Finalizar_com_km_menor_que_o_inicial_e_recusado()
+        public void Cancelar_contrato_ja_devolvido_e_recusado()
         {
-            var locacao = Fabrica.Locacao(kmInicial: 15_000);
+            var locacao = Fabrica.Devolver(Fabrica.LocacaoEmAndamento());
 
-            Assert.Throws<InvalidOperationException>(() =>
-                locacao.Finalizar(locacao.DataFimPrevista, kmFinal: 14_999, valorFinal: 520m, filialDevolucao: 1));
+            Assert.Throws<InvalidOperationException>(() => locacao.Cancelar());
         }
 
-        [Fact]
-        public void Finalizar_com_data_anterior_ao_inicio_e_recusado()
-        {
-            var locacao = Fabrica.Locacao();
-
-            Assert.Throws<InvalidOperationException>(() =>
-                locacao.Finalizar(locacao.DataInicio.AddHours(-1), 15_400, 520m, 1));
-        }
-
-        [Fact]
-        public void Finalizar_duas_vezes_e_recusado()
-        {
-            var locacao = Finalizada();
-
-            Assert.Throws<InvalidOperationException>(() =>
-                locacao.Finalizar(locacao.DataFimPrevista, 15_500, 600m, 1));
-        }
+        // ======================= atraso =======================
 
         [Fact]
         public void MarcarComoAtrasada_so_vale_depois_do_fim_previsto()
         {
             var inicio = DateTime.UtcNow;
-            var locacao = Fabrica.Locacao(dataInicio: inicio, dataFimPrevista: inicio.AddDays(3));
+            var locacao = Fabrica.LocacaoEmAndamento(dataInicio: inicio, dataFimPrevista: inicio.AddDays(3));
 
-            // a comparação é por dia inteiro: no próprio dia da devolução ainda não há atraso
             locacao.MarcarComoAtrasada(inicio.AddDays(3));
-            Assert.Equal(StatusLocacao.Criada, locacao.Status);
+            Assert.Equal(StatusLocacao.EmAndamento, locacao.Status);
 
             locacao.MarcarComoAtrasada(inicio.AddDays(4));
             Assert.Equal(StatusLocacao.Atrasada, locacao.Status);
+        }
+
+        [Fact]
+        public void MarcarComoAtrasada_conta_por_instante_e_nao_por_dia()
+        {
+            // hora é dado contratual: contrato que vence às 09:00 e volta às 23:00 do mesmo dia é
+            // atraso de 14 horas, e a comparação por .Date dizia que não era
+            var inicio = new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
+            var locacao = Fabrica.LocacaoEmAndamento(dataInicio: inicio, dataFimPrevista: inicio.AddDays(2));
+
+            locacao.MarcarComoAtrasada(inicio.AddDays(2).AddHours(14));
+
+            Assert.Equal(StatusLocacao.Atrasada, locacao.Status);
+        }
+
+        [Fact]
+        public void Contrato_atrasado_ainda_pode_ser_devolvido()
+        {
+            // RN-60: era estado sem saída — o contrato que mais urge fechar era o único que não
+            // fechava, porque a devolução exigia Criada
+            var inicio = DateTime.UtcNow;
+            var locacao = Fabrica.LocacaoEmAndamento(dataInicio: inicio, dataFimPrevista: inicio.AddDays(3));
+            locacao.MarcarComoAtrasada(inicio.AddDays(4));
+
+            Fabrica.Devolver(locacao, dataFimReal: inicio.AddDays(4));
+
+            Assert.Equal(StatusLocacao.Devolvida, locacao.Status);
         }
 
         [Fact]
@@ -523,7 +712,7 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void Vistoriar_locacao_ja_devolvida_e_recusado()
+        public void Vistoriar_locacao_ja_fechada_e_recusado()
         {
             var locacao = Finalizada();
 
@@ -535,10 +724,10 @@ namespace Locadora_Auto.Tests.Dominio
         public void Dano_na_vistoria_de_devolucao_nao_abre_manutencao_com_o_contrato_aberto()
         {
             var veiculo = Fabrica.Veiculo();
-            var locacao = Fabrica.Locacao(veiculo: veiculo);
+            var locacao = Fabrica.LocacaoEmAndamento(veiculo: veiculo);
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
 
-            var vistoria = locacao.Vistorias.Single();
+            var vistoria = locacao.Vistorias.Single(v => v.Tipo == TipoVistoria.Devolucao);
             Fabrica.DefinirId(vistoria, 8);
 
             locacao.RegistrarDanoVistoria(8, "Risco na porta direita", TipoDano.Risco, 350m);
@@ -565,7 +754,7 @@ namespace Locadora_Auto.Tests.Dominio
         [Fact]
         public void Dano_em_vistoria_inexistente_e_recusado()
         {
-            var locacao = Fabrica.Locacao();
+            var locacao = Fabrica.LocacaoEmAndamento();
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
 
             Assert.Throws<DomainException>(() =>
@@ -575,9 +764,9 @@ namespace Locadora_Auto.Tests.Dominio
         [Fact]
         public void RemoverDanoVistoria_tira_o_dano_da_vistoria()
         {
-            var locacao = Fabrica.Locacao();
+            var locacao = Fabrica.LocacaoEmAndamento();
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
-            var vistoria = locacao.Vistorias.Single();
+            var vistoria = locacao.Vistorias.Single(v => v.Tipo == TipoVistoria.Devolucao);
             Fabrica.DefinirId(vistoria, 8);
             locacao.RegistrarDanoVistoria(8, "Risco na porta", TipoDano.Risco, 350m);
             var dano = vistoria.Danos.Single();

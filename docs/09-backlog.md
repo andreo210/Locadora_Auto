@@ -6,8 +6,9 @@
 > código. Quando um item for concluído, risque a linha aqui e atualize o documento de origem.
 
 Estado da base em 15/08/2026: a especificação `08` (invariante do ativo) está implantada até a
-RN-47, agora com a RN-45 inteira (a liberação da preparação virou automática); a `07` (fechamento
-financeiro) **não tem nada em pé** — `FinalizarAsync` continua recebendo `valorFinal` pronto de quem
+RN-47, agora com a RN-45 inteira (a liberação da preparação virou automática); da `07` (fechamento
+financeiro) está de pé **o ciclo de vida do contrato** (`A1`) — devolução e fechamento deixaram de
+ser o mesmo ato —, mas nenhuma apuração: `Fechar` continua recebendo `valorFinal` pronto de quem
 chama.
 
 **Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
@@ -19,7 +20,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente |
-| Fio principal | **A1** (estados) → **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado |
+| Fio principal | **A2**/**A3** (dados e parâmetros) → **A4**–**A10** (fechamento) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A1` já abriu o caminho |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -33,14 +34,28 @@ comece por ele num dia curto.
 
 Ordem obrigatória: `A1` antes de tudo, `A4` antes de `A5`–`A10`.
 
-**A1 · Estados de locação de verdade** — `M`
-Hoje `StatusLocacao` tem `Pendente` e `EmAndamento` órfãos (nunca atribuídos), não tem
-`Cancelada` — `Locacao.Cancelar()` grava `Finalizada` — e faltam os três estados do doc `07` §6.
-Acrescentar `Cancelada`, `Devolvida`, `Fechada`, `ComSaldoResidual`.
-**Cuidado:** mexer aqui obriga a atualizar `Locacao.StatusTerminais` **e** o `NOT IN` da constraint
-`ex_locacao_sem_sobreposicao` (migration `SobreposicaoDeContrato`). A coluna é `varchar` — os
-terminais vão **entre aspas**; escrever inteiro ali compila, não dá erro e desliga a constraint em
-silêncio. `SobreposicaoDeContratoTests` fixa os literais.
+~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
+`StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
+`Atrasada` e `ComSaldoResidual` nos ramos e `Cancelada` como estado próprio. `Pendente` saiu: era a
+`Reserva` com outro nome, já que `Criar` compromete a placa. As RN novas estão no doc `05` §1, com
+teste por regra em `LocacaoTests` — **menos a RN-62**, que virou o `C12`.
+
+Três decisões que valem para quem for pegar o resto do bloco A:
+
+- **`Finalizar()` virou dois atos.** `RegistrarDevolucao` encerra a posse e para em `Devolvida`;
+  `Fechar(valorFinal)` apura e vai para `Fechada`; `LiquidarSaldo()` decide entre `Finalizada` e
+  `ComSaldoResidual`. A porta da Api continua sendo uma só — `FinalizarAsync` chama os três em
+  sequência — e é isso que o `A11` separa. Quando a apuração real (`A5`–`A10`) entrar, quem muda é
+  `Fechar`, não o ciclo de vida.
+- **Devolver exige o par de vistorias** (RN-57), e a vistoria de retirada é o que promove o
+  contrato a `EmAndamento`. Isso muda o processo de quem opera, não só o código: contrato sem
+  vistoria de retirada não fecha. A decisão foi **bloquear**, não alçada.
+- **`StatusTerminais = { Finalizada, Cancelada }`.** `Devolvida`, `Fechada` e `ComSaldoResidual`
+  ficam de fora de propósito — o carro rodou naquele período e a `DataFimReal` já encolheu o
+  intervalo, então protegem o histórico sem travar contrato novo. O predicado da constraint foi
+  reescrito na migration `EstadosDeLocacao`, e o `SobreposicaoDeContratoTests` agora acha por
+  reflexão a **migration mais recente** que define a constraint — mexer no predicado é sempre
+  migration nova, nunca editar a anterior.
 
 **A2 · Campos congelados no contrato** — `M` · RN-06, RN-14, RN-18, RN-21, RN-22, RN-25
 `Locacao.ValorDiariaContratada`; `LocacaoSeguro.ValorDiariaContratada` e `FranquiaContratada`;
@@ -117,7 +132,8 @@ declara nada.
 O host do agendador já existe; cada varredura nova é um método. Faltam expirar reservas vencidas
 (hoje só o endpoint manual `PATCH reservas/expirar-vencidas`, com `ExpirarVencidasAsync` pronto) e o
 `//TODO: isso é um job` de `Locacao.cs` (`MarcarComoAtrasada`, pronto na entidade e sem ninguém
-chamando). O segundo mexe em `StatusLocacao` — combine com `A1`.
+chamando). O segundo já está destravado pelo `A1`: `MarcarComoAtrasada` exige `EmAndamento` e
+compara por instante, e `Atrasada` voltou a ter saída. Falta só a tolerância da casa, que é `A3`.
 
 **B2 · Bloqueio com prazo e responsável** — `M` · RN-52
 `Indisponivel` vira `Bloqueado`, com motivo, data prevista de liberação e responsável. Bloqueio sem
@@ -183,6 +199,20 @@ Escolher um e uniformizar — mexe na URL, portanto no `Front.Services` junto.
 **C10 · Serviços sem teste nenhum** — `M`
 `MultaService`, `SeguroService`, `ClienteService`, `FuncionarioService`, `FilialService`,
 `CategoriaVeiculosService`.
+
+**C11 · `TarefaDiariaBackgroundService` é template morto** — `P`
+`Application/Jobs/JobsBackgroundService/TarefaDiariaBackgroundService.cs` acorda às 3h, abre escopo,
+chama `SaveChangesAsync` sem ter alterado nada e tem a única linha de lógica comentada. E **não está
+registrado no DI**: o `InjecaoDependenciaApplicationExtensions` só sobe o
+`MessageSenderBackgroundService` e o `LiberacaoPreparacaoBackgroundService`, então isso nunca roda.
+Ainda usa `DateTime.Now`, contra a regra do `CLAUDE.md`. Ou vira a casa das varreduras diárias, ou
+sai — **decidir junto com o `B1.1`**, que é quem precisa de agendador novo.
+
+**C12 · `HistoricoStatusLocacao` não é alimentado por ninguém** — `M` · RN-62
+A entidade, a configuração e o mapper existem; nenhuma transição de `Locacao` grava linha nela.
+Com o ciclo de vida do `A1` no lugar são oito estados e nove transições, e a trilha continua
+vazia — mesmo buraco de auditoria que a RN-37 fechou do lado do veículo, e o `MovimentoVeiculo`
+serve de molde pronto. Depende do `C7` para o autor deixar de ser `"SYSTEM"`.
 
 ---
 

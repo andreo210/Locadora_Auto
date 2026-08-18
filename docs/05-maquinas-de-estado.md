@@ -12,40 +12,71 @@ marcados como **inalcançável**.
 stateDiagram-v2
     direction LR
 
-    [*] --> Pendente : new Locacao()<br/>valor default da propriedade
     [*] --> Criada : Locacao.Criar(...)
 
-    Pendente --> Finalizada : Cancelar()
-    Criada --> Finalizada : Cancelar()
-    Criada --> Finalizada : Finalizar(dataFimReal, kmFinal,<br/>valorFinal, filialDevolucao)
-    Criada --> Finalizada : ConfirmarPagamento()<br/>quando ValorFinal == 0
-    Criada --> Atrasada : MarcarComoAtrasada(agora)<br/>agora > DataFimPrevista
+    Criada --> EmAndamento : RegistrarVistoria(Retirada)
+    Criada --> Cancelada : Cancelar()
+
+    EmAndamento --> Atrasada : MarcarComoAtrasada(agora)<br/>agora > DataFimPrevista
+    EmAndamento --> Devolvida : RegistrarDevolucao(dataFimReal,<br/>kmFinal, filialDevolucao)
+    Atrasada --> Devolvida : RegistrarDevolucao(...)
+
+    Devolvida --> Fechada : Fechar(valorFinal)
+
+    Fechada --> Finalizada : LiquidarSaldo()<br/>saldo <= 0
+    Fechada --> ComSaldoResidual : LiquidarSaldo()<br/>saldo > 0
+    ComSaldoResidual --> Finalizada : ConfirmarPagamento()<br/>quando o saldo zera
 
     Finalizada --> [*]
+    Cancelada --> [*]
 
-    note right of Pendente
-        AtualizarDados() aceita
-        Pendente e Criada
+    note right of Criada
+        Placa comprometida, carro ainda
+        no pátio. É a janela de check-out.
+        Único ponto em que Cancelar() cabe.
     end note
 
-    note right of Atrasada
-        Sem saída: Finalizar() exige
-        status Criada e Cancelar() exige
-        Criada ou Pendente
+    note right of EmAndamento
+        Carro na rua. AtualizarDados(),
+        seguro e adicional aceitam
+        Criada e EmAndamento.
     end note
 
-    note left of Criada
-        Estado operacional real da locação.
-        Único que permite pagamento,
-        seguro, adicional e vistoria.
+    note right of Devolvida
+        Posse encerrada, conta em aberto.
+        Vistoria ainda é aceita aqui;
+        de Fechada em diante, não.
     end note
 ```
 
-`StatusLocacao.EmAndamento` é **inalcançável** — nenhum método o atribui.
+**As duas vidas do contrato.** A física vai de `Criada` a `Devolvida` e responde "onde está o
+carro"; a financeira vai de `Fechada` a `Finalizada`/`ComSaldoResidual` e responde "quem deve o
+quê". Antes da A1 existia só uma, e receber o carro gravava `Finalizada` — com o contrato já
+constando concluído, tudo o que a apuração cobraria (km excedente, combustível, limpeza, avaria,
+diária excedente) se perdia sem deixar rastro.
 
-`Cancelar()` leva a `Finalizada`, não a um estado de cancelamento: `StatusLocacao` não possui
-membro `Cancelada`. Depois de cancelada, a locação fica indistinguível de uma concluída
-normalmente.
+`RegistrarDevolucao` exige o **par de vistorias** (RN-57): sem base comparável entre retirada e
+devolução não há cobrança que se sustente numa contestação.
+
+Transições **proibidas**, todas cobertas por teste em `LocacaoTests`:
+
+- `Criada → Devolvida` — devolver carro que nunca foi liberado.
+- `EmAndamento → Cancelada` e `Atrasada → Cancelada` — carro que rodou se devolve, não se cancela;
+  cancelar apagaria o contrato e o quilômetro rodado junto.
+- `Fechada → Devolvida` — reabrir fechamento. Correção é lançamento novo (RN-31).
+- `Finalizada → *` e `Cancelada → *`.
+- `DevolverCaucao()` antes de `Fechada`.
+
+### Regras
+
+| RN | Regra | Porquê |
+|---|---|---|
+| **RN-57** | Contrato nasce em `Criada`; só vai a `EmAndamento` com vistoria de retirada registrada | Sem par de vistorias não há cobrança de avaria defensável |
+| **RN-58** | A devolução grava `Devolvida`, nunca `Finalizada` | Devolução é vistoria; o contrato morre no fechamento |
+| **RN-59** | `Cancelada` é estado próprio e só é alcançável a partir de `Criada` | Carro que rodou se devolve, não se cancela |
+| **RN-60** | `Atrasada` aceita devolução e volta ao fluxo normal; o atraso conta por instante, não por data | Era estado sem saída, e hora é dado contratual |
+| **RN-61** | Só `Finalizada` e `Cancelada` liberam o período do veículo na constraint de sobreposição | Cancelamento libera período retroativo; contrato cumprido protege o histórico |
+| **RN-62** | Toda transição de status de contrato grava `HistoricoStatusLocacao` com autor e instante | **Ainda não implementada** — a entidade existe e ninguém a alimenta |
 
 ### Efeitos colaterais no veículo e na reserva
 
@@ -314,20 +345,34 @@ stateDiagram-v2
         Caucao --> Pagamento : AdicionarPagamento()
     }
 
-    Retirada --> Devolucao : Locacao.Finalizar()
+    Retirada --> Devolucao : carro volta ao balcão
 
     state Devolucao {
-        [*] --> VistoriaDevolucao
-        VistoriaDevolucao --> SemDano
-        VistoriaDevolucao --> ComDano : RegistrarDano()
+        [*] --> VistoriaDevolucao : RegistrarVistoria(Devolucao)
+        VistoriaDevolucao --> PosseEncerrada : Locacao.RegistrarDevolucao()
+        PosseEncerrada --> SemDano
+        PosseEncerrada --> ComDano
         ComDano --> ManutencaoCorretiva : Veiculo.IniciarManutencao()
-        ComDano --> Multa : AdicionarMulta()
-        Multa --> CompensaCaucao : CompensarMultaComCaucao()
-        SemDano --> DevolveCaucao : DevolverCaucao()
     }
 
-    Devolucao --> [*] : locação Finalizada<br/>veículo Disponivel
+    Devolucao --> Fechamento : Locacao.Fechar()
+
+    state Fechamento {
+        [*] --> ContaApurada
+        ContaApurada --> Multa : AdicionarMulta()
+        Multa --> CompensaCaucao : CompensarMultaComCaucao()
+        ContaApurada --> DevolveCaucao : DevolverCaucao()
+        ContaApurada --> Quitada : LiquidarSaldo()<br/>saldo <= 0
+        ContaApurada --> SaldoResidual : LiquidarSaldo()<br/>saldo > 0
+        SaldoResidual --> Quitada : ConfirmarPagamento()
+    }
+
+    Fechamento --> [*] : locação Finalizada<br/>veículo Disponivel
 ```
+
+A vistoria de devolução vem **antes** do `RegistrarDevolucao`, e não depois: é ela que traz o
+hodômetro e o nível do tanque, e sem ela a devolução é recusada (RN-57). A multa e a caução
+moram no fechamento porque é lá que existe conta contra a qual compensar.
 
 ---
 
@@ -337,14 +382,15 @@ Resumo dos estados sem transição de entrada em todo o código:
 
 | Enum | Membro inalcançável |
 |---|---|
-| `StatusLocacao` | `EmAndamento` |
 | `StatusVeiculo` | `Locado`, `Indisponivel` |
 | `StatusCaucao` | `Utilizada` |
 | `StatusManutencao` | `EmAndamento` |
 
+`StatusLocacao` saiu da lista: `EmAndamento` passou a ser atribuído pela vistoria de retirada e
+`Pendente` foi removido — era a `Reserva` com outro nome, já que `Criar` compromete a placa.
+
 E os pontos em que o comportamento diverge do nome:
 
-- `Locacao.Cancelar()` grava `Finalizada`.
 - `Veiculo.AtualizarDescricaoManutencao()` também altera o `Status` do veículo.
 - `Veiculo.Criar()` deixa `Status` em `0`, valor fora do intervalo do enum (que começa em `1`).
 - `StatusDano.EmAnalise` e `StatusDano.Cancelado` valem ambos `6`.

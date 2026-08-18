@@ -3,7 +3,9 @@ using Locadora_Auto.Infra.Data;
 using Locadora_Auto.Infra.Data.CurrentUsers;
 using Locadora_Auto.Infra.Data.Migrations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Xunit;
 
@@ -15,8 +17,9 @@ namespace Locadora_Auto.Tests.Infra
     /// ele passa pelo provider do Postgres de verdade: <c>ToQueryString</c> compila a consulta sem
     /// abrir conexão, então uma expressão intraduzível quebra o teste em vez de quebrar em produção.
     ///
-    /// O segundo teste existe para a constraint <c>EXCLUDE</c> que ainda falta escrever: o predicado
-    /// dela precisa listar os status terminais na representação real da coluna.
+    /// Os demais existem para a constraint <c>EXCLUDE</c>: o predicado dela precisa listar os
+    /// status terminais na representação real da coluna, e nada no compilador liga uma coisa à
+    /// outra.
     /// </summary>
     public class SobreposicaoDeContratoTests
     {
@@ -24,6 +27,38 @@ namespace Locadora_Auto.Tests.Infra
         {
             public string? UserId => "teste";
             public bool IsAuthenticated => true;
+        }
+
+        /// <summary>
+        /// SQL da migration <b>mais recente</b> que (re)define a constraint — que é a que vale no
+        /// banco. Achar por reflexão em vez de fixar o tipo é o que mantém este teste honesto
+        /// quando o predicado mudar: mexer nele é sempre migration nova, porque editar a antiga não
+        /// migra banco que já rodou. Fixado num tipo, o teste passaria a conferir uma definição
+        /// que o banco não usa mais.
+        /// </summary>
+        private static string SqlDaConstraintVigente()
+        {
+            var migrations = typeof(SobreposicaoDeContrato).Assembly
+                .GetTypes()
+                .Where(t => typeof(Migration).IsAssignableFrom(t) && !t.IsAbstract)
+                .Select(t => new { Id = t.GetCustomAttribute<MigrationAttribute>()?.Id, Tipo = t })
+                .Where(m => m.Id != null)
+                .OrderBy(m => m.Id, StringComparer.Ordinal);
+
+            string? vigente = null;
+
+            foreach (var migration in migrations)
+            {
+                var sql = string.Join("\n", ((Migration)Activator.CreateInstance(migration.Tipo)!)
+                    .UpOperations.OfType<SqlOperation>()
+                    .Select(operacao => operacao.Sql));
+
+                if (sql.Contains("ADD CONSTRAINT ex_locacao_sem_sobreposicao"))
+                    vigente = sql;
+            }
+
+            Assert.NotNull(vigente);
+            return vigente!;
         }
 
         private static LocadoraDbContext MontarContexto()
@@ -77,7 +112,10 @@ namespace Locadora_Auto.Tests.Infra
                 .Select(s => (string)conversor!.ConvertToProvider(s)!)
                 .ToArray();
 
-            Assert.Equal(new[] { "Finalizada" }, terminaisNoBanco);
+            // RN-61: Cancelada porque o contrato foi anulado e o período tem que voltar à oferta
+            // retroativamente; Finalizada porque o ciclo acabou. Devolvida, Fechada e
+            // ComSaldoResidual ficam de fora — o carro rodou naquele período
+            Assert.Equal(new[] { "Finalizada", "Cancelada" }, terminaisNoBanco);
         }
 
         /// <summary>
@@ -89,9 +127,7 @@ namespace Locadora_Auto.Tests.Infra
         [Fact]
         public void Constraint_lista_exatamente_os_status_terminais_do_dominio()
         {
-            var sql = string.Join("\n", new SobreposicaoDeContrato()
-                .UpOperations.OfType<SqlOperation>()
-                .Select(operacao => operacao.Sql));
+            var sql = SqlDaConstraintVigente();
 
             var listaDoPredicado = Regex.Match(sql, @"status NOT IN \(([^)]*)\)").Groups[1].Value;
 
@@ -108,13 +144,16 @@ namespace Locadora_Auto.Tests.Infra
         [Fact]
         public void Constraint_usa_o_mesmo_intervalo_que_o_dominio()
         {
-            var sql = string.Join("\n", new SobreposicaoDeContrato()
-                .UpOperations.OfType<SqlOperation>()
-                .Select(operacao => operacao.Sql));
+            var sql = SqlDaConstraintVigente();
 
             // btree_gist é o que deixa a igualdade de id_veiculo conviver com a sobreposição do
-            // intervalo no mesmo índice; sem a extensão o ALTER TABLE falha
-            Assert.Contains("CREATE EXTENSION IF NOT EXISTS btree_gist", sql);
+            // intervalo no mesmo índice; sem a extensão o ALTER TABLE falha. Ela é criada na
+            // SobreposicaoDeContrato e não se repete nas migrations que só reescrevem o predicado
+            Assert.Contains("CREATE EXTENSION IF NOT EXISTS btree_gist",
+                string.Join("\n", new SobreposicaoDeContrato()
+                    .UpOperations.OfType<SqlOperation>()
+                    .Select(operacao => operacao.Sql)));
+
             Assert.Contains("ex_locacao_sem_sobreposicao", sql);
 
             // mesmo COALESCE de Locacao.Sobrepostas, e tstzrange é meio-aberto por padrão — é o que
