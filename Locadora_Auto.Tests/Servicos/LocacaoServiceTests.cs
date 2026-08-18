@@ -1,4 +1,4 @@
-using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
 using Locadora_Auto.Application.Models.Dto;
 using Locadora_Auto.Application.Services.LocacaoServices;
 using Locadora_Auto.Domain.Entidades;
@@ -69,19 +69,7 @@ namespace Locadora_Auto.Tests.Servicos
             var notificador = new NotificadorService();
             var locacoes = new LocacaoRepositoryFake(armazem);
 
-            var service = new LocacaoService(
-                locacoes,
-                new ClienteRepositoryFake(armazem),
-                new VeiculosRepositoryFake(armazem),
-                new ReservaRepositoryFake(armazem),
-                new VistoriaRepositoryFake(armazem),
-                new FilialRepositoryFake(armazem),
-                new SeguroRepositoryFake(armazem),
-                new AdicionalRepositoryFake(armazem),
-                new LocacaoSeguroRepositoryFake(armazem),
-                new FuncionarioRepositoryFake(armazem),
-                new UploadDownloadFileServiceFake(),
-                notificador);
+            var service = Fabrica.LocacaoService(armazem, notificador, locacoes);
 
             return new Cenario
             {

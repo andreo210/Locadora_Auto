@@ -177,6 +177,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                     locacao.IdVeiculo, locacao.DataInicio, dto.DataFimPrevista, locacao.IdLocacao, ct))
             {
                 _notificador.Add("Veículo já possui contrato no período");
+
                 return null;
             }
 
@@ -191,6 +192,52 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 _notificador.Add(ex.Message);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// RN-60: o contrato passou do fim previsto e o carro continua na rua.
+        ///
+        /// É varredura porque atraso é fato do <b>relógio</b>, não de um clique: ninguém no balcão
+        /// vai marcar como atrasado o contrato de um cliente que sumiu, e é justamente esse que
+        /// interessa enxergar. Sem ela o contrato fica <c>EmAndamento</c> para sempre e o carro
+        /// some dos indicadores de atraso — o mesmo defeito que a liberação automática da RN-45
+        /// corrige do lado do pátio.
+        ///
+        /// Não notifica: é lote de agendador, e recusa individual aqui não tem para quem ser
+        /// respondida. O que ela devolve é a contagem.
+        ///
+        /// <b>Sem tolerância ainda.</b> O doc 07 §9 recomenda 30 minutos de folga antes de a hora
+        /// excedente correr, mas o parâmetro da casa é o backlog A3 e ainda não existe. Enquanto
+        /// isso o corte é o instante do fim previsto, que é o lado conservador: marca cedo demais,
+        /// nunca tarde demais — e <c>Atrasada</c> hoje não cobra nada, só torna o contrato visível.
+        /// </summary>
+        public async Task<int> MarcarAtrasadasAsync(CancellationToken ct = default)
+        {
+            var agora = DateTime.UtcNow;
+
+            // o filtro já é o da regra, e não "tudo que está em andamento": a varredura roda a cada
+            // poucos minutos e trazer a carteira inteira para a memória a cada volta seria o mesmo
+            // erro que a paginação da trilha evita
+            var candidatas = await _locacaoRepository.ObterAsync(
+                filtro: l => l.Status == StatusLocacao.EmAndamento && l.DataFimPrevista < agora,
+                rastreado: true,
+                ct: ct);
+
+            if (candidatas.Count == 0) return 0;
+
+            // MarcarComoAtrasada tem a guarda dela; conferir o status depois da chamada é o que dá
+            // a contagem real, mesmo padrão do ExpirarVencidasAsync da reserva
+            var marcadas = 0;
+            foreach (var locacao in candidatas)
+            {
+                locacao.MarcarComoAtrasada(agora);
+                if (locacao.Status == StatusLocacao.Atrasada) marcadas++;
+            }
+
+            if (marcadas > 0)
+                await _locacaoRepository.SalvarAsync(ct);
+
+            return marcadas;
         }
 
         /// <summary>

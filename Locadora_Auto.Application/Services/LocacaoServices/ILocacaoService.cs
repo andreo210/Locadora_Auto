@@ -9,6 +9,12 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
         Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default);
         Task<bool> CancelarAsync(int id, CancellationToken ct = default);
 
+        /// <summary>
+        /// RN-60: passa para <c>Atrasada</c> todo contrato <c>EmAndamento</c> que já passou do fim
+        /// previsto. Devolve quantos mudaram. Chamada pelo agendador, em lote.
+        /// </summary>
+        Task<int> MarcarAtrasadasAsync(CancellationToken ct = default);
+
         #region Pagamento
         Task<bool> AdicionarPagamentoAsync(int id,AdicionarPagamentoDto pagamento, CancellationToken ct = default);
         Task<bool> ConfirmarPagamentoAsync(int id, int idPagamento, CancellationToken ct = default);

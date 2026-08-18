@@ -1,4 +1,5 @@
 ﻿using Locadora_Auto.Application.Configuration.Ultils.NotificadorServices;
+using Locadora_Auto.Application.Services.LocacaoServices;
 using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fakes;
 
@@ -255,6 +256,31 @@ namespace Locadora_Auto.Tests.Fabricas
                 new MovimentoVeiculoRepositoryFake(armazem),
                 new FuncionarioRepositoryFake(armazem),
                 new LocacaoRepositoryFake(armazem),
+                notificador);
+
+        /// <summary>
+        /// <c>LocacaoService</c> montado sobre um armazém só. Mesmo motivo do
+        /// <see cref="VeiculoService"/>: o construtor cresce a cada regra nova.
+        /// </summary>
+        /// <param name="locacoes">
+        /// O fake que o teste quer inspecionar depois (<c>Salvamentos</c> é contado por instância).
+        /// </param>
+        public static LocacaoService LocacaoService(
+            ArmazemFake armazem,
+            INotificadorService notificador,
+            LocacaoRepositoryFake? locacoes = null)
+            => new(
+                locacoes ?? new LocacaoRepositoryFake(armazem),
+                new ClienteRepositoryFake(armazem),
+                new VeiculosRepositoryFake(armazem),
+                new ReservaRepositoryFake(armazem),
+                new VistoriaRepositoryFake(armazem),
+                new FilialRepositoryFake(armazem),
+                new SeguroRepositoryFake(armazem),
+                new AdicionalRepositoryFake(armazem),
+                new LocacaoSeguroRepositoryFake(armazem),
+                new FuncionarioRepositoryFake(armazem),
+                new UploadDownloadFileServiceFake(),
                 notificador);
 
         /// <summary>Escreve em propriedade de set privado — o que o EF e o relógio fazem em produção.</summary>

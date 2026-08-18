@@ -664,9 +664,12 @@ namespace Locadora_Auto.Domain.Entidades
         /// A comparação é por <b>instante</b>, não por data: contrato que vence às 09:00 e volta
         /// às 23:00 do mesmo dia é atraso de 14 horas, e comparar <c>.Date</c> dizia que não era.
         /// A tolerância da casa (doc 07 §9, recomendação de 30 min) entra aqui quando o parâmetro
-        /// existir — backlog A3.
+        /// existir — backlog A3. Enquanto ela não existe, o corte é o próprio fim previsto, que é o
+        /// lado conservador: marca cedo demais, nunca tarde demais.
         ///
-        /// TODO: chamador é a varredura do backlog B1.1.
+        /// Quem chama é <c>LocacaoService.MarcarAtrasadasAsync</c>, varrido pelo
+        /// <c>AtrasoLocacaoBackgroundService</c> — atraso é fato do relógio, não de um clique, e o
+        /// contrato que mais importa marcar é justamente o do cliente que sumiu.
         /// </summary>
         public void MarcarComoAtrasada(DateTime agora)
         {

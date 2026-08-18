@@ -37,9 +37,24 @@ namespace Locadora_Auto.Application.Extensions
             services.AddSingleton<IMessageSenderBackgroundService>(provider => provider.GetRequiredService<MessageSenderBackgroundService>());
             services.AddHostedService(provider => provider.GetRequiredService<MessageSenderBackgroundService>());
 
-            // RN-45: solta o carro que o pátio esqueceu em preparação. Sem porta na Api de
-            // propósito — a liberação manual já tem a dela (PATCH veiculos/{id}/liberar-preparacao)
+            // As três varreduras operacionais. Um BackgroundService por varredura, e não um host
+            // com três métodos: cada uma tem cadência própria (a preparação se mede em minutos, a
+            // reserva em horas), chave de configuração própria e falha isolada — uma exceção que
+            // escapasse do laço de uma não pode levar as outras duas junto.
+            //
+            // Nenhuma tem porta na Api: são lote de agendador, e as que precisam de acionamento
+            // manual já têm a delas (PATCH veiculos/{id}/liberar-preparacao,
+            // PATCH reservas/expirar-vencidas).
+
+            // RN-45: solta o carro que o pátio esqueceu em preparação
             services.AddHostedService<LiberacaoPreparacaoBackgroundService>();
+
+            // expira a reserva que ninguém foi buscar — enquanto ela vive, a disponibilidade
+            // desconta da frota um carro que está no pátio
+            services.AddHostedService<ExpiracaoReservaBackgroundService>();
+
+            // RN-60: marca a locação que passou do fim previsto com o carro ainda na rua
+            services.AddHostedService<AtrasoLocacaoBackgroundService>();
 
             //utils
             services.AddScoped<IUploadDownloadFileService, UploadDownloadFileService>();
