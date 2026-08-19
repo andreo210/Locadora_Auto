@@ -5,16 +5,17 @@
 > uma RN das especificações `07`/`08`, uma armadilha registrada no `CLAUDE.md`, ou o próprio
 > código. Quando um item for concluído, risque a linha aqui e atualize o documento de origem.
 
-Estado da base em 18/08/2026: a especificação `08` (invariante do ativo) está **implantada
-inteira** — RN-35 a RN-56 mais os seis indicadores da seção 12. O que sobrou dela não é regra, é
-tela: nenhum dos endpoints do ativo tem consumidor no front (`F5`, `F6`, e agora também bloqueio,
-transferência e desmobilização).
+Estado da base em 19/08/2026: **as duas especificações estão implantadas inteiras.** A `08`
+(invariante do ativo) da RN-35 à RN-56, com os seis indicadores da seção 12; a `07` (fechamento
+financeiro) da RN-01 à RN-34, com a apuração completa exposta na Api e os 15 critérios de aceite da
+seção 10 como teste.
 
-Da `07` (fechamento financeiro) estão de pé **o ciclo de vida do contrato** (`A1`) — devolução e
-fechamento deixaram de ser o mesmo ato — e agora também **os dados que a apuração vai precisar**
-(`A2`, `A3`): os valores congelados na abertura e os parâmetros da casa. Mas nenhuma apuração:
-`Fechar` continua recebendo `valorFinal` pronto de quem chama. **É o buraco funcional do sistema, e
-segue sendo o único bloco de regra aberto na Api.**
+**Não há mais bloco de regra aberto na Api.** O que sobrou das duas não é regra, é **tela**: nenhum
+dos endpoints do ativo tem consumidor no front (`F5`, `F6`, `F6.1`), e o fechamento inteiro — a
+funcionalidade mais cara de construir do sistema — não tem uma linha de front que o chame. Quem
+apura hoje o faz pelo Swagger.
+
+A partir daqui a fila é dívida técnica (bloco C) e front (blocos D/E).
 
 **Tamanhos:** `P` = uma sessão · `M` = duas a três · `G` = fatiar antes de começar.
 
@@ -35,15 +36,19 @@ comece por ele num dia curto.
 
 # API
 
-## Bloco A — fechamento financeiro (doc `07`)
+## Bloco A — fechamento financeiro (doc `07`) — **fechado**
 
-`A1` a `A11` estão feitos: **o fechamento financeiro funciona ponta a ponta.** `POST
+Do `A1` ao `A12`. Os itens ficam riscados, e não apagados, porque cada um registra **as decisões que
+a especificação não determinava** — e é isso que quem for mexer no fechamento vai precisar ler.
+
+**O bloco A está fechado.** O fechamento financeiro funciona ponta a ponta: `POST
 locacoes/{id}/fechamento` apura a conta discriminada, fecha o contrato com o saldo calculado,
-resolve a caução e devolve o extrato com os avisos; `GET locacoes/{id}/fechamento` relê o extrato.
-O balcão parou de digitar o valor da devolução — era o buraco funcional que abriu o bloco A.
+resolve a caução e devolve o extrato com os avisos; `GET locacoes/{id}/fechamento` relê o extrato. Os
+15 critérios de aceite do doc `07` §10 são teste, pelo serviço. O balcão parou de digitar o valor da
+devolução — era o buraco funcional que abriu o bloco.
 
-Sobra o `A12` (os cenários gherkin do doc `07` §10 que ainda não viraram teste) e, no front, o `F1`,
-que agora tem uma Api completa para consumir.
+**Não há mais bloco de regra aberto na Api.** O que resta é dívida técnica (bloco C) e tela (blocos
+D/E), e o item que manda é o `F1`: a tela do balcão, que agora tem uma Api completa para consumir.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -399,9 +404,20 @@ e seus dependentes a montar a apuração inteira só para ter um contrato fechad
 testes de multa e pós-contrato a maquinário que não é o deles. Fica como porta administrativa, e a
 remoção espera a migração desses testes.
 
-**A12 · Testes do fechamento** — `M`
-Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no molde de
-`LocacaoServiceTests`.
+~~**A12 · Testes do fechamento** — `M`~~ **feito.**
+Os 15 cenários do doc `07` §10 estão em `CriteriosDeAceiteDoFechamentoTests`, um teste por cenário,
+com os números do documento literais — **pelo serviço**, via `ApurarFechamentoAsync`.
+
+Isso é de propósito e não é redundância com os testes de domínio. A aritmética de cada regra já
+estava fixada lá, que é onde ela se depura; o que estes pegam é a outra classe de defeito — a que só
+aparece com as dez apurações rodando juntas, sobre um grafo vindo do repositório e traduzido para
+DTO: `Include` faltando e fazendo a conta sair menor, ordem trocada entre período e franquia, mapper
+perdendo linha. Nenhum teste de unidade do cálculo enxerga isso.
+
+Um cenário não fecha ao pé da letra: o de avaria em análise pede o evento
+`AvariaEnviadaParaAnalise`, e **não existe barramento de eventos** no sistema (doc `07` §7 é
+futuro). O que cumpre o papel hoje é o aviso da apuração, que ainda carrega o prazo do pós-contrato
+— coisa que o evento sozinho não carregaria. O teste verifica o aviso e registra a diferença.
 
 ## Bloco B — o que resta do doc `08`
 

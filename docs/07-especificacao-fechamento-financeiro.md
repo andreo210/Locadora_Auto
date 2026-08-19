@@ -267,6 +267,12 @@ Transição proibida: `Devolvida → qualquer estado`.
 São eles que depois acordam a régua de cobrança, o extrato ao cliente e o relatório de
 vazamento de receita.
 
+**Não implantados** — não há barramento de eventos no sistema. O que a apuração faz hoje é devolver
+a informação em `ResultadoDaApuracaoDto.Avisos`, síncrono, para quem chamou tratar: avaria em
+análise com o prazo do pós-contrato, multa recusada por redundância, combustível não cobrado por
+falta de cadastro e saldo residual. Cobre o balcão; não cobre o que precisa acontecer sem alguém
+estar olhando, e é isso que os eventos resolveriam.
+
 ## 8. Dados que faltam no modelo
 
 | Onde | Campo | RN | Situação |
@@ -322,6 +328,16 @@ Nenhum destes é exigência legal — são política da casa, e a escolha muda o
 conta; cobrar linha sem documento de suporte.
 
 ## 10. Critérios de aceite
+
+**Os 15 são teste** (backlog `A12`), em `CriteriosDeAceiteDoFechamentoTests`, com estes números
+literais e rodando **pelo serviço** — `ApurarFechamentoAsync`, sobre o grafo carregado do
+repositório e traduzido para DTO. É de propósito: a aritmética de cada regra já está fixada nos
+testes de domínio, e o que estes pegam é a classe de defeito que só aparece com as dez apurações
+rodando juntas.
+
+Um cenário não fecha ao pé da letra — o de avaria em análise pede o evento
+`AvariaEnviadaParaAnalise`, e não há barramento de eventos (§7 é futuro). O que cumpre o papel é o
+aviso da apuração, que ainda carrega o prazo do pós-contrato.
 
 ```gherkin
 Cenário: diária é ciclo de 24h, não calendário
