@@ -6,8 +6,30 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
     {
         Task<LocacaoDto?> CriarAsync(CriarLocacaoDto dto, CancellationToken ct = default);
         Task<LocacaoDto?> AtualizarAsync(int id, AtualizarLocacaoDto dto, CancellationToken ct = default);
-        Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default);
         Task<bool> CancelarAsync(int id, CancellationToken ct = default);
+
+        #region Devolução e fechamento
+
+        // Doc 07 §1: DEVOLUÇÃO → FECHAMENTO → QUITAÇÃO são atos distintos, e agora são portas
+        // distintas. Até aqui a Api tinha uma só, `FinalizarAsync`, que recebia o `valorFinal`
+        // digitado por quem chamava — era o buraco funcional do sistema.
+
+        /// <summary>
+        /// Encerra a posse (RN-58). Não fecha o contrato nem apura nada, e <b>não recebe o
+        /// hodômetro</b>: ele sai da vistoria de devolução (RN-11).
+        /// </summary>
+        Task<bool> RegistrarDevolucaoAsync(int id, RegistrarDevolucaoDto dto, CancellationToken ct = default);
+
+        /// <summary>
+        /// Apura a conta, sela o contrato e resolve a caução. <b>Idempotente</b> (RN-32): chamar de
+        /// novo devolve a mesma apuração, sem cobrar nada outra vez.
+        /// </summary>
+        Task<ResultadoDaApuracaoDto?> ApurarFechamentoAsync(int id, ApurarFechamentoDto dto, CancellationToken ct = default);
+
+        /// <summary>O extrato discriminado (RN-31) — a conta que o cliente recebe.</summary>
+        Task<FechamentoLocacaoDto?> ObterFechamentoAsync(int id, CancellationToken ct = default);
+
+        #endregion Devolução e fechamento
 
         /// <summary>
         /// RN-60: passa para <c>Atrasada</c> todo contrato <c>EmAndamento</c> que já passou do fim

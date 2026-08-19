@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -205,7 +205,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             locacao.RegistrarVistoria(1, TipoVistoria.Retirada, nivelRetirada, 15_000, null);
             locacao.RegistrarVistoria(1, TipoVistoria.Devolucao, nivelDevolucao, 15_400, null);
-            locacao.RegistrarDevolucao(inicio.AddDays(3), 15_400, filialDevolucao);
+            locacao.RegistrarDevolucao(inicio.AddDays(3), filialDevolucao);
 
             locacao.AbrirFechamento(1);
 

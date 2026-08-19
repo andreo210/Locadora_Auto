@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -140,16 +140,20 @@ namespace Locadora_Auto.Tests.Dominio
         }
 
         [Fact]
-        public void O_hodometro_vem_da_vistoria_e_nao_do_contrato()
+        public void O_hodometro_vem_da_vistoria_e_o_contrato_guarda_o_mesmo_numero()
         {
             // RN-11: a medição que sustenta a cobrança é a da vistoria, feita com o carro à frente
-            // de quem assina. Aqui o contrato foi encerrado com 15.400 e a vistoria mediu 15.750;
-            // é a vistoria que manda, e são 150 km de excedente, não zero
-            var cenario = Cenario(kmRetirada: 15_000, kmDevolucao: 15_750, kmDoContrato: 15_400);
+            // de quem assina. Até o A11, `RegistrarDevolucao` recebia o hodômetro por fora e os
+            // dois podiam divergir sem nada avisar; hoje há uma fonte só
+            var cenario = Cenario(kmRetirada: 15_000, kmDevolucao: 15_750);
 
             var apuracao = cenario.Apurar();
 
-            Assert.Equal(15_400, cenario.Locacao.KmFinal);
+            var daVistoria = cenario.Locacao.Vistorias
+                .Single(v => v.Tipo == TipoVistoria.Devolucao).KmVeiculo;
+
+            Assert.Equal(15_750, daVistoria);
+            Assert.Equal(daVistoria, cenario.Locacao.KmFinal);
             Assert.Equal(750, apuracao.KmRodados);
             Assert.Equal(150, apuracao.KmExcedentes);
         }
@@ -193,14 +197,9 @@ namespace Locadora_Auto.Tests.Dominio
         /// Contrato de 3 diárias devolvido, com a conta aberta e o período já apurado — que é o
         /// pré-requisito da franquia.
         /// </summary>
-        /// <param name="kmDoContrato">
-        /// O que <c>RegistrarDevolucao</c> gravou, quando se quer que ele <b>divirja</b> da
-        /// vistoria. Nulo usa o mesmo número dos dois lados, que é o caso normal.
-        /// </param>
         private static CenarioDeRodagem Cenario(
             int kmRetirada = 15_000,
-            int kmDevolucao = 15_750,
-            int? kmDoContrato = null)
+            int kmDevolucao = 15_750)
         {
             var inicio = new DateTime(2026, 3, 10, 9, 0, 0, DateTimeKind.Utc);
 
@@ -217,7 +216,7 @@ namespace Locadora_Auto.Tests.Dominio
 
             locacao.RegistrarVistoria(1, TipoVistoria.Retirada, NivelCombustivel.Cheio, kmRetirada, null);
             locacao.RegistrarVistoria(1, TipoVistoria.Devolucao, NivelCombustivel.Cheio, kmDevolucao, null);
-            locacao.RegistrarDevolucao(inicio.AddDays(3), kmDoContrato ?? kmDevolucao, 1);
+            locacao.RegistrarDevolucao(inicio.AddDays(3), 1);
 
             locacao.AbrirFechamento(1);
 

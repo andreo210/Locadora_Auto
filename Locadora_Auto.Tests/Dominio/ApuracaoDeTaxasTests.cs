@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -225,7 +225,7 @@ namespace Locadora_Auto.Tests.Dominio
                     idVistoria: 5);
             }
 
-            locacao.RegistrarDevolucao(Retirada.AddDays(3), 15_400, filialDevolucao);
+            locacao.RegistrarDevolucao(Retirada.AddDays(3), filialDevolucao);
             locacao.AbrirFechamento(1);
 
             var filial = Fabrica.Filial();

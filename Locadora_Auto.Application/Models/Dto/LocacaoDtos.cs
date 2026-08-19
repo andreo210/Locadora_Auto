@@ -62,13 +62,9 @@ namespace Locadora_Auto.Application.Models.Dto
         public int KmInicial { get; set; }
         public decimal ValorPrevisto { get; set; }
     }
-    public class FinalizarLocacaoDto
-    {
-        public int Id { get; set; }
-        public int IdFilialDevolucao { get; set; }
-        public DateTime DataFimReal { get; set; }
-        public int KmFinal { get; set; }
-        public decimal ValorFinal { get; set; }
-    }
+    // `FinalizarLocacaoDto` saiu no backlog A11. Ele carregava `ValorFinal` e `KmFinal` — o valor
+    // digitado por quem chamava, que a apuração agora calcula, e o hodômetro, que sai da vistoria
+    // (RN-11). O que o substitui são `RegistrarDevolucaoDto` e `ApurarFechamentoDto`, em
+    // `FechamentoDtos.cs`, porque devolver e fechar são atos distintos (doc 07 §1).
 
 }

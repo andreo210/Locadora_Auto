@@ -250,8 +250,12 @@ namespace Locadora_Auto.Domain.Entidades
         /// cobrança de avaria, de quilometragem nem de combustível que sobreviva a uma
         /// contestação, e a vistoria de devolução é o que traz o hodômetro e o nível do tanque que
         /// a apuração vai usar.
+        ///
+        /// RN-11: <b>não recebe o hodômetro</b>. Ele sai da vistoria de devolução, que este método
+        /// já exige — receber o número por fora criava dois registros do mesmo fato, sem nada
+        /// garantindo que concordassem, e a apuração usa o da vistoria de qualquer forma.
         /// </summary>
-        public void RegistrarDevolucao(DateTime dataFimReal, int kmFinal, int filialDevolucao)
+        public void RegistrarDevolucao(DateTime dataFimReal, int filialDevolucao)
         {
             if (!ComCarroNaRua.Contains(Status))
                 throw new InvalidOperationException("Somente locações com o veículo na rua podem ser devolvidas");
@@ -265,6 +269,8 @@ namespace Locadora_Auto.Domain.Entidades
             if (dataFimReal < DataInicio)
                 throw new InvalidOperationException("Data de finalização não pode ser anterior à data de início");
 
+            var kmFinal = VistoriaDe(TipoVistoria.Devolucao).KmVeiculo;
+
             if (kmFinal < KmInicial)
                 throw new InvalidOperationException("Quilometragem final não pode ser menor que a inicial");
 
@@ -274,7 +280,7 @@ namespace Locadora_Auto.Domain.Entidades
             Status = StatusLocacao.Devolvida;
 
             // o carro entra na fila do pátio, e o odômetro e a filial do ativo avançam com o que a
-            // devolução informou — sem isso a frota fica registrada na filial errada
+            // vistoria mediu — sem isso a frota fica registrada na filial errada
             Veiculo.RegistrarDevolucao(kmFinal, filialDevolucao, this);
 
             AbrirManutencaoPorAvaria();
@@ -1022,7 +1028,7 @@ namespace Locadora_Auto.Domain.Entidades
 
             var periodo = ApurarPeriodo(filialRetirada);
             ApurarQuilometragem(veiculo, categoria, periodo);
-            ApurarCombustivel(veiculo, filialDevolucao);
+            var combustivel = ApurarCombustivel(veiculo, filialDevolucao);
             ApurarProtecoes(periodo);
             ApurarAcessorios(periodo);
             ApurarTaxaOneWay(filialDevolucao, idFuncionarioAlcada, motivoAlcada);
@@ -1037,12 +1043,20 @@ namespace Locadora_Auto.Domain.Entidades
 
             SelarFechamento();
 
+            var caucaoConsumida = ResolverCaucao();
+
+            // doc 07 §6: `Fechada → Finalizada` quando não sobra nada, `→ ComSaldoResidual` quando
+            // sobra. Mora aqui e não em quem chama porque é o último passo do mesmo ato — deixá-lo
+            // de fora produziria contrato `Fechada` que nunca sai de lá
+            LiquidarSaldo();
+
             return new ResultadoDaApuracao
             {
                 Fechamento = Fechamento!,
                 Avarias = avarias,
+                Combustivel = combustivel,
                 MultasRecusadas = multasRecusadas,
-                CaucaoConsumida = ResolverCaucao()
+                CaucaoConsumida = caucaoConsumida
             };
         }
 

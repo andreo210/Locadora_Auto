@@ -245,7 +245,13 @@ notificador. As duas formas de sinalizar erro coexistem neste fluxo.
 
 ---
 
-## 5. Finalizar locação (devolução)
+## 5. Devolução e fechamento
+
+Doc `07` §1: **DEVOLUÇÃO → FECHAMENTO → QUITAÇÃO** são atos distintos, e desde o backlog `A11` são
+portas distintas. Antes havia uma só, `POST {id}/finalizar`, que recebia o `valorFinal` digitado por
+quem chamava — nenhum cálculo, nenhum extrato.
+
+### 5.1 Devolução — encerra a posse
 
 ```mermaid
 sequenceDiagram
@@ -253,28 +259,71 @@ sequenceDiagram
     actor At as Atendente
     participant Ctl as LocacoesController
     participant Svc as LocacaoService
-    participant Rep as ILocacaoRepository
     participant Loc as Locacao (agregado)
     participant Vei as Veiculo
     participant Db as PostgreSQL
 
-    At->>Ctl: POST api/locacoes/{id}/finalizar<br/>{ dataFimReal, kmFinal, valorFinal, filialDevolucao }
-    Ctl->>Svc: FinalizarAsync(id, ..., ct)
-    Svc->>Rep: ObterPrimeiroAsync(id, incluir: Veiculo, rastreado: true)
-    Rep->>Db: SELECT tb_locacao JOIN tb_veiculo
-    Db-->>Svc: locação com veículo
+    At->>Ctl: POST api/locacoes/{id}/devolucao<br/>{ dataFimReal, idFilialDevolucao }
+    Ctl->>Svc: RegistrarDevolucaoAsync(id, dto, ct)
+    Svc->>Db: SELECT locação + veículo + pagamentos + vistorias/danos
+    Note over Svc: guardas repetidas como notificação:<br/>veículo locado, filial existe,<br/>par de vistorias (RN-57)
 
-    Svc->>Loc: Finalizar(dataFimReal, kmFinal,<br/>valorFinal, filialDevolucao)
-    Note over Loc: Status deve ser Criada<br/>dataFimReal >= DataInicio<br/>kmFinal >= KmInicial
-    Loc->>Loc: Status = Finalizada<br/>grava km, valor e filial de devolução
-    Loc->>Vei: Disponibilizar()
-    Vei->>Vei: Disponivel = true
+    Svc->>Loc: RegistrarDevolucao(dataFimReal, filialDevolucao)
+    Note over Loc: RN-11: o hodômetro sai da<br/>vistoria de devolução, não do DTO
+    Loc->>Loc: Status = Devolvida<br/>grava DataFimReal, KmFinal e filial
+    Loc->>Vei: RegistrarDevolucao(km, filial, contrato)
+    Vei->>Vei: Status = EmPreparacao<br/>KmAtual e FilialAtual avançam
 
-    Svc->>Rep: AtualizarSalvarAsync(locacao, ct)
-    Rep->>Db: UPDATE tb_locacao, tb_veiculo
-    Svc-->>Ctl: true
+    Svc->>Db: UPDATE tb_locacao, tb_veiculo
     Ctl-->>At: 200 OK
 ```
+
+RN-58: receber o carro **não** fecha a conta. O contrato para em `Devolvida` e o veículo entra na
+fila do pátio — não volta à oferta (RN-44).
+
+### 5.2 Fechamento — apura, fecha e resolve a caução
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor At as Atendente
+    participant Ctl as LocacoesController
+    participant Svc as LocacaoService
+    participant Loc as Locacao (agregado)
+    participant Fec as FechamentoLocacao
+    participant Cau as Caucao
+    participant Db as PostgreSQL
+
+    At->>Ctl: POST api/locacoes/{id}/fechamento<br/>{ idFuncionarioApuracao, alçada? }
+    Ctl->>Svc: ApurarFechamentoAsync(id, dto, ct)
+
+    Svc->>Db: SELECT com Include de vistorias, danos, fotos,<br/>categoria, seguros, adicionais,<br/>pagamentos, multas, cauções e filiais
+    Note over Svc: falta de Include aqui faz a conta<br/>sair MENOR, sem erro e sem aviso
+
+    Svc->>Loc: ApurarFechamento(veiculo, categoria,<br/>filialRetirada, filialDevolucao, idFuncionario)
+
+    alt conta já selada (RN-32)
+        Loc-->>Svc: mesma conta, JaEstavaApurado = true
+    else primeira apuração
+        Loc->>Fec: Abrir + Lancar (período, km, combustível,<br/>proteção, acessórios, taxas, avarias,<br/>multas, pagamentos)
+        Note over Fec: uma linha por regra, imutável,<br/>arredondada a 2 casas (RN-31, RN-33)
+        Loc->>Fec: Selar()
+        Loc->>Loc: ValorFinal = Saldo<br/>Status = Fechada
+        Loc->>Cau: Consumir(saldo) ou Devolver()
+        Note over Cau: RN-30: só depois do saldo apurado
+        Loc->>Loc: LiquidarSaldo()<br/>Finalizada ou ComSaldoResidual
+        Svc->>Db: UPDATE + INSERT tb_fechamento_locacao,<br/>tb_linha_fechamento
+    end
+
+    Svc-->>Ctl: ResultadoDaApuracaoDto<br/>extrato + saldo residual + avisos
+    Ctl-->>At: 200 OK
+```
+
+A recusa de regra do domínio (`DomainException`) é **capturada pelo serviço** e vira notificação —
+sem isso, uma filial não habilitada para one-way (RN-22) sairia como 500 no balcão. Os avisos que
+acompanham o extrato — avaria em análise com prazo, multa recusada por redundância, combustível não
+cobrado por falta de cadastro — são parte da resposta, não log: cada um é dinheiro ou prazo que
+alguém precisa acompanhar.
 
 ---
 

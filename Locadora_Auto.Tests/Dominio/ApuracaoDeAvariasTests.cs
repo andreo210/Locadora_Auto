@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -323,7 +323,7 @@ namespace Locadora_Auto.Tests.Dominio
             Registrar(vistoria, isentas, d => d.Isentar());
             Registrar(vistoria, canceladas, d => d.Cancelar());
 
-            locacao.RegistrarDevolucao(devolucao, 15_400, 1);
+            locacao.RegistrarDevolucao(devolucao, 1);
             locacao.AbrirFechamento(1);
 
             var filial = Fabrica.Filial();

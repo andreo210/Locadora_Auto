@@ -380,8 +380,11 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             => _locacaoRepository.ExisteAsync(
                 Locacao.Sobrepostas(idVeiculo, inicio, fim, idLocacaoIgnorada), ct);
 
-        public async Task<bool> FinalizarAsync(int id, DateTime dataFimReal, int kmFinal, decimal valorFinal, int filialDevolucao, CancellationToken ct = default)
+        public async Task<bool> RegistrarDevolucaoAsync(int id, RegistrarDevolucaoDto dto, CancellationToken ct = default)
         {
+            var dataFimReal = dto.DataFimReal;
+            var filialDevolucao = dto.IdFilialDevolucao;
+
             // as vistorias entram no Include por duas razões: a RN-57 exige o par delas para
             // aceitar a devolução, e AbrirManutencaoPorAvaria varre os danos da vistoria de
             // devolução — sem carregá-las, a avaria nunca virava ordem corretiva
@@ -404,8 +407,12 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
             if (locacao.Veiculo.Status != StatusVeiculo.Locado)
                 _notificador.Add($"Veículo da locação não está locado (situação atual: {locacao.Veiculo.Status})");
 
-            if (kmFinal < locacao.Veiculo.KmAtual)
-                _notificador.Add($"Quilometragem não pode retroceder: o veículo está com {locacao.Veiculo.KmAtual} km e foi informado {kmFinal} km");
+            // RN-11: o hodômetro não é mais informado aqui — sai da vistoria de devolução, que a
+            // guarda logo abaixo exige. A checagem contra o odômetro do ativo continua valendo
+            var vistoriaDeDevolucao = locacao.Vistorias.LastOrDefault(v => v.Tipo == TipoVistoria.Devolucao);
+
+            if (vistoriaDeDevolucao != null && vistoriaDeDevolucao.KmVeiculo < locacao.Veiculo.KmAtual)
+                _notificador.Add($"Quilometragem não pode retroceder: o veículo está com {locacao.Veiculo.KmAtual} km e a vistoria registrou {vistoriaDeDevolucao.KmVeiculo} km");
 
             if (!await _filialRepository.ExisteAsync(f => f.IdFilial == filialDevolucao, ct))
                 _notificador.Add("Filial de devolução não encontrada");
@@ -423,23 +430,130 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
 
             try
             {
-                // RN-58: são dois atos, não um. A devolução encerra a posse; o fechamento encerra o
-                // contrato. Enquanto a apuração real não existir (backlog A5–A10), valorFinal chega
-                // pronto de quem chama e o fechamento é provisório — mas o ciclo de vida já é o
-                // definitivo, e o A11 só precisa separar esta chamada em duas portas da Api.
-                locacao.RegistrarDevolucao(dataFimReal, kmFinal, filialDevolucao);
-                locacao.Fechar(valorFinal);
-                locacao.LiquidarSaldo();
+                // RN-58: são dois atos, não um. Este encerra a posse; quem encerra o contrato é
+                // `ApurarFechamentoAsync`, e é ele quem calcula o valor — ninguém mais o digita
+                locacao.RegistrarDevolucao(dataFimReal, filialDevolucao);
 
                 await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
                 return true;
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or DomainException)
             {
                 _notificador.Add(ex.Message);
                 return false;
             }
         }
+
+        /// <summary>
+        /// Doc 07 §1, FECHAMENTO. Toda a regra mora no domínio (backlog A5–A10); o que este método
+        /// faz é <b>carregar o grafo inteiro</b> e traduzir a recusa em notificação.
+        ///
+        /// O carregamento é a parte que dá errado em silêncio: o domínio lê vistorias, danos,
+        /// fotos, seguros, adicionais, pagamentos e cauções das coleções, e qualquer uma que falte
+        /// no <c>Include</c> produz uma conta <b>menor</b> — sem erro, sem aviso, com o cliente
+        /// pagando a menos e ninguém sabendo.
+        /// </summary>
+        public async Task<ResultadoDaApuracaoDto?> ApurarFechamentoAsync(
+            int id, ApurarFechamentoDto dto, CancellationToken ct = default)
+        {
+            var locacao = await ObterLocacaoParaApuracao(id, ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return null;
+            }
+
+            if (dto.IdFuncionarioApuracao <= 0)
+            {
+                _notificador.Add("Informe o funcionário responsável pela apuração");
+                return null;
+            }
+
+            // as quatro navegações que a apuração exige. Nulas aqui só por cadastro inconsistente
+            // — o Include acima as pede todas —, mas a alternativa é NullReference virando 500
+            if (locacao.Veiculo?.Categoria == null)
+            {
+                _notificador.Add("Veículo ou categoria do contrato não encontrados");
+                return null;
+            }
+
+            if (locacao.FilialRetirada == null || locacao.FilialDevolucao == null)
+            {
+                _notificador.Add("Contrato sem filial de retirada ou de devolução: registre a devolução antes de apurar");
+                return null;
+            }
+
+            try
+            {
+                var resultado = locacao.ApurarFechamento(
+                    locacao.Veiculo,
+                    locacao.Veiculo.Categoria,
+                    locacao.FilialRetirada,
+                    locacao.FilialDevolucao,
+                    dto.IdFuncionarioApuracao,
+                    dto.IdFuncionarioAlcada,
+                    dto.MotivoAlcada);
+
+                // idempotente: nada mudou, nada a gravar (RN-32)
+                if (!resultado.JaEstavaApurado)
+                    await _locacaoRepository.AtualizarSalvarAsync(locacao, ct);
+
+                return resultado.ToDto();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or DomainException)
+            {
+                // as guardas do fechamento são dezenas — repeti-las aqui seria garantir que um dia
+                // divergissem. A mensagem do domínio já é a que o balcão precisa ler
+                _notificador.Add(ex.Message);
+                return null;
+            }
+        }
+
+        public async Task<FechamentoLocacaoDto?> ObterFechamentoAsync(int id, CancellationToken ct = default)
+        {
+            var locacao = await _locacaoRepository.ObterPrimeiroAsync(
+                x => x.IdLocacao == id,
+                incluir: q => q.Include(l => l.Fechamento!).ThenInclude(f => f.Linhas),
+                ct: ct);
+
+            if (locacao == null)
+            {
+                _notificador.Add("Locação não encontrada");
+                return null;
+            }
+
+            if (locacao.Fechamento == null)
+            {
+                _notificador.Add("Este contrato ainda não teve a conta apurada");
+                return null;
+            }
+
+            return locacao.Fechamento.ToDto();
+        }
+
+        /// <summary>
+        /// O grafo que a apuração lê. Cada <c>Include</c> aqui corresponde a uma regra: vistorias e
+        /// danos (RN-11, RN-24), fotos (RN-23), categoria (RN-08), seguros (RN-18), adicionais
+        /// (RN-17), pagamentos (RN-28), cauções (RN-30) e as duas filiais (RN-03, RN-15, RN-21).
+        /// </summary>
+        private Task<Locacao?> ObterLocacaoParaApuracao(int id, CancellationToken ct)
+            => _locacaoRepository.ObterPrimeiroAsync(
+                x => x.IdLocacao == id,
+                incluir: q => q
+                    .Include(l => l.Veiculo).ThenInclude(v => v.Categoria)
+                    .Include(l => l.FilialRetirada)
+                    .Include(l => l.FilialDevolucao)
+                    .Include(l => l.Vistorias).ThenInclude(v => v.Danos)
+                    .Include(l => l.Vistorias).ThenInclude(v => v.Fotos)
+                    .Include(l => l.Seguros)
+                    .Include(l => l.Adicionais)
+                    .Include(l => l.Pagamentos)
+                    .Include(l => l.Multas)
+                    .Include(l => l.Caucoes)
+                    .Include(l => l.Fechamento!).ThenInclude(f => f.Linhas),
+                rastreado: true,
+                ct: ct);
         public async Task<bool> CancelarAsync(int id, CancellationToken ct = default)
         {
             var locacao = await ObterLocacao(id, ct);

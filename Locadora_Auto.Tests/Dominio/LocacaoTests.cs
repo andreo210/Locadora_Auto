@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -169,7 +169,7 @@ namespace Locadora_Auto.Tests.Dominio
             var locacao = Fabrica.Locacao();
 
             Assert.Throws<InvalidOperationException>(() =>
-                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_400, filialDevolucao: 1));
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, filialDevolucao: 1));
         }
 
         [Fact]
@@ -178,7 +178,7 @@ namespace Locadora_Auto.Tests.Dominio
             var locacao = Fabrica.LocacaoEmAndamento();
 
             Assert.Throws<InvalidOperationException>(() =>
-                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_400, filialDevolucao: 1));
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, filialDevolucao: 1));
         }
 
         [Fact]
@@ -202,7 +202,7 @@ namespace Locadora_Auto.Tests.Dominio
             Fabrica.DefinirId(locacao.Vistorias.Single(v => v.Tipo == TipoVistoria.Devolucao), 8);
             locacao.RegistrarDanoVistoria(8, "Risco na porta direita", TipoDano.Risco, 350m);
 
-            locacao.RegistrarDevolucao(locacao.DataFimPrevista, kmFinal: 15_400, filialDevolucao: 1);
+            locacao.RegistrarDevolucao(locacao.DataFimPrevista, filialDevolucao: 1);
 
             var manutencao = Assert.Single(veiculo.Manutencoes);
             Assert.Equal(TipoManutencao.Corretiva, manutencao.Tipo);
@@ -239,7 +239,7 @@ namespace Locadora_Auto.Tests.Dominio
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 14_999, null);
 
             Assert.Throws<InvalidOperationException>(() =>
-                locacao.RegistrarDevolucao(locacao.DataFimPrevista, kmFinal: 14_999, filialDevolucao: 1));
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, filialDevolucao: 1));
         }
 
         [Fact]
@@ -249,7 +249,7 @@ namespace Locadora_Auto.Tests.Dominio
             locacao.RegistrarVistoria(3, TipoVistoria.Devolucao, NivelCombustivel.Meio, 15_400, null);
 
             Assert.Throws<InvalidOperationException>(() =>
-                locacao.RegistrarDevolucao(locacao.DataInicio.AddHours(-1), 15_400, 1));
+                locacao.RegistrarDevolucao(locacao.DataInicio.AddHours(-1), 1));
         }
 
         [Fact]
@@ -258,7 +258,7 @@ namespace Locadora_Auto.Tests.Dominio
             var locacao = Finalizada();
 
             Assert.Throws<InvalidOperationException>(() =>
-                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 15_500, 1));
+                locacao.RegistrarDevolucao(locacao.DataFimPrevista, 1));
         }
 
         // ======================= fechamento =======================

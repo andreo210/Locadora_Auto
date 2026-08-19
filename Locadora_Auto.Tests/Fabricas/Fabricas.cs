@@ -161,7 +161,7 @@ namespace Locadora_Auto.Tests.Fabricas
                 kmFinal,
                 observacoes: null);
 
-            locacao.RegistrarDevolucao(dataFimReal ?? locacao.DataFimPrevista, kmFinal, filialDevolucao);
+            locacao.RegistrarDevolucao(dataFimReal ?? locacao.DataFimPrevista, filialDevolucao);
 
             return locacao;
         }
@@ -238,6 +238,32 @@ namespace Locadora_Auto.Tests.Fabricas
         /// normalmente viria do banco, e sem ele todo filtro por id casaria com a entidade errada.
         /// </summary>
         public static void DefinirId(object entidade, int id) => ChavePrimaria.Definir(entidade, id);
+
+        /// <summary>
+        /// Liga as navegações que a apuração do fechamento lê — veículo, categoria e as duas
+        /// filiais.
+        ///
+        /// Em produção quem faz isso é o <c>Include</c> do EF; o <c>RepositorioFake</c> o ignora
+        /// (Include só existe sobre provider do EF), e sem elas o serviço recusa a apuração dizendo
+        /// que o contrato está sem filial. É a mesma escrita por reflexão que a
+        /// <see cref="DefinirId"/> faz na chave primária, e pelo mesmo motivo: em memória não há
+        /// EF para materializar o grafo.
+        /// </summary>
+        public static void LigarNavegacoesDoFechamento(
+            Locacao locacao, Veiculo veiculo, CategoriaVeiculo categoria, Filial retirada, Filial devolucao)
+        {
+            veiculo.Categoria = categoria;
+
+            // o nome vai como texto porque `Locacao` aqui dentro resolve para o método desta
+            // fábrica, e não para o tipo — o mesmo motivo dos `Domain.Entidades.` espalhados acima
+            Escrever(locacao, "FilialRetirada", retirada);
+            Escrever(locacao, "FilialDevolucao", devolucao);
+        }
+
+        private static void Escrever(object entidade, string propriedade, object valor)
+            => entidade.GetType()
+                .GetProperty(propriedade)!
+                .SetValue(entidade, valor);
 
         /// <summary>
         /// Põe a trilha do veículo (RN-37) no armazém como o <c>SaveChangesAsync</c> faria, para

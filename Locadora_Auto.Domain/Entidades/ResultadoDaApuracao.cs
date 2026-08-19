@@ -25,6 +25,13 @@
         /// </summary>
         public IReadOnlyList<Multa> MultasRecusadas { get; init; } = Array.Empty<Multa>();
 
+        /// <summary>
+        /// RN-14: como o combustível foi apurado. Interessa quando <b>não</b> foi cobrado por falta
+        /// de cadastro — tanque não informado ou preço do litro zerado —, que é receita perdida em
+        /// silêncio se ninguém for avisado. Nulo quando a apuração não rodou nesta chamada.
+        /// </summary>
+        public ApuracaoDeCombustivel? Combustivel { get; init; }
+
         /// <summary>RN-30: quanto a garantia quitou.</summary>
         public decimal CaucaoConsumida { get; init; }
 

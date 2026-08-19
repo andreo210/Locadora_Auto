@@ -1,4 +1,4 @@
-using Locadora_Auto.Domain.Entidades;
+﻿using Locadora_Auto.Domain.Entidades;
 using Locadora_Auto.Tests.Fabricas;
 using Xunit;
 
@@ -50,13 +50,16 @@ namespace Locadora_Auto.Tests.Dominio
         // ======================= RN-29: o saldo vira o valor final =======================
 
         [Fact]
-        public void Selar_leva_o_contrato_a_fechada_e_grava_o_saldo_apurado()
+        public void Apurar_grava_o_saldo_como_valor_final_e_liquida_o_contrato()
         {
+            // `SelarFechamento` leva a `Fechada`, e a liquidação logo em seguida decide entre
+            // `Finalizada` e `ComSaldoResidual` (doc 07 §6) — aqui sobra conta a cobrar
             var cenario = Montar();
             var apuracao = cenario.Apurar();
 
-            Assert.Equal(StatusLocacao.Fechada, cenario.Locacao.Status);
             Assert.Equal(apuracao.Saldo, cenario.Locacao.ValorFinal);
+            Assert.Equal(StatusLocacao.ComSaldoResidual, cenario.Locacao.Status);
+            Assert.True(cenario.Locacao.Fechamento!.Selado);
         }
 
         [Fact]
@@ -324,7 +327,7 @@ namespace Locadora_Auto.Tests.Dominio
             var vistoria = locacao.Vistorias.Single(v => v.Tipo == TipoVistoria.Devolucao);
             Fabrica.DefinirId(vistoria, 5);
 
-            locacao.RegistrarDevolucao(Devolucao, 15_100, 1);
+            locacao.RegistrarDevolucao(Devolucao, 1);
 
             var filial = Fabrica.Filial();
             Fabrica.DefinirId(filial, 1);

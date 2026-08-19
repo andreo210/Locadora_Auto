@@ -61,23 +61,43 @@ namespace Locadora_Auto.Api.Controllers.V1.Controllers
             return CustomResponse(resultado);
         }
 
-        // ====================== FINALIZAR LOCAÇÃO ======================
-        [HttpPost("{id:int}/finalizar")]
-        public async Task<IActionResult> Finalizar(int id, [FromBody] FinalizarLocacaoDto dto, CancellationToken ct)
+        // ====================== DEVOLUÇÃO E FECHAMENTO ======================
+        //
+        // Doc 07 §1: DEVOLUÇÃO → FECHAMENTO → QUITAÇÃO são atos distintos, e agora são portas
+        // distintas. Antes havia uma só, `POST {id}/finalizar`, que recebia o `valorFinal` digitado
+        // por quem chamava — nenhum cálculo, nenhum extrato.
+
+        /// <summary>Encerra a posse: o carro volta ao pátio e o contrato vai a `Devolvida`.</summary>
+        [HttpPost("{id:int}/devolucao")]
+        public async Task<IActionResult> RegistrarDevolucao(int id, [FromBody] RegistrarDevolucaoDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return CustomResponse(ModelState);
 
-            var sucesso = await _locacaoService.FinalizarAsync(
-                id,
-                dto.DataFimReal,
-                dto.KmFinal,
-                dto.ValorFinal,
-                dto.IdFilialDevolucao,
-                ct
-            );
-
+            var sucesso = await _locacaoService.RegistrarDevolucaoAsync(id, dto, ct);
             return CustomResponse(sucesso);
+        }
+
+        /// <summary>
+        /// Apura a conta, fecha o contrato e resolve a caução. Idempotente (RN-32): repetir a
+        /// chamada devolve a mesma apuração, sem cobrar nada de novo.
+        /// </summary>
+        [HttpPost("{id:int}/fechamento")]
+        public async Task<IActionResult> ApurarFechamento(int id, [FromBody] ApurarFechamentoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return CustomResponse(ModelState);
+
+            var resultado = await _locacaoService.ApurarFechamentoAsync(id, dto, ct);
+            return CustomResponse(resultado);
+        }
+
+        /// <summary>O extrato discriminado (RN-31) — a conta que o cliente recebe.</summary>
+        [HttpGet("{id:int}/fechamento")]
+        public async Task<IActionResult> ObterFechamento(int id, CancellationToken ct)
+        {
+            var fechamento = await _locacaoService.ObterFechamentoAsync(id, ct);
+            return CustomResponse(fechamento);
         }
 
         // ====================== CANCELAR LOCAÇÃO ======================

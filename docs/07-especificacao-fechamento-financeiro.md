@@ -3,9 +3,9 @@
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
-> consome e **a apuração inteira** (§3.1 a §3.7), da diária ao consumo da caução. O que falta é a
-> **porta**: a Api ainda não expõe nada disso, e o balcão continua digitando o valor da devolução
-> (backlog `A11`).
+> consome, **a apuração inteira** (§3.1 a §3.7) e a **porta da Api** que a expõe:
+> `POST locacoes/{id}/devolucao`, `POST locacoes/{id}/fechamento` e `GET locacoes/{id}/fechamento`.
+> O balcão parou de digitar o valor da devolução. O que resta é tela (backlog `F1`).
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,

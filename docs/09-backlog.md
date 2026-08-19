@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A11** (porta da Api) → **A12** (cenários gherkin restantes) | A apuração inteira existe no domínio e ninguém consegue chamá-la: o balcão continua digitando o valor. O `A11` é o que transforma seis blocos de regra em funcionalidade |
+| Fio principal | **F1** (módulo de locações no front) | O bloco A acabou: a Api apura e devolve o extrato. Agora falta a tela — e o `F1` deixou de depender do `A11`, que era o motivo de esperar |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,13 +37,13 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A10` estão feitos: **a apuração inteira existe e funciona no domínio.**
-`Locacao.ApurarFechamento(...)` recebe veículo, categoria e as duas filiais, escreve a conta
-discriminada, sela o contrato em `Fechada` com o saldo apurado e resolve a caução.
+`A1` a `A11` estão feitos: **o fechamento financeiro funciona ponta a ponta.** `POST
+locacoes/{id}/fechamento` apura a conta discriminada, fecha o contrato com o saldo calculado,
+resolve a caução e devolve o extrato com os avisos; `GET locacoes/{id}/fechamento` relê o extrato.
+O balcão parou de digitar o valor da devolução — era o buraco funcional que abriu o bloco A.
 
-O que falta é a **porta**: a Api ainda não expõe nada disso, e `ILocacaoService.FinalizarAsync`
-continua recebendo `valorFinal` de quem chama (`A11`). Enquanto isso não entrar, o balcão continua
-digitando o valor.
+Sobra o `A12` (os cenários gherkin do doc `07` §10 que ainda não viraram teste) e, no front, o `F1`,
+que agora tem uma Api completa para consumir.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -364,23 +364,40 @@ Inclui consertar a máquina da caução, que hoje está quebrada: `Caucao.Devolv
 `Deduzir` zera o valor marcando `Bloqueada`, e `StatusCaucao.Utilizada` não é atribuído em lugar
 nenhum.
 
-**A11 · Porta da Api** — `M` · **é por aqui que se começa**
-`ILocacaoService.FinalizarAsync` deixa de receber `valorFinal`; entra endpoint de apuração e
-leitura do fechamento discriminado (o extrato que o cliente recebe). **Quebra o contrato do
-`CriarLocacaoDto`/`FinalizarLocacaoDto`** — combinar com `F1` na mesma entrega.
+~~**A11 · Porta da Api** — `M`~~ **feito.** Sem migration.
+`POST {id}/devolucao`, `POST {id}/fechamento` e `GET {id}/fechamento` substituem o
+`POST {id}/finalizar`, que recebia o `valorFinal` digitado. `FinalizarLocacaoDto` saiu; entraram
+`RegistrarDevolucaoDto`, `ApurarFechamentoDto`, `FechamentoLocacaoDto`, `LinhaFechamentoDto` e
+`ResultadoDaApuracaoDto`.
 
-O domínio já está pronto: chamar `Locacao.ApurarFechamento(veiculo, categoria, filialRetirada,
-filialDevolucao, idFuncionario)` e traduzir o `ResultadoDaApuracao`. O serviço precisa carregar a
-locação com **vistorias, danos, seguros, adicionais, pagamentos e cauções** — o domínio lê tudo isso
-das coleções, e sem `Include` a conta sai menor sem ninguém perceber. As três coisas que o resultado
-devolve para virar aviso: avaria em análise (com prazo), multas recusadas e saldo residual.
+**O balcão parou de digitar o valor da devolução.** É o fim do buraco funcional que abriu o bloco A.
 
-Dois débitos registrados que vencem aqui:
+Quatro decisões:
 
-- **`RegistrarDevolucao` ainda recebe `kmFinal`**, que duplica o hodômetro da vistoria (achado no
-  `A6`). Ou passa a lê-lo da vistoria, ou a divergência vira aviso.
-- **`Fechar(valorFinal)`** deixa de existir junto com o parâmetro; hoje ele só recusa quando há
-  apuração aberta.
+- **Três portas, não uma** (doc 07 §1: DEVOLUÇÃO → FECHAMENTO → QUITAÇÃO). O `A1` já tinha separado
+  os atos no domínio e deixado a Api com uma chamada só; era isto que faltava. `FinalizarAsync`
+  virou `RegistrarDevolucaoAsync`, que é o que ela sempre fez.
+- **`DomainException` deixou de ser `internal`.** O serviço não repete as guardas do fechamento —
+  são dezenas, e duplicá-las seria garantir que um dia divergissem. Ele captura e notifica, que é o
+  caminho do `CustomResponse` para 4xx. **Isto é parte do `C5`**, não o `C5` inteiro: mapeá-la
+  também no `ExceptionProblemFactory`, para o caso de escapar, continua aberto.
+- **O carregamento é a parte que dá errado em silêncio.** `ObterLocacaoParaApuracao` tem um
+  `Include` por regra — vistorias, danos, fotos, categoria, seguros, adicionais, pagamentos, multas,
+  cauções e as duas filiais. Faltando qualquer um, a conta sai **menor**, sem erro e sem aviso.
+- **Os avisos são parte da resposta, não log.** Avaria em análise com prazo, multa recusada por
+  redundância, combustível não cobrado por falta de cadastro e saldo residual saem em
+  `ResultadoDaApuracaoDto.Avisos`. O `ResultadoDaApuracao` ganhou o `Combustivel` para isso —
+  faltava desde o `A6`, onde a `SituacaoDoCombustivel` era calculada e descartada.
+
+**O débito do `kmFinal` foi pago:** `RegistrarDevolucao` não recebe mais o hodômetro, que sai da
+vistoria de devolução (RN-11) — a mesma que o método já exigia. Havia dois registros do mesmo fato
+sem nada garantindo que concordassem.
+
+**O que não foi feito:** `Locacao.Fechar(valorFinal)` **continua existindo**. Nenhum caminho da Api
+o usa — ele já recusa quando há apuração aberta —, mas removê-lo obrigaria `Fabrica.LocacaoFechada`
+e seus dependentes a montar a apuração inteira só para ter um contrato fechado, acoplando dezenas de
+testes de multa e pós-contrato a maquinário que não é o deles. Fica como porta administrativa, e a
+remoção espera a migração desses testes.
 
 **A12 · Testes do fechamento** — `M`
 Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no molde de
@@ -495,11 +512,14 @@ como em `Reserva`/`Seguro`/`Veiculo`. É o que sustenta a listagem de `F1`.
 `Filial` e `CategoriaVeiculo` não aceitam ordenação. **Muda a query string** — o
 `Locadora_Auto.Front.Services` correspondente entra na mesma mudança.
 
-**C5 · `DomainException` escapando vira 500** — `P`
-Ela é `internal`, não deriva de `InvalidOperationException` e não está no `ExceptionProblemFactory`.
-Hoje a proteção é os serviços repetirem as guardas do domínio antes de chamá-lo — e o bloco B
-triplicou essa repetição: bloqueio, transferência e desmobilização têm cada um a guarda no domínio
-e a cópia dela no serviço. Mapear para 400/409 ou fixar por teste que ela nunca escapa.
+**C5 · `DomainException` escapando vira 500** — `P` · **metade feita no `A11`**
+Ela deixou de ser `internal`, e o `LocacaoService` passou a capturá-la na apuração do fechamento —
+que tem dezenas de guardas e onde repeti-las seria garantir que um dia divergissem.
+
+O que falta: ela **não está no `ExceptionProblemFactory`** e não deriva de
+`InvalidOperationException`, então continua virando 500 em qualquer serviço que não a capture — e
+os do bloco B (bloqueio, transferência, desmobilização) seguem repetindo a guarda no domínio e no
+serviço. Mapear para 400/409 no factory, ou fixar por teste que ela nunca escapa, resolveria os dois.
 
 **C6 · Valores de negócio na rota e na query** — `P`
 `POST {id}/caucao/{valor:decimal}`, `caucao/{idCaucao}/bloquear?motivo=`,
@@ -553,9 +573,16 @@ Todo item aqui é rota que hoje devolve 404 a partir do menu ou da Home.
 `/locacoes`, `/locacoes/nova`, `/locacoes/ativas`, `/locacoes/finalizadas`, visualizar. Não existe
 `ILocacaoService` em `Front.Services`, nem `Request`/`Response`, nem validador — e o botão **"Nova
 locação" da Home cai em 404**. É a tela do balcão: o sistema inteiro existe para ela.
-Fatiar em quatro: (a) serviço + listagem na `TabelaGenerica`; (b) abertura, com reserva opcional;
-(c) visualização; (d) finalizar e cancelar. Depende de `C3` para a listagem paginada, e de `A11`
-se o fechamento chegar antes.
+Fatiar em cinco: (a) serviço + listagem na `TabelaGenerica`; (b) abertura, com reserva opcional;
+(c) visualização; (d) devolução e cancelar; (e) **fechamento e extrato**. Depende de `C3` para a
+listagem paginada.
+
+O `A11` já entregou a Api inteira do fechamento, e com ela o item (e), que é a tela mais valiosa do
+módulo: `POST {id}/devolucao` encerra a posse, `POST {id}/fechamento` apura e devolve o extrato com
+os avisos, `GET {id}/fechamento` relê. A tela precisa mostrar as linhas discriminadas — é a conta
+que o cliente confere item a item — e exibir os avisos com destaque, porque cada um é dinheiro ou
+prazo que alguém vai ter de acompanhar. A alçada da RN-22 pede um segundo campo no formulário:
+responsável e motivo, quando a filial de destino não aceita one-way.
 
 **F2 · Operação da locação aberta** — `G`
 Abas de vistoria, adicionais, seguros, multas, pagamentos e caução. Todos os endpoints já existem

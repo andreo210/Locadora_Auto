@@ -386,16 +386,26 @@ namespace Locadora_Auto.Tests.Servicos
             return locacao;
         }
 
+        /// <summary>
+        /// RN-11: a devolução não informa mais o hodômetro — ele sai da vistoria. O que sobra no
+        /// DTO é a data e a filial.
+        /// </summary>
+        private static RegistrarDevolucaoDto Devolucao(Cenario cenario, int? idFilialDevolucao = null)
+            => new()
+            {
+                DataFimReal = DateTime.UtcNow.AddDays(2),
+                IdFilialDevolucao = idFilialDevolucao ?? cenario.Filial.IdFilial
+            };
+
         [Fact]
-        public async Task Finalizar_sem_o_par_de_vistorias_notifica_em_vez_de_lancar()
+        public async Task Devolver_sem_o_par_de_vistorias_notifica_em_vez_de_lancar()
         {
             // sem base comparável entre retirada e devolução não há cobrança de avaria, km nem
             // combustível que se sustente — o contrato não pode ser devolvido
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
 
-            var sucesso = await cenario.Service.FinalizarAsync(
-                criada!.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, cenario.Filial.IdFilial);
+            var sucesso = await cenario.Service.RegistrarDevolucaoAsync(criada!.IdLocacao, Devolucao(cenario));
 
             Assert.False(sucesso);
             Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("vistoria de retirada"));
@@ -403,27 +413,25 @@ namespace Locadora_Auto.Tests.Servicos
         }
 
         [Fact]
-        public async Task Finalizar_devolve_o_carro_e_fecha_a_conta()
+        public async Task Devolver_encerra_a_posse_sem_fechar_a_conta()
         {
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
             var locacao = PrepararParaDevolucao(cenario, criada!.IdLocacao);
 
-            var sucesso = await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, cenario.Filial.IdFilial);
+            var sucesso = await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario));
 
             Assert.True(sucesso);
             Assert.False(cenario.Notificador.TemNotificacao());
 
-            // RN-58: a porta da Api ainda é uma só (o A11 separa), mas o ciclo já é o definitivo —
-            // devolução e fechamento são dois atos, e sem pagamento sobra saldo a cobrar
-            Assert.Equal(StatusLocacao.ComSaldoResidual, locacao.Status);
-            Assert.Equal(500m, locacao.ValorFinal);
-            Assert.Equal(500m, locacao.SaldoEmAberto());
+            // RN-58: receber o carro encerra a posse e mais nada. A conta é o ato seguinte, e até
+            // ele acontecer o contrato não tem valor final nenhum
+            Assert.Equal(StatusLocacao.Devolvida, locacao.Status);
+            Assert.Null(locacao.ValorFinal);
         }
 
         [Fact]
-        public async Task Finalizar_manda_o_veiculo_para_a_preparacao_e_avanca_km_e_filial()
+        public async Task Devolver_manda_o_veiculo_para_a_preparacao_e_avanca_km_e_filial()
         {
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
@@ -432,8 +440,8 @@ namespace Locadora_Auto.Tests.Servicos
             var outraFilial = Fabrica.Filial("Filial Aeroporto");
             cenario.Locacoes.Armazem.Semear(outraFilial);
 
-            var sucesso = await cenario.Service.FinalizarAsync(
-                criada!.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, outraFilial.IdFilial);
+            var sucesso = await cenario.Service.RegistrarDevolucaoAsync(
+                criada!.IdLocacao, Devolucao(cenario, outraFilial.IdFilial));
 
             Assert.True(sucesso);
             Assert.False(cenario.Notificador.TemNotificacao());
@@ -448,15 +456,15 @@ namespace Locadora_Auto.Tests.Servicos
         }
 
         [Fact]
-        public async Task Finalizar_com_km_retrocedendo_notifica_em_vez_de_lancar()
+        public async Task Devolver_com_km_retrocedendo_notifica_em_vez_de_lancar()
         {
-            // RN-54: Veiculo.RegistrarKm lança DomainException aqui
+            // RN-54: Veiculo.RegistrarKm lança DomainException aqui. O hodômetro que retrocede vem
+            // agora da própria vistoria de devolução (RN-11), não de um número informado à parte
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
-            PrepararParaDevolucao(cenario, criada!.IdLocacao);
+            PrepararParaDevolucao(cenario, criada!.IdLocacao, kmFinal: KmDoVeiculo - 500);
 
-            var sucesso = await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), KmDoVeiculo - 500, 500m, cenario.Filial.IdFilial);
+            var sucesso = await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario));
 
             Assert.False(sucesso);
             Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("retroceder"));
@@ -465,14 +473,13 @@ namespace Locadora_Auto.Tests.Servicos
         }
 
         [Fact]
-        public async Task Finalizar_com_filial_de_devolucao_inexistente_notifica()
+        public async Task Devolver_com_filial_de_devolucao_inexistente_notifica()
         {
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
             PrepararParaDevolucao(cenario, criada!.IdLocacao);
 
-            var sucesso = await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, 999);
+            var sucesso = await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario, 999));
 
             Assert.False(sucesso);
             Assert.Contains(cenario.Notificador.ObterNotificacoes(), n => n.Mensagem.Contains("Filial de devolução"));
@@ -480,16 +487,14 @@ namespace Locadora_Auto.Tests.Servicos
         }
 
         [Fact]
-        public async Task Finalizar_duas_vezes_notifica_em_vez_de_lancar()
+        public async Task Devolver_duas_vezes_notifica_em_vez_de_lancar()
         {
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
             PrepararParaDevolucao(cenario, criada!.IdLocacao);
-            await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, cenario.Filial.IdFilial);
+            await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario));
 
-            var segunda = await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), 17_000, 500m, cenario.Filial.IdFilial);
+            var segunda = await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario));
 
             Assert.False(segunda);
             Assert.True(cenario.Notificador.TemNotificacao());
@@ -518,8 +523,7 @@ namespace Locadora_Auto.Tests.Servicos
             var cenario = Montar();
             var criada = await cenario.Service.CriarAsync(Dto(cenario));
             PrepararParaDevolucao(cenario, criada!.IdLocacao);
-            await cenario.Service.FinalizarAsync(
-                criada.IdLocacao, DateTime.UtcNow.AddDays(2), 16_500, 500m, cenario.Filial.IdFilial);
+            await cenario.Service.RegistrarDevolucaoAsync(criada.IdLocacao, Devolucao(cenario));
 
             var sucesso = await cenario.Service.CancelarAsync(criada.IdLocacao);
 

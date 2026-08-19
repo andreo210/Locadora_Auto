@@ -495,7 +495,9 @@ flowchart LR
 |---|---|---|
 | Abrir locação | `POST api/locacoes` | `Locacao.Criar` |
 | Atualizar locação | `PUT api/locacoes/{id:int}` | `Locacao.AtualizarDados` |
-| Finalizar locação | `POST api/locacoes/{id:int}/finalizar` | `Locacao.Finalizar` |
+| Registrar devolução | `POST api/locacoes/{id:int}/devolucao` | `Locacao.RegistrarDevolucao` |
+| Apurar o fechamento | `POST api/locacoes/{id:int}/fechamento` | `Locacao.ApurarFechamento` |
+| Ler o extrato do fechamento | `GET api/locacoes/{id:int}/fechamento` | — |
 | Cancelar locação | `POST api/locacoes/{id:int}/cancelar` | `Locacao.Cancelar` |
 | Consultar / listar | `GET api/locacoes/{id:int}` · `GET api/locacoes` | — |
 | Registrar pagamento | `POST api/locacoes/{id:int}/pagamento` | `Locacao.AdicionarPagamento` |
