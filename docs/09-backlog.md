@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A9** (avarias e multas) → **A10** (composição e caução) → **A11**/**A12** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Sete dos oito grupos de linha já são apurados; falta o que deu errado, a composição e a porta da Api |
+| Fio principal | **A10** (composição e caução) → **A11** (porta da Api) → **A12** (testes gherkin) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. As oito apurações de linha existem; falta juntá-las ao `ValorFinal`, resolver a caução e abrir o endpoint |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A8` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
-a conta discriminada e a apuração de **período, quilometragem, combustível, proteção, acessórios e
-taxas**. Falta o que deu errado — avaria e multa — e a composição com a caução.
+`A1` a `A9` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
+a conta discriminada e **todas as oito apurações de linha**. Falta a composição — abatimento de
+pagamento, caução e idempotência (`A10`) — e a porta da Api (`A11`).
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -285,14 +285,40 @@ Quatro decisões:
 ele não era obrigatório, então a assinatura da alçada sumiria em silêncio. Agora o autor é guardado
 sempre que informado, e continua **exigido** em correção e isenção.
 
-**A9 · Avarias e multas no fechamento** — `M` · RN-24 a RN-26 · **é por aqui que se começa**
-Atenção à RN-20: a franquia limita **avaria** e nada mais. Combustível, limpeza, multa e km já saem
-sem consultar proteção — o que não pode é o `A9` começar a consultar.
-Só entram avarias em `Aprovado` ou `Cobrado`; `Registrado`/`EmAnalise` vão para o pós-contrato.
-Havendo proteção, a cobrança ao cliente é limitada à franquia contratada **somando todas as
-avarias**, não por avaria. Multa `Pendente` conhecida entra; recebida depois não reabre.
+~~**A9 · Avarias e multas no fechamento** — `M` · RN-24 a RN-26~~ **feito.**
+`ApuracaoDeAvarias` faz a conta da RN-24/RN-25; `Locacao.ApurarAvarias()` e `Locacao.ApurarMultas()`
+escrevem as linhas. Sem migration — o modelo já tinha tudo.
 
-**A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34
+Cinco decisões:
+
+- **O prazo do pós-contrato é 30 dias corridos da devolução**, em `ApuracaoDeAvarias.PrazoPosContratoDias`.
+  A RN-24 fala em "prazo máximo declarado" sem dizer qual; 30 é o mais praticado. É constante e não
+  parâmetro de filial porque é compromisso uniforme com o cliente, ao contrário do preço do litro.
+- **`Registrado` conta junto com `EmAnalise` como pendência.** A diferença entre os dois é de fluxo
+  interno; para o cliente os dois são avaria sem decisão. `Isento` e `Cancelado` ficam de fora — a
+  decisão foi tomada, e foi não cobrar.
+- **A franquia sai da proteção que cobria a devolução, não da que está `Ativo`.** Os dois discordam
+  nos dois extremos que importam: cancelada na véspera não cobre mais (certo), e cancelada **depois**
+  de devolver cobria (e `Ativo` diria que não). A janela é a do `A7`, e há teste dos dois lados.
+- **Uma linha por avaria, no valor cheio, mais uma linha de crédito quando a franquia absorve.** O
+  extrato mostra cada dano e mostra a proteção se pagando — que é o argumento de venda dela no
+  contrato seguinte. Entrou o tipo `AbatimentoPorProtecao` (crédito), separado de `Isencao` porque
+  não é alguém decidindo não cobrar: é o produto que o cliente comprou funcionando.
+- **Multa de `Atraso`, `Limpeza` e `DanoVeiculo` não entra no fechamento.** `TipoMulta` é anterior à
+  apuração — era o jeito manual de cobrar o que o `A5`, o `A8` e o próprio `A9` agora calculam —, e
+  cobrar de novo seria faturar duas vezes o mesmo fato. **Não somem em silêncio:** `ApurarMultas`
+  devolve as recusadas para quem chama avisar. `MultaTransito` e `Outros` entram normalmente.
+
+**Um defeito achado e corrigido:** `StatusDano.Cancelado` valia **6, o mesmo de `EmAnalise`** — os
+dois membros do enum compartilhavam o valor inteiro. Avaria cancelada apareceria como pendência do
+pós-contrato para sempre, cobrando um prazo que ninguém deve. `Cancelado` passou a `7`; não há
+migration porque a coluna é `int` e o schema não muda. Linhas gravadas com `6` continuam ambíguas e
+são lidas como `EmAnalise`, que é o lado conservador — viram pendência a conferir em vez de sumirem.
+
+A RN-20 foi respeitada: a franquia entra **só** na avaria. Combustível, limpeza, km e multa
+continuam saindo sem consultar proteção nenhuma.
+
+**A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34 · **é por aqui que se começa**
 Caução resolvida **depois** do saldo, e a ligação entre o fechamento discriminado e o ciclo de vida
 do contrato: hoje `FechamentoLocacao.Saldo` e `Locacao.ValorFinal` correm em paralelo, e é aqui que
 `Fechar` passa a ler o saldo em vez de recebê-lo. **Relaxar a guarda `valorFinal < 0` do `Fechar`

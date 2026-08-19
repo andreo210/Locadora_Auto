@@ -123,8 +123,20 @@
         Cobrado = 3,
         Pago = 4,
         Isento = 5,
+
+        /// <summary>RN-24: não entra no fechamento; segue para o pós-contrato com prazo declarado.</summary>
         EmAnalise = 6,
-        Cancelado = 6
+
+        /// <summary>
+        /// Avaria descartada — não entra no fechamento e não vira pendência de ninguém.
+        ///
+        /// Valia <c>6</c>, o mesmo de <see cref="EmAnalise"/>, então <c>Cancelar()</c> e
+        /// <c>ColocarEmAnalise()</c> gravavam o mesmo número e a RN-24 não conseguia distinguir os
+        /// dois: avaria cancelada apareceria como pendência do pós-contrato para sempre. As linhas
+        /// que já estiverem com 6 continuam ambíguas — lidas como <c>EmAnalise</c>, que é o lado
+        /// conservador: viram pendência a conferir em vez de sumirem.
+        /// </summary>
+        Cancelado = 7
     }
 
 }

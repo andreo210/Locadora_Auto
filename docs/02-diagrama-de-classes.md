@@ -468,6 +468,8 @@ classDiagram
         +ApurarAcessorios(periodo) decimal
         +ApurarTaxaOneWay(filialDevolucao, idFuncionarioAlcada?, motivoAlcada?) decimal
         +ApurarLimpezaEspecial(filialDevolucao) decimal
+        +ApurarAvarias() ApuracaoDeAvarias
+        +ApurarMultas() (decimal, IReadOnlyList~Multa~)
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -608,6 +610,21 @@ classDiagram
         +BaseCalculoDoTeto(toleranciaMinutos) string
     }
 
+    class ApuracaoDeAvarias {
+        +decimal TotalApurado
+        +bool TemProtecao
+        +decimal FranquiaContratada
+        +decimal AbatimentoPorProtecao
+        +decimal TotalCobravel
+        +int AvariasEmAnalise
+        +decimal ValorEmAnalise
+        +DateTime? PrazoDoPosContrato
+        +bool TemPendenciaDePosContrato
+        +PrazoPosContratoDias$ int
+        +Calcular(danos, franquiaContratada, dataFimReal)$ ApuracaoDeAvarias
+        +BaseCalculoDoAbatimento() string
+    }
+
     class ApuracaoDeProtecao {
         +decimal Diarias
         +decimal ValorDiaria
@@ -739,6 +756,8 @@ classDiagram
     Locacao ..> ApuracaoDeQuilometragem : ApurarQuilometragem()
     Locacao ..> ApuracaoDeCombustivel : ApurarCombustivel()
     Locacao ..> ApuracaoDeProtecao : ApurarProtecoes()
+    Locacao ..> ApuracaoDeAvarias : ApurarAvarias()
+    Dano ..> ApuracaoDeAvarias : valor e status
     LocacaoSeguro ..> ApuracaoDeProtecao : janela e diária congeladas
     Filial ..> ApuracaoDePeriodo : tolerância e percentual (retirada)
     Filial ..> ApuracaoDeCombustivel : preço do litro e taxa (devolução)
@@ -894,6 +913,7 @@ classDiagram
         MultaTransito = 12
         PagamentoAbatido = 20
         Isencao = 21
+        AbatimentoPorProtecao = 22
     }
 
     class NaturezaLinhaFechamento {
@@ -943,7 +963,7 @@ classDiagram
         Pago = 4
         Isento = 5
         EmAnalise = 6
-        Cancelado = 6
+        Cancelado = 7
     }
 
     class TipoManutencao {
@@ -1255,8 +1275,11 @@ fixam `api/v1/<nome>` e `LocacoesController` usa `api/locacoes`, sem versão.
 
 Pontos do modelo que divergem do que os nomes sugerem — registrados como estão hoje no código:
 
-- **`StatusDano`** tem valor duplicado: `EmAnalise = 6` e `Cancelado = 6`. Os dois membros
-  compartilham o mesmo valor inteiro, então são indistinguíveis depois de persistidos.
+- ~~**`StatusDano`** tem valor duplicado: `EmAnalise = 6` e `Cancelado = 6`.~~ **Corrigido no
+  backlog `A9`:** `Cancelado` passou a valer `7`. A RN-24 precisa distinguir os dois — avaria
+  cancelada é decisão tomada, avaria em análise é pendência com prazo —, e com o mesmo valor a
+  descartada viraria pendência para sempre. Linhas gravadas com `6` antes disso continuam
+  ambíguas e são lidas como `EmAnalise`, que é o lado conservador.
 - **`StatusCaucao.Utilizada`** está declarado mas nunca é atribuído por nenhum método.
 - **`Veiculo`** carrega três indicadores de disponibilidade em paralelo: `Ativo`, `Disponivel`
   e `Status` (`StatusVeiculo`). `Criar` inicializa `Ativo`/`Disponivel` mas deixa `Status` no

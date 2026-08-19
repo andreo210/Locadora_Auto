@@ -161,7 +161,8 @@
         private static readonly TipoLinhaFechamento[] Creditos =
         {
             TipoLinhaFechamento.PagamentoAbatido,
-            TipoLinhaFechamento.Isencao
+            TipoLinhaFechamento.Isencao,
+            TipoLinhaFechamento.AbatimentoPorProtecao
         };
 
         public static NaturezaLinhaFechamento NaturezaDe(TipoLinhaFechamento tipo)
@@ -230,6 +231,15 @@
 
         /// <summary>RN-28: pagamento em <c>Pago</c>. Pendente e falhado não abatem.</summary>
         PagamentoAbatido = 20,
+
+        /// <summary>
+        /// RN-25: o que a proteção contratada absorve das avarias, acima da franquia.
+        ///
+        /// Tipo próprio, e não <see cref="Isencao"/>, porque não é alguém decidindo não cobrar — é
+        /// o produto que o cliente comprou funcionando. Sai em linha à parte para o extrato mostrar
+        /// a proteção se pagando, que é o argumento de venda dela no contrato seguinte.
+        /// </summary>
+        AbatimentoPorProtecao = 22,
 
         /// <summary>
         /// RN-34: alguém decidiu não cobrar o que a regra apurou. Exige autor e motivo <b>sempre</b>

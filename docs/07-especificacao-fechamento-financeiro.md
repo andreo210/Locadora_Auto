@@ -3,9 +3,8 @@
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
-> consome, a conta discriminada em que ela escreve (§8) e a apuração de **período, quilometragem,
-> combustível, proteção, acessórios e taxas** (§3.1 a §3.5). Faltam avaria, multa e a composição
-> (§3.6 e §3.7).
+> consome, a conta discriminada em que ela escreve (§8) e **todas as apurações de linha** (§3.1 a
+> §3.6). Falta a composição (§3.7): abatimento de pagamento, caução e idempotência.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -146,6 +145,21 @@ motivo, que ficam gravados na própria linha do fechamento.
 | **RN-23** | **Limpeza especial** é valor fixo, cobrada só com registro na vistoria de devolução **e ao menos uma foto** | Sujeira comum é custo da operação, não cobrança |
 
 ### 3.6 Avarias e multas
+
+**Implantado** (backlog `A9`), em `ApuracaoDeAvarias` + `Locacao.ApurarAvarias` e
+`Locacao.ApurarMultas`.
+
+O "prazo máximo declarado" da RN-24 ficou em **30 dias corridos da devolução**, constante do
+domínio: é compromisso uniforme com o cliente, não parâmetro de praça. `Registrado` conta junto com
+`EmAnalise` — para o cliente os dois são avaria sem decisão.
+
+A franquia da RN-25 sai da proteção que **cobria a devolução**, pela janela do §3.4, e não do
+`Ativo`: proteção cancelada depois de devolver cobria, e `Ativo` diria que não.
+
+Uma decisão que a especificação não previa: **multa de `Atraso`, `Limpeza` e `DanoVeiculo` não entra
+no fechamento**. O `TipoMulta` é anterior à apuração — era o jeito manual de cobrar o que a §3.1, a
+§3.5 e esta §3.6 agora calculam —, e cobrar de novo seria faturar duas vezes o mesmo fato. As
+recusadas voltam na resposta, para quem chama avisar.
 
 | RN | Regra | Porquê |
 |---|---|---|

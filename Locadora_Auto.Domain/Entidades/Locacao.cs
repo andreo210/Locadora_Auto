@@ -740,6 +740,111 @@ namespace Locadora_Auto.Domain.Entidades
         }
 
         /// <summary>
+        /// RN-24 e RN-25: apura as <b>avarias</b> e escreve uma linha por avaria cobrável, mais a
+        /// linha de crédito da proteção quando a franquia absorve o excedente.
+        ///
+        /// Uma linha por avaria, e não uma soma, porque é assim que ela se defende: "risco na porta
+        /// R$ 1.500, amassado no paralama R$ 1.800, proteção absorve R$ 1.300". Somar esconderia o
+        /// que o cliente quer conferir item a item.
+        ///
+        /// Devolve a apuração inteira — inclusive o que ficou <b>em análise</b>, que não entra na
+        /// conta (RN-24) mas precisa chegar a quem vai avisar o cliente do prazo.
+        /// </summary>
+        public ApuracaoDeAvarias ApurarAvarias()
+        {
+            var fechamento = ContaAberta();
+
+            var dataFimReal = DataFimReal
+                ?? throw new InvalidOperationException("Contrato sem devolução registrada não tem avaria a apurar");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.Avaria))
+                throw new DomainException("As avarias deste contrato já foram apuradas");
+
+            var danos = _vistorias.SelectMany(v => v.Danos).ToList();
+
+            var apuracao = ApuracaoDeAvarias.Calcular(danos, FranquiaQueCobre(dataFimReal), dataFimReal);
+
+            foreach (var dano in danos.Where(d => d.Status is StatusDano.Aprovado or StatusDano.Cobrado or StatusDano.Pago))
+                fechamento.Lancar(
+                    TipoLinhaFechamento.Avaria,
+                    $"{dano.Tipo}: {dano.Descricao}",
+                    1m,
+                    dano.ValorEstimado);
+
+            if (apuracao.AbatimentoPorProtecao > 0)
+                fechamento.Lancar(
+                    TipoLinhaFechamento.AbatimentoPorProtecao,
+                    apuracao.BaseCalculoDoAbatimento(),
+                    1m,
+                    apuracao.AbatimentoPorProtecao);
+
+            return apuracao;
+        }
+
+        /// <summary>
+        /// RN-25: a franquia da proteção que cobria o carro <b>no momento da devolução</b> — que é
+        /// quando a avaria é registrada, já que <c>Vistoria.RegistrarDano</c> só aceita vistoria de
+        /// devolução.
+        ///
+        /// Não usa <c>Ativo</c>, e sim a janela do A7, porque os dois discordam nos dois extremos
+        /// que importam: proteção cancelada na véspera da devolução continuaria <c>Ativo = false</c>
+        /// mas não cobria mais (certo), e proteção cancelada <b>depois</b> de devolver também fica
+        /// <c>Ativo = false</c> — e essa cobria. Sem a janela o cliente perderia a franquia por ter
+        /// cancelado tarde demais.
+        /// </summary>
+        private decimal? FranquiaQueCobre(DateTime dataFimReal)
+            => _seguros
+                .Where(s => s.DataContratacao <= dataFimReal
+                            && (s.DataCancelamento is null || s.DataCancelamento >= dataFimReal))
+                .Select(s => (decimal?)s.FranquiaContratada)
+                .FirstOrDefault();
+
+        /// <summary>
+        /// RN-26: apura as <b>multas</b> conhecidas até o fechamento. Uma linha por multa.
+        ///
+        /// Só entram as <c>Pendente</c>: paga já saiu do caixa do cliente por outro caminho, e
+        /// compensada com caução é da composição (A10). Multa que chega depois do fechamento é
+        /// pós-contrato e <b>não reabre</b> a conta — vira cobrança nova.
+        ///
+        /// Devolve o total cobrado e as multas que foram <b>deixadas de fora</b> por redundância,
+        /// para quem chama poder avisar em vez de descobrir num extrato contestado.
+        /// </summary>
+        public (decimal Total, IReadOnlyList<Multa> Redundantes) ApurarMultas()
+        {
+            var fechamento = ContaAberta();
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.MultaTransito))
+                throw new DomainException("As multas deste contrato já foram apuradas");
+
+            var pendentes = _multas.Where(m => m.Status == StatusMulta.Pendente).ToList();
+
+            // `TipoMulta` é anterior ao fechamento: era o jeito manual de cobrar o que a apuração
+            // agora calcula sozinha. Atraso virou hora excedente (RN-04), Limpeza virou limpeza
+            // especial (RN-23) e DanoVeiculo virou avaria (RN-24) — cobrar os três de novo seria
+            // faturar duas vezes o mesmo fato, e o cliente contesta e ganha.
+            //
+            // Não somem em silêncio: voltam na resposta para quem chama avisar.
+            var redundantes = pendentes
+                .Where(m => m.Tipo is TipoMulta.Atraso or TipoMulta.Limpeza or TipoMulta.DanoVeiculo)
+                .ToList();
+
+            var total = 0m;
+
+            foreach (var multa in pendentes.Except(redundantes))
+            {
+                var linha = fechamento.Lancar(
+                    TipoLinhaFechamento.MultaTransito,
+                    $"multa {multa.Tipo} conhecida até o fechamento (RN-26)",
+                    1m,
+                    multa.Valor);
+
+                total += linha.Total;
+            }
+
+            return (total, redundantes);
+        }
+
+        /// <summary>
         /// O nome do acessório sai da navegação quando ela está carregada, e o id serve de reserva:
         /// linha de extrato dizendo "adicional #7" é ruim, mas apurar errado por causa de um
         /// <c>Include</c> que ninguém pediu seria pior.
