@@ -345,7 +345,8 @@ erDiagram
 
     tb_caucao {
         integer id_caucao PK
-        numeric valor "10,2"
+        numeric valor "10,2 — o depositado; não muda mais"
+        numeric valor_consumido "10,2 — default 0, quanto o fechamento usou (RN-30)"
         text status "varchar(20) — StatusCaucao"
         integer id_locacao FK "FK sombra"
     }

@@ -251,9 +251,11 @@ Transições que não existem de propósito:
 - `Aberto → Selado` sem linha nenhuma — a RN-02 garante o mínimo de uma diária em qualquer
   contrato, então conta vazia só pode ser apuração que não rodou.
 
-Este ciclo ainda corre **em paralelo** ao `StatusLocacao` da seção 1: `SelarFechamento` devolve o
-saldo mas não move o contrato para `Fechada`, e `Locacao.Fechar` continua recebendo o `valorFinal`
-de quem chama. Juntar os dois é o backlog `A10`.
+**Os dois ciclos se juntaram no backlog `A10`.** `SelarFechamento()` leva o contrato a `Fechada` e
+grava `Locacao.ValorFinal` com o saldo apurado — que pode ser **negativo** (RN-29), crédito a
+devolver. `Locacao.Fechar(valorFinal)` continua existindo para o contrato sem apuração, mas **recusa**
+quando há fechamento aberto: senão o `ValorFinal` e o saldo das linhas passariam a discordar sem
+ninguém notar. Tirar o parâmetro de vez é o `A11`.
 
 ---
 
@@ -287,19 +289,37 @@ stateDiagram-v2
 
     [*] --> Pendente : Criar(valor)<br/>valor deve ser > 0
 
-    Pendente --> Bloqueada : Bloquear()
-    Pendente --> Devolvida : Devolver()
-    Pendente --> Bloqueada : Deduzir(valor)<br/>quando o saldo zera
-    Pendente --> Pendente : Deduzir(valor)<br/>saldo parcial
+    Pendente --> Bloqueada : Bloquear()<br/>pré-autoriza no cartão
+    Pendente --> Devolvida : Devolver()<br/>dispensada, nada consumido
+    Bloqueada --> Devolvida : Devolver()<br/>saldo ≤ 0 no fechamento
+    Pendente --> Utilizada : Consumir(valor)
+    Bloqueada --> Utilizada : Consumir(valor)<br/>parcial ou total
+    Utilizada --> Utilizada : Consumir(valor)<br/>até o disponível
 
-    Utilizada : Utilizada — inalcançável
-
-    Bloqueada --> [*]
     Devolvida --> [*]
 ```
 
-`Deduzir` subtrai de `Valor` e, se o saldo chegar a zero, muda para `Bloqueada` — não para
-`Utilizada`, que nunca é atribuída.
+**Reescrita no backlog `A10`.** A máquina anterior estava quebrada de três jeitos: `Devolver()` só
+aceitava `Pendente`, então a caução `Bloqueada` — que é o fluxo normal — nunca podia ser devolvida;
+`Deduzir` descontava do próprio `Valor` e marcava `Bloqueada`; e `Utilizada` não era atribuída em
+lugar nenhum.
+
+Agora `Valor` é **o que o cliente depositou e não muda mais**, `ValorConsumido` registra o que o
+fechamento usou, e `ValorDisponivel` é o que volta.
+
+Duas coisas que o diagrama do doc `07` §6 sugeria e a implantação decidiu diferente, seguindo os
+critérios de aceite do §10:
+
+- **Consumo parcial já marca `Utilizada`.** O que o status responde é "esta garantia foi usada?", e
+  para uma caução parcialmente consumida a resposta é sim. O §10 é explícito: consumidos R$ 940 de
+  R$ 1.500, devolvidos R$ 560, e a caução **fica em `Utilizada`**.
+- **Não há `Utilizada → Devolvida`.** O estorno do restante é fato financeiro, não mudança de
+  estado — quem foi usada não passa a constar como devolvida. `Devolver()` é só para a garantia que
+  ninguém tocou.
+
+Quem resolve isso na apuração é `Locacao.ResolverCaucao()`, e **só depois de o fechamento ser
+selado** (RN-30): caução é garantia, e liberá-la antes de apurar a conta é abrir mão dela no
+momento em que ela serve para alguma coisa.
 
 ---
 

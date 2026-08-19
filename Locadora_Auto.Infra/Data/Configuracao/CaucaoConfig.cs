@@ -19,7 +19,15 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                    .HasPrecision(10, 2)
                    .IsRequired();
 
-            builder.Property(c => c.Status)
+            // RN-30: quanto o fechamento consumiu. `Valor` passou a ser o depositado e não muda mais —
+        // descontar dele apagava a resposta para "eu deixei quanto?"
+        builder.Property(c => c.ValorConsumido)
+            .HasColumnName("valor_consumido")
+            .HasPrecision(10, 2)
+            .HasDefaultValue(0m)
+            .IsRequired();
+
+        builder.Property(c => c.Status)
                    .HasColumnName("status")
                    .HasConversion<string>()
                    .HasMaxLength(20)

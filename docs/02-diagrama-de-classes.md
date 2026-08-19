@@ -470,6 +470,9 @@ classDiagram
         +ApurarLimpezaEspecial(filialDevolucao) decimal
         +ApurarAvarias() ApuracaoDeAvarias
         +ApurarMultas() (decimal, IReadOnlyList~Multa~)
+        +ApurarPagamentos() decimal
+        +ResolverCaucao() decimal
+        +ApurarFechamento(veiculo, categoria, filialRetirada, filialDevolucao, idFuncionario, idAlcada?, motivoAlcada?) ResultadoDaApuracao
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -516,10 +519,12 @@ classDiagram
     class Caucao {
         +int IdCaucao
         +decimal Valor
+        +decimal ValorConsumido
+        +decimal ValorDisponivel
         +StatusCaucao Status
         ~Criar(valor) Caucao
-        ~Deduzir(valor)
         ~Bloquear()
+        ~Consumir(valor)
         ~Devolver()
     }
 
@@ -608,6 +613,17 @@ classDiagram
         +BaseCalculoDasDiarias(dataInicio, duracao) string
         +BaseCalculoDasHoras(toleranciaMinutos) string
         +BaseCalculoDoTeto(toleranciaMinutos) string
+    }
+
+    class ResultadoDaApuracao {
+        +FechamentoLocacao Fechamento
+        +ApuracaoDeAvarias? Avarias
+        +IReadOnlyList~Multa~ MultasRecusadas
+        +decimal CaucaoConsumida
+        +bool JaEstavaApurado
+        +decimal Saldo
+        +decimal SaldoResidual
+        +decimal CreditoADevolver
     }
 
     class ApuracaoDeAvarias {
@@ -1280,7 +1296,9 @@ Pontos do modelo que divergem do que os nomes sugerem — registrados como estã
   cancelada é decisão tomada, avaria em análise é pendência com prazo —, e com o mesmo valor a
   descartada viraria pendência para sempre. Linhas gravadas com `6` antes disso continuam
   ambíguas e são lidas como `EmAnalise`, que é o lado conservador.
-- **`StatusCaucao.Utilizada`** está declarado mas nunca é atribuído por nenhum método.
+- ~~**`StatusCaucao.Utilizada`** está declarado mas nunca é atribuído por nenhum método.~~
+  **Corrigido no backlog `A10`:** `Consumir` o atribui, e `Valor` deixou de ser descontado — quem
+  responde o que foi usado é `ValorConsumido`.
 - **`Veiculo`** carrega três indicadores de disponibilidade em paralelo: `Ativo`, `Disponivel`
   e `Status` (`StatusVeiculo`). `Criar` inicializa `Ativo`/`Disponivel` mas deixa `Status` no
   default (`0`, que não corresponde a nenhum membro — o enum começa em `1`); os métodos de

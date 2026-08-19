@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A10** (composição e caução) → **A11** (porta da Api) → **A12** (testes gherkin) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. As oito apurações de linha existem; falta juntá-las ao `ValorFinal`, resolver a caução e abrir o endpoint |
+| Fio principal | **A11** (porta da Api) → **A12** (cenários gherkin restantes) | A apuração inteira existe no domínio e ninguém consegue chamá-la: o balcão continua digitando o valor. O `A11` é o que transforma seis blocos de regra em funcionalidade |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,13 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A9` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
-a conta discriminada e **todas as oito apurações de linha**. Falta a composição — abatimento de
-pagamento, caução e idempotência (`A10`) — e a porta da Api (`A11`).
+`A1` a `A10` estão feitos: **a apuração inteira existe e funciona no domínio.**
+`Locacao.ApurarFechamento(...)` recebe veículo, categoria e as duas filiais, escreve a conta
+discriminada, sela o contrato em `Fechada` com o saldo apurado e resolve a caução.
+
+O que falta é a **porta**: a Api ainda não expõe nada disso, e `ILocacaoService.FinalizarAsync`
+continua recebendo `valorFinal` de quem chama (`A11`). Enquanto isso não entrar, o balcão continua
+digitando o valor.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -318,22 +322,65 @@ são lidas como `EmAnalise`, que é o lado conservador — viram pendência a co
 A RN-20 foi respeitada: a franquia entra **só** na avaria. Combustível, limpeza, km e multa
 continuam saindo sem consultar proteção nenhuma.
 
-**A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34 · **é por aqui que se começa**
-Caução resolvida **depois** do saldo, e a ligação entre o fechamento discriminado e o ciclo de vida
-do contrato: hoje `FechamentoLocacao.Saldo` e `Locacao.ValorFinal` correm em paralelo, e é aqui que
-`Fechar` passa a ler o saldo em vez de recebê-lo. **Relaxar a guarda `valorFinal < 0` do `Fechar`
-faz parte:** RN-29 permite saldo negativo.
-O que o `A4` já entregou: total, natureza de crédito, saldo que não trunca, e a idempotência da
-abertura (`AbrirFechamento` devolve a conta existente, com índice único no banco por trás).
+~~**A10 · Composição, caução e idempotência** — `G` · RN-27 a RN-34~~ **feito.**
+`Locacao.ApurarFechamento(...)` roda as oito apurações na ordem, abate os pagamentos, sela e resolve
+a caução, devolvendo um `ResultadoDaApuracao`. Migration `ConsumoDaCaucao`.
+
+**Os dois trilhos que o `A4` deixou em paralelo se juntaram:** `SelarFechamento()` leva o contrato a
+`Fechada` e grava `ValorFinal` com o saldo apurado — que pode ser **negativo** (RN-29).
+`Fechar(valorFinal)` continua existindo para o contrato sem apuração, mas **recusa** quando há
+fechamento aberto. Tirar o parâmetro de vez é o `A11`.
+
+Cinco decisões:
+
+- **`SaldoEmAberto()` deixou de subtrair pagamento quando há conta selada.** Os pagamentos já
+  entraram nela como crédito (RN-28); subtraí-los outra vez cobraria o cliente ao contrário. Com
+  fechamento, o que falta receber é `ValorFinal − caução consumida`.
+- **A ordem da apuração é obrigatória**, e está codificada em `ApurarFechamento`: período primeiro
+  (a franquia de km e a proteção multiplicam as diárias cobradas), pagamentos por último (a RN-27
+  abate do total, e o total só existe depois de todas as linhas de cobrança).
+- **Consumo parcial da caução marca `Utilizada`**, e o estorno do restante é fato financeiro, não
+  mudança de estado. É o que o doc `07` §10 fixa. Não há `Utilizada → Devolvida`: quem foi usada não
+  passa a constar como devolvida.
+- **`ApurarFechamento` devolve `ResultadoDaApuracao`, não só o fechamento.** Três coisas não cabem
+  no saldo e não podem sumir: a avaria em análise tem prazo a comunicar, a multa recusada precisa de
+  alguém avisado, e o saldo residual dispara a régua de cobrança.
+- **A idempotência da RN-32 é uma saída antecipada:** conta já selada devolve a mesma resposta com
+  `JaEstavaApurado`, sem recalcular nem consumir caução de novo. A garantia dura continua sendo o
+  índice único do `A4`.
+
+**A máquina da caução foi reescrita**, como previsto. `Valor` passou a ser o depositado e **não muda
+mais** — descontar dele apagava a resposta para "eu deixei quanto?", que é a pergunta de quem espera
+o estorno. Entrou `ValorConsumido`, e `ValorDisponivel` é o que volta. Os três defeitos listados
+foram corrigidos: `Devolver()` aceita a caução bloqueada, `Consumir` marca `Utilizada`, e
+`Utilizada` finalmente é atribuída.
+
+**Um quarto defeito achado no caminho:** em `CompensarMultaComCaucao` o decremento do valor restante
+estava comentado, então o laço descontava a multa inteira de **cada** caução com saldo. Com uma só
+funcionava por acidente; com duas, cobrava em dobro. A comparação de suficiência também olhava
+`Valor` em vez do disponível.
 Inclui consertar a máquina da caução, que hoje está quebrada: `Caucao.Devolver()` só aceita status
 `Pendente` — logo uma caução `Bloqueada`, que é o fluxo normal, nunca pode ser devolvida —,
 `Deduzir` zera o valor marcando `Bloqueada`, e `StatusCaucao.Utilizada` não é atribuído em lugar
 nenhum.
 
-**A11 · Porta da Api** — `M`
+**A11 · Porta da Api** — `M` · **é por aqui que se começa**
 `ILocacaoService.FinalizarAsync` deixa de receber `valorFinal`; entra endpoint de apuração e
 leitura do fechamento discriminado (o extrato que o cliente recebe). **Quebra o contrato do
 `CriarLocacaoDto`/`FinalizarLocacaoDto`** — combinar com `F1` na mesma entrega.
+
+O domínio já está pronto: chamar `Locacao.ApurarFechamento(veiculo, categoria, filialRetirada,
+filialDevolucao, idFuncionario)` e traduzir o `ResultadoDaApuracao`. O serviço precisa carregar a
+locação com **vistorias, danos, seguros, adicionais, pagamentos e cauções** — o domínio lê tudo isso
+das coleções, e sem `Include` a conta sai menor sem ninguém perceber. As três coisas que o resultado
+devolve para virar aviso: avaria em análise (com prazo), multas recusadas e saldo residual.
+
+Dois débitos registrados que vencem aqui:
+
+- **`RegistrarDevolucao` ainda recebe `kmFinal`**, que duplica o hodômetro da vistoria (achado no
+  `A6`). Ou passa a lê-lo da vistoria, ou a divergência vira aviso.
+- **`Fechar(valorFinal)`** deixa de existir junto com o parâmetro; hoje ele só recusa quando há
+  apuração aberta.
 
 **A12 · Testes do fechamento** — `M`
 Os 15 cenários gherkin do doc `07` §10, com `RepositorioFake` + `Fabrica`, no molde de

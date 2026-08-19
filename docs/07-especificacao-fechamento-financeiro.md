@@ -3,8 +3,9 @@
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
-> consome, a conta discriminada em que ela escreve (§8) e **todas as apurações de linha** (§3.1 a
-> §3.6). Falta a composição (§3.7): abatimento de pagamento, caução e idempotência.
+> consome e **a apuração inteira** (§3.1 a §3.7), da diária ao consumo da caução. O que falta é a
+> **porta**: a Api ainda não expõe nada disso, e o balcão continua digitando o valor da devolução
+> (backlog `A11`).
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -169,6 +170,13 @@ recusadas voltam na resposta, para quem chama avisar.
 
 ### 3.7 Composição, caução e integridade
 
+**Implantado** (backlog `A10`), em `Locacao.ApurarFechamento`, que roda as oito apurações na ordem,
+abate os pagamentos, sela o contrato em `Fechada` com o saldo apurado e resolve a caução. Devolve um
+`ResultadoDaApuracao` com o que não cabe no saldo: avaria em análise, multas recusadas e o residual.
+
+A máquina da `Caucao` foi reescrita junto — `Valor` passou a ser o depositado e não muda mais, e
+`ValorConsumido`/`ValorDisponivel` respondem o que foi usado e o que volta. Detalhes no doc `05` §5.
+
 | RN | Regra | Porquê |
 |---|---|---|
 | **RN-27** | Total = `diárias + horas excedentes + km excedente + combustível + proteções + acessórios + taxas + avarias apuradas + multas conhecidas − pagamentos confirmados` | |
@@ -245,9 +253,11 @@ stateDiagram-v2
 
 Transição proibida: `Devolvida → qualquer estado`.
 
-> Hoje `Caucao.Devolver()` só aceita status `Pendente`, então uma caução `Bloqueada` — o fluxo
-> normal — nunca pode ser devolvida; e `Deduzir` zera o valor marcando `Bloqueada` em vez de
-> `Utilizada`. `StatusCaucao.Utilizada` nunca é atribuído em lugar nenhum.
+> **Corrigido no backlog `A10`.** `Devolver()` aceita a caução bloqueada, `Consumir` substituiu o
+> `Deduzir` e marca `Utilizada`, e `Valor` deixou de ser descontado — quem responde o que foi usado
+> é `ValorConsumido`. A máquina implantada está no doc `05` §5, com duas divergências deste diagrama
+> justificadas pelos critérios de aceite do §10: consumo parcial já marca `Utilizada`, e não existe
+> `Utilizada → Devolvida`.
 
 ## 7. Eventos de negócio
 

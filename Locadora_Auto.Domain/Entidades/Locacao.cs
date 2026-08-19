@@ -294,8 +294,11 @@ namespace Locadora_Auto.Domain.Entidades
             if (Status != StatusLocacao.Devolvida)
                 throw new InvalidOperationException("Somente locações devolvidas podem ser fechadas");
 
-            if (valorFinal < 0)
-                throw new InvalidOperationException("Valor final não pode ser negativo");
+            // contrato que tem conta discriminada fecha pela conta, não por número informado —
+            // senão o `ValorFinal` e o saldo das linhas passariam a discordar sem ninguém notar
+            if (Fechamento != null)
+                throw new InvalidOperationException(
+                    "Este contrato tem apuração aberta: feche por ela, não informando o valor");
 
             ValorFinal = valorFinal;
             Status = StatusLocacao.Fechada;
@@ -309,9 +312,17 @@ namespace Locadora_Auto.Domain.Entidades
         /// a devolver ao cliente, não zero.
         /// </summary>
         public decimal SaldoEmAberto()
-            => (ValorFinal ?? 0m) - _pagamentos
+        {
+            // com a conta discriminada no lugar, os pagamentos já entraram nela como crédito
+            // (RN-28) e subtraí-los outra vez cobraria o cliente ao contrário. O que ainda falta
+            // receber é o saldo apurado menos o que a caução quitou (RN-30)
+            if (Fechamento is { Selado: true })
+                return (ValorFinal ?? 0m) - _caucao.Sum(c => c.ValorConsumido);
+
+            return (ValorFinal ?? 0m) - _pagamentos
                 .Where(p => p.Status == StatusPagamento.Pago)
                 .Sum(p => p.Valor);
+        }
 
         /// <summary>
         /// Doc 07 §6: <c>Fechada → Finalizada</c> quando o saldo está quitado, <c>→
@@ -874,15 +885,165 @@ namespace Locadora_Auto.Domain.Entidades
                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
 
         /// <summary>
-        /// Encerra a apuração e devolve o saldo (RN-27). Daqui em diante a conta é histórico e só
-        /// aceita correção.
+        /// RN-27 e RN-28: abate da conta os pagamentos <b>já confirmados</b>, um crédito por
+        /// pagamento. Pendente e falhado não abatem — dinheiro que ainda não caiu não quita
+        /// contrato.
+        ///
+        /// Devolve o total abatido.
+        /// </summary>
+        public decimal ApurarPagamentos()
+        {
+            var fechamento = ContaAberta();
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.PagamentoAbatido))
+                throw new DomainException("Os pagamentos deste contrato já foram abatidos");
+
+            var total = 0m;
+
+            foreach (var pagamento in _pagamentos.Where(p => p.Status == StatusPagamento.Pago))
+            {
+                var linha = fechamento.Lancar(
+                    TipoLinhaFechamento.PagamentoAbatido,
+                    $"pagamento em {pagamento.FormaPagamento} confirmado em {pagamento.DataPagamento:dd/MM/yyyy}",
+                    1m,
+                    pagamento.Valor);
+
+                total += linha.Total;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// Encerra a apuração e leva o contrato a <c>Fechada</c> (doc 07 §6). Daqui em diante a
+        /// conta é histórico e só aceita correção.
+        ///
+        /// É aqui que os dois trilhos que o A4 deixou correndo em paralelo se juntam:
+        /// <see cref="ValorFinal"/> passa a ser o saldo apurado, e não um número que alguém
+        /// informou. Ele pode ser <b>negativo</b> (RN-29) — crédito a devolver ao cliente.
+        ///
+        /// Devolve o saldo.
         /// </summary>
         public decimal SelarFechamento()
         {
             var fechamento = ContaAberta();
 
+            // a checagem de selagem vem antes da de status para a recusa dizer a coisa certa: um
+            // contrato já fechado falha as duas, e "já está selado" explica, enquanto "só devolvida
+            // pode ser fechada" confundiria quem acabou de fechá-lo
+            if (fechamento.Selado)
+                throw new DomainException("Fechamento já está selado");
+
+            if (Status != StatusLocacao.Devolvida)
+                throw new InvalidOperationException("Somente locações devolvidas podem ser fechadas");
+
             fechamento.Selar();
+
+            ValorFinal = fechamento.Saldo;
+            Status = StatusLocacao.Fechada;
+
             return fechamento.Saldo;
+        }
+
+        /// <summary>
+        /// RN-30: resolve a caução <b>depois</b> de o saldo estar apurado — nunca antes, que é
+        /// transição proibida no doc 07 §6. Saldo coberto consome o necessário e o restante volta;
+        /// saldo maior que a garantia consome tudo e o que sobra vira cobrança residual.
+        ///
+        /// Devolve quanto foi consumido no total.
+        /// </summary>
+        public decimal ResolverCaucao()
+        {
+            var fechamento = Fechamento
+                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+            if (!fechamento.Selado)
+                throw new DomainException("A caução só é resolvida depois de o fechamento ser selado");
+
+            // RN-29: saldo negativo não consome caução nenhuma. O cliente pagou mais do que a conta
+            // deu, e a garantia volta inteira — reter qualquer parte dela seria a casa segurando
+            // dinheiro de quem já não deve nada
+            var aConsumir = Math.Max(0m, fechamento.Saldo);
+            var consumido = 0m;
+
+            foreach (var caucao in _caucao.Where(c => c.Status != Caucao.StatusCaucao.Devolvida))
+            {
+                if (aConsumir <= 0)
+                {
+                    // nada a consumir desta: volta inteira
+                    if (caucao.ValorConsumido == 0)
+                        caucao.Devolver();
+                    continue;
+                }
+
+                var parcela = Math.Min(caucao.ValorDisponivel, aConsumir);
+                if (parcela <= 0)
+                    continue;
+
+                caucao.Consumir(parcela);
+                consumido += parcela;
+                aConsumir -= parcela;
+            }
+
+            return consumido;
+        }
+
+        /// <summary>
+        /// A apuração inteira, na ordem em que as regras dependem umas das outras: período primeiro
+        /// (a franquia de km e a proteção multiplicam as diárias cobradas), o resto depois, os
+        /// pagamentos por último — porque RN-27 abate pagamento do total, não o contrário.
+        ///
+        /// <b>Idempotente</b> (RN-32): chamada de novo sobre um contrato já fechado devolve a mesma
+        /// conta, sem criar linha nem consumir caução outra vez. É o que separa uma retentativa de
+        /// rede de uma cobrança em dobro.
+        ///
+        /// Devolve a conta e o que não cabe nela: a avaria em análise, as multas recusadas por
+        /// redundância e o saldo residual. Nada some em silêncio.
+        /// </summary>
+        public ResultadoDaApuracao ApurarFechamento(
+            Veiculo veiculo,
+            CategoriaVeiculo categoria,
+            Filial filialRetirada,
+            Filial filialDevolucao,
+            int idFuncionarioApuracao,
+            int? idFuncionarioAlcada = null,
+            string? motivoAlcada = null)
+        {
+            // RN-32: a conta já selada é a resposta. Não reabre, não recalcula, não cobra de novo
+            if (Fechamento is { Selado: true } selada)
+                return new ResultadoDaApuracao
+                {
+                    Fechamento = selada,
+                    CaucaoConsumida = _caucao.Sum(c => c.ValorConsumido),
+                    JaEstavaApurado = true
+                };
+
+            AbrirFechamento(idFuncionarioApuracao);
+
+            var periodo = ApurarPeriodo(filialRetirada);
+            ApurarQuilometragem(veiculo, categoria, periodo);
+            ApurarCombustivel(veiculo, filialDevolucao);
+            ApurarProtecoes(periodo);
+            ApurarAcessorios(periodo);
+            ApurarTaxaOneWay(filialDevolucao, idFuncionarioAlcada, motivoAlcada);
+            ApurarLimpezaEspecial(filialDevolucao);
+
+            var avarias = ApurarAvarias();
+            var (_, multasRecusadas) = ApurarMultas();
+
+            // por último, porque a RN-27 abate pagamento do total — e o total só existe depois de
+            // todas as linhas de cobrança estarem lançadas
+            ApurarPagamentos();
+
+            SelarFechamento();
+
+            return new ResultadoDaApuracao
+            {
+                Fechamento = Fechamento!,
+                Avarias = avarias,
+                MultasRecusadas = multasRecusadas,
+                CaucaoConsumida = ResolverCaucao()
+            };
         }
 
         /// <summary>
@@ -1010,7 +1171,7 @@ namespace Locadora_Auto.Domain.Entidades
                 throw new InvalidOperationException("Locação não possui caução");
 
             var Caucao = _caucao.FirstOrDefault(c => c.IdCaucao == idCaucao);
-            Caucao.Deduzir(valor);
+            Caucao.Consumir(valor);
         }
 
         /// <summary>
@@ -1018,8 +1179,10 @@ namespace Locadora_Auto.Domain.Entidades
         /// garantia, e devolvê-la antes de apurar a conta é abrir mão da garantia justamente no
         /// momento em que ela serve para alguma coisa.
         ///
-        /// A máquina interna da <c>Caucao</c> continua quebrada (só <c>Pendente</c> devolve, e
-        /// <c>Utilizada</c> nunca é atribuída) — conserto é do backlog A10.
+        /// Devolve a caução que <b>não foi tocada</b> pelo fechamento. A que foi consumida em parte
+        /// permanece <c>Utilizada</c>, e o estorno do restante é fato financeiro — é o que o doc 07
+        /// §10 fixa. Quem resolve isso na apuração é <see cref="ResolverCaucao"/>; este método é a
+        /// porta manual, para a caução dispensada por alçada.
         /// </summary>
         public void DevolverCaucao(int idCaucao)
         {
@@ -1067,19 +1230,23 @@ namespace Locadora_Auto.Domain.Entidades
             if (multa == null)
                 throw new DomainException("Multa não encontrada");
 
-            if (Caucoes == null || Caucoes.Sum(c => c.Valor) < multa.Valor)
+            if (_caucao.Sum(c => c.ValorDisponivel) < multa.Valor)
                 throw new DomainException("Caução insuficiente para compensar a multa");
 
-            // Deduz o valor da multa das cauções, usando múltiplas se necessário
+            // Deduz o valor da multa das cauções, usando múltiplas se necessário.
+            //
+            // O decremento do restante estava comentado, então o laço descontava a multa inteira de
+            // **cada** caução com saldo: com uma só funcionava por acidente, com duas cobrava em
+            // dobro. E a comparação era com `Valor`, que hoje é o depositado e não o disponível
             decimal valorRestante = multa.Valor;
-            foreach (var caucao in Caucoes.Where(c => c.Valor > 0))
+            foreach (var caucao in _caucao.Where(c => c.ValorDisponivel > 0))
             {
                 if (valorRestante <= 0)
                     break;
 
-                var deduzir = Math.Min(caucao.Valor, valorRestante);
-                caucao.Deduzir(deduzir);
-                //valorRestante -= deduzir;
+                var deduzir = Math.Min(caucao.ValorDisponivel, valorRestante);
+                caucao.Consumir(deduzir);
+                valorRestante -= deduzir;
             }
 
             multa.CompensarComCaucao();

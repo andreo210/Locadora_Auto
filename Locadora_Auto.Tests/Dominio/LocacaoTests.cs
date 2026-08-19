@@ -535,13 +535,19 @@ namespace Locadora_Auto.Tests.Dominio
 
             locacao.DeduzirCaucao(4, 400m);
 
-            Assert.Equal(1_100m, caucao.Valor);
-            Assert.Equal(Caucao.StatusCaucao.Pendente, caucao.Status);
+            // o depositado não muda: é a resposta para "eu deixei quanto?", que é a pergunta de
+            // quem está esperando o estorno
+            Assert.Equal(1_500m, caucao.Valor);
+            Assert.Equal(400m, caucao.ValorConsumido);
+            Assert.Equal(1_100m, caucao.ValorDisponivel);
+            Assert.Equal(Caucao.StatusCaucao.Utilizada, caucao.Status);
         }
 
         [Fact]
-        public void Deduzir_a_caucao_inteira_bloqueia_o_saldo()
+        public void Deduzir_a_caucao_inteira_zera_o_disponivel_e_marca_utilizada()
         {
+            // marcava `Bloqueada`, que é o estado de quem ainda não foi tocada — e `Utilizada` não
+            // era atribuído em lugar nenhum do sistema
             var locacao = Fabrica.Locacao();
             locacao.RegistrarCaucao(1_000m);
             var caucao = locacao.Caucoes.Single();
@@ -549,8 +555,9 @@ namespace Locadora_Auto.Tests.Dominio
 
             locacao.DeduzirCaucao(4, 1_000m);
 
-            Assert.Equal(0m, caucao.Valor);
-            Assert.Equal(Caucao.StatusCaucao.Bloqueada, caucao.Status);
+            Assert.Equal(1_000m, caucao.Valor);
+            Assert.Equal(0m, caucao.ValorDisponivel);
+            Assert.Equal(Caucao.StatusCaucao.Utilizada, caucao.Status);
         }
 
         [Fact]
