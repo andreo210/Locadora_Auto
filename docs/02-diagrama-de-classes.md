@@ -464,6 +464,8 @@ classDiagram
         +ApurarPeriodo(filialRetirada) ApuracaoDePeriodo
         +ApurarQuilometragem(veiculo, categoria, periodo) ApuracaoDeQuilometragem
         +ApurarCombustivel(veiculo, filialDevolucao) ApuracaoDeCombustivel
+        +ApurarProtecoes(periodo) decimal
+        +ApurarAcessorios(periodo) decimal
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -602,6 +604,17 @@ classDiagram
         +BaseCalculoDoTeto(toleranciaMinutos) string
     }
 
+    class ApuracaoDeProtecao {
+        +decimal Diarias
+        +decimal ValorDiaria
+        +bool CobriuOContratoInteiro
+        +DateTime InicioDaCobertura
+        +DateTime FimDaCobertura
+        +decimal Total
+        +Calcular(dataInicioContrato, dataFimReal, dataContratacao, dataCancelamento, valorDiariaContratada, diariasCobradasDoContrato)$ ApuracaoDeProtecao
+        +BaseCalculo() string
+    }
+
     class ApuracaoDeQuilometragem {
         +int KmRodados
         +int FranquiaKm
@@ -673,7 +686,9 @@ classDiagram
         +bool Ativo
         +decimal ValorDiariaContratada
         +decimal FranquiaContratada
-        ~Contratar(idSeguro, valorDiaria, franquia) LocacaoSeguro
+        +DateTime DataContratacao
+        +DateTime? DataCancelamento
+        ~Contratar(idSeguro, valorDiaria, franquia, dataContratacao) LocacaoSeguro
         ~Cancelar()
     }
 
@@ -719,6 +734,8 @@ classDiagram
     Locacao ..> ApuracaoDePeriodo : ApurarPeriodo()
     Locacao ..> ApuracaoDeQuilometragem : ApurarQuilometragem()
     Locacao ..> ApuracaoDeCombustivel : ApurarCombustivel()
+    Locacao ..> ApuracaoDeProtecao : ApurarProtecoes()
+    LocacaoSeguro ..> ApuracaoDeProtecao : janela e diária congeladas
     Filial ..> ApuracaoDePeriodo : tolerância e percentual (retirada)
     Filial ..> ApuracaoDeCombustivel : preço do litro e taxa (devolução)
     CategoriaVeiculo ..> ApuracaoDeQuilometragem : limite e valor do km

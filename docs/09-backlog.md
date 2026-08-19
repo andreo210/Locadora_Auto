@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A7** (proteções e acessórios) → **A8**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Período, km e combustível já viram linha; falta o que foi contratado, as taxas e a composição |
+| Fio principal | **A8** (taxas) → **A9** (avarias e multas) → **A10** (composição e caução) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Período, km, combustível, proteção e acessórios já viram linha; falta o que deu errado e a composição |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A6` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
-a conta discriminada e a apuração de **período, quilometragem e combustível**. O que falta é o resto
-da conta — proteção, acessório, taxas, avaria, multa — e a composição com a caução.
+`A1` a `A7` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
+a conta discriminada e a apuração de **período, quilometragem, combustível, proteção e acessórios**.
+O que falta são as taxas, avaria e multa — e a composição com a caução.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -214,13 +214,48 @@ registros do mesmo número, e nada garante que concordem. Ou `RegistrarDevolucao
 `kmFinal` e passa a lê-lo da vistoria, ou a divergência vira aviso — o que não pode é seguir sem
 ninguém olhar.
 
-**A7 · Proteções e acessórios** — `M` · RN-17 a RN-20 · **é por aqui que se começa**
-Recalcular `LocacaoAdicional` pelas diárias **efetivas** — hoje `Dias` congela a previsão e erra em
-toda devolução antecipada ou atrasada. Proteção pelas diárias cobradas, pró-rata quando cancelada
-no meio do contrato. O `A2` já entregou o dado de que depende: `LocacaoSeguro.ValorDiariaContratada`
-e `FranquiaContratada`.
+~~**A7 · Proteções e acessórios** — `M` · RN-17 a RN-20~~ **feito.**
+`ApuracaoDeProtecao` faz a conta da RN-18/RN-19; `Locacao.ApurarProtecoes(periodo)` e
+`Locacao.ApurarAcessorios(periodo)` escrevem as linhas, **uma por proteção e uma por acessório**.
+Migration `JanelaDaProtecao`.
 
-**A8 · Taxas** — `P` · RN-21 a RN-23
+**A RN-19 exigia duas colunas que não existiam.** `LocacaoSeguro.Ativo = false` dizia que a proteção
+foi cancelada, mas não quando — e sem o quando não há pró-rata, só a escolha entre cobrar o contrato
+inteiro (o cliente reclama com razão) ou não cobrar nada (a casa perde o que cobriu). Entraram
+`DataContratacao` e `DataCancelamento`.
+
+Cinco decisões que valem para o `A8` em diante:
+
+- **`DataContratacao` é a data de início do contrato quando a proteção é vendida no balcão**, e
+  `UtcNow` quando é vendida com o carro já na rua. Usar sempre `UtcNow` faria a proteção de balcão
+  nascer alguns segundos depois da retirada, e a pró-rata entraria onde não devia — cobrando
+  2,9986 diárias num contrato de 3.
+- **Cobertura integral cobra exatamente `DiariasCobradas`** (RN-18), sem passar pela conta
+  proporcional. Só cobertura parcial é pró-rata, limitada por cima às diárias do contrato e por
+  baixo a zero. A proteção também acompanha a diária que o teto da RN-05 acrescentou.
+- **`Cancelar()` não aceita data**: a cobertura acaba agora, nunca retroativa — mesma decisão da
+  liberação de bloqueio da RN-52. Datar para trás devolveria ao cliente dias em que ele esteve
+  coberto.
+- **Uma linha por proteção e por acessório, nunca uma soma.** Um contrato pode ter tido mais de uma
+  proteção ao longo da vida (cancelar libera contratar outra), cada uma com sua janela; e o extrato
+  precisa dizer o que é cadeirinha e o que é GPS, senão o cliente contesta o bloco inteiro.
+- **Sem proteção ou sem acessório não há linha zerada**, ao contrário do km: nunca houve o que
+  apurar, e "proteção: R$ 0,00" no extrato de quem não contratou proteção só confunde.
+
+`LocacaoAdicional.Dias` **continua guardando o que foi vendido** — o fechamento recalcula pelas
+diárias efetivas sem reescrever o registro da venda, que responde outra pergunta.
+
+A migration não usa o `DEFAULT '0001-01-01'` que o EF gerou para a coluna obrigatória: ela nasce
+anulável, é preenchida com `tb_locacao.data_inicio` e só então vira `NOT NULL`. Data de ano 1 num
+`timestamptz` ficaria na definição da coluna para sempre.
+
+**RN-20 não é implementada aqui.** "Proteção não cobre combustível, limpeza, multa nem km excedente"
+é restrição sobre o `A9`: a franquia limita **avaria** (RN-25) e nada mais. As outras linhas já saem
+sem consultar proteção nenhuma, então o que o `A9` não pode fazer é começar a consultar.
+
+**A8 · Taxas** — `P` · RN-21 a RN-23 · **é por aqui que se começa**
+Siga o molde do `A5`–`A7`. Os dois parâmetros de one-way (`HabilitadaOneWay`, `TaxaRetornoOneWay`) e
+o `ValorLimpezaEspecial` saem da filial de **devolução**, e já existem desde o `A2`/`A3`.
 One-way quando a filial de devolução difere da de retirada, só entre filiais habilitadas (não
 habilitada bloqueia e exige alçada). Limpeza especial: valor fixo, só com registro na vistoria de
 devolução **e ao menos uma foto**.

@@ -25,10 +25,27 @@
         /// </summary>
         public decimal FranquiaContratada { get; private set; }
 
+        /// <summary>
+        /// Desde quando a proteção cobre. Doc 07 §4: contratar depois do início é caso normal — o
+        /// cliente que vê o trânsito da cidade e liga pedindo proteção no segundo dia — e aí ela é
+        /// cobrada <b>pró-rata a partir daqui</b>, não desde a retirada.
+        /// </summary>
+        public DateTime DataContratacao { get; private set; }
+
+        /// <summary>
+        /// RN-19: até quando cobriu. Nula enquanto a proteção está ativa.
+        ///
+        /// Sem esta coluna a RN-19 é inexequível: <c>Ativo = false</c> diz que foi cancelada, mas
+        /// não quando — e sem o quando não há pró-rata, só a escolha entre cobrar o contrato
+        /// inteiro (o cliente reclama com razão) ou não cobrar nada (a casa perde o que cobriu).
+        /// </summary>
+        public DateTime? DataCancelamento { get; private set; }
+
 
         protected LocacaoSeguro() { } // EF
 
-        internal static LocacaoSeguro Contratar(int idSeguro, decimal valorDiaria, decimal franquia)
+        internal static LocacaoSeguro Contratar(
+            int idSeguro, decimal valorDiaria, decimal franquia, DateTime dataContratacao)
         {
             if (valorDiaria <= 0)
                 throw new DomainException("Valor da diária do seguro inválido");
@@ -42,16 +59,23 @@
                 IdSeguro = idSeguro,
                 ValorDiariaContratada = valorDiaria,
                 FranquiaContratada = franquia,
+                DataContratacao = dataContratacao,
                 Ativo = true
             };
         }
 
+        /// <summary>
+        /// Não recebe data: a cobertura acaba <b>agora</b>, nunca retroativa — mesma decisão da
+        /// liberação de bloqueio da RN-52. Datar o cancelamento para trás devolveria ao cliente
+        /// dias em que ele esteve coberto, e é justamente o que a pró-rata existe para medir.
+        /// </summary>
         internal void Cancelar()
         {
             if (Ativo != true)
                 throw new DomainException("Seguro não pode ser cancelado");
 
             Ativo = false;
+            DataCancelamento = DateTime.UtcNow;
         }
     }    
 

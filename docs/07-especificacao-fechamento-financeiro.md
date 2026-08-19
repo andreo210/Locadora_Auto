@@ -3,8 +3,8 @@
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
-> consome, a conta discriminada em que ela escreve (§8) e a apuração de **período, quilometragem e
-> combustível** (§3.1 a §3.3). O resto do cálculo — proteção, acessório, taxas, avaria, multa e
+> consome, a conta discriminada em que ela escreve (§8) e a apuração de **período, quilometragem,
+> combustível, proteção e acessórios** (§3.1 a §3.4). O resto do cálculo — taxas, avaria, multa e
 > composição — continua por fazer.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
@@ -106,6 +106,17 @@ chama avisar alguém.
 | **RN-16** | Nível **acima** do de retirada **não gera crédito** | Prática consolidada de mercado; precisa estar no contrato para não virar reclamação |
 
 ### 3.4 Proteções e acessórios
+
+**Implantado** (backlog `A7`), em `ApuracaoDeProtecao` + `Locacao.ApurarProtecoes` e
+`Locacao.ApurarAcessorios` — uma linha por proteção e por acessório, nunca uma soma.
+
+A RN-19 exigiu duas colunas novas em `LocacaoSeguro`: `DataContratacao` e `DataCancelamento`. Sem
+elas a pró-rata é inexequível — `Ativo = false` diz que a proteção foi cancelada, mas não quando.
+Cobertura integral cobra **exatamente** as diárias do período (RN-18), sem passar pela conta
+proporcional; só cobertura parcial é pró-rata, limitada por cima às diárias do contrato.
+
+A RN-20 não tem código próprio: a franquia limita **avaria** (RN-25, §3.6) e nada mais, e as linhas
+de combustível, limpeza e km já saem sem consultar proteção nenhuma.
 
 | RN | Regra | Porquê |
 |---|---|---|
@@ -226,6 +237,7 @@ vazamento de receita.
 |---|---|---|---|
 | `Locacao` | `ValorDiariaContratada` | RN-06 | **existe** |
 | `LocacaoSeguro` | `ValorDiariaContratada`, `FranquiaContratada` | RN-18, RN-25 | **existe** |
+| `LocacaoSeguro` | `DataContratacao`, `DataCancelamento` | RN-19 | **existe** (achado no `A7`) |
 | `Veiculo` | `CapacidadeTanqueLitros` | RN-14 | **existe** (anulável) |
 | `Filial` | `HabilitadaOneWay`, `TaxaRetornoOneWay` | RN-21, RN-22 | **existe** |
 | `Filial` | `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`, `TaxaServicoAbastecimento`, `ValorLimpezaEspecial` | RN-03, RN-04, RN-15, RN-23 | **existe** |

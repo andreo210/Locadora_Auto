@@ -558,6 +558,106 @@ namespace Locadora_Auto.Domain.Entidades
         }
 
         /// <summary>
+        /// RN-18 e RN-19: apura as <b>proteções</b> contratadas e escreve uma linha por proteção.
+        ///
+        /// Uma linha cada, e não uma soma, porque um contrato pode ter tido mais de uma ao longo da
+        /// vida — cancelar libera contratar outra —, e cada uma cobriu uma janela diferente. Somar
+        /// esconderia justamente o que a RN-19 mede.
+        ///
+        /// Devolve o total das proteções.
+        /// </summary>
+        public decimal ApurarProtecoes(ApuracaoDePeriodo periodo)
+        {
+            ArgumentNullException.ThrowIfNull(periodo);
+
+            var fechamento = ContaAberta();
+
+            var dataFimReal = DataFimReal
+                ?? throw new InvalidOperationException("Contrato sem devolução registrada não tem proteção a apurar");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.Protecao))
+                throw new DomainException("As proteções deste contrato já foram apuradas");
+
+            var total = 0m;
+
+            foreach (var protecao in _seguros)
+            {
+                var apuracao = ApuracaoDeProtecao.Calcular(
+                    DataInicio,
+                    dataFimReal,
+                    protecao.DataContratacao,
+                    protecao.DataCancelamento,
+                    protecao.ValorDiariaContratada,
+                    periodo.DiariasCobradas);
+
+                fechamento.Lancar(
+                    TipoLinhaFechamento.Protecao,
+                    apuracao.BaseCalculo(),
+                    apuracao.Diarias,
+                    apuracao.ValorDiaria);
+
+                total += apuracao.Total;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// RN-17: apura os <b>acessórios</b> pelas diárias <b>efetivas</b>, uma linha por item.
+        ///
+        /// <c>LocacaoAdicional.Dias</c> foi congelado na inclusão com base na previsão, e por isso
+        /// erra em toda devolução antecipada ou atrasada — quem devolve no segundo dia de um
+        /// contrato de cinco pagaria cinco diárias de cadeirinha. Aqui a quantidade é recalculada,
+        /// e o registro do adicional continua guardando o que foi <b>vendido</b>, que é outra
+        /// pergunta.
+        ///
+        /// Devolve o total dos acessórios.
+        /// </summary>
+        public decimal ApurarAcessorios(ApuracaoDePeriodo periodo)
+        {
+            ArgumentNullException.ThrowIfNull(periodo);
+
+            var fechamento = ContaAberta();
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.Acessorio))
+                throw new DomainException("Os acessórios deste contrato já foram apurados");
+
+            var total = 0m;
+
+            foreach (var acessorio in _adicionais)
+            {
+                // unidades × diárias cobradas: é assim que o extrato se lê — "2 cadeirinhas por 3
+                // diárias, a R$ 20,00" —, e o unitário continua sendo o preço de uma diária de um
+                var quantidade = acessorio.Quantidade * periodo.DiariasCobradas;
+
+                var linha = fechamento.Lancar(
+                    TipoLinhaFechamento.Acessorio,
+                    BaseCalculoDoAcessorio(acessorio, periodo.DiariasCobradas),
+                    quantidade,
+                    acessorio.ValorDiariaContratada);
+
+                total += linha.Total;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// O nome do acessório sai da navegação quando ela está carregada, e o id serve de reserva:
+        /// linha de extrato dizendo "adicional #7" é ruim, mas apurar errado por causa de um
+        /// <c>Include</c> que ninguém pediu seria pior.
+        /// </summary>
+        private static string BaseCalculoDoAcessorio(LocacaoAdicional acessorio, int diariasCobradas)
+        {
+            var nome = string.IsNullOrWhiteSpace(acessorio.Adicional?.Nome)
+                ? $"adicional #{acessorio.IdAdicional}"
+                : acessorio.Adicional!.Nome;
+
+            return $"{nome}: {acessorio.Quantidade} unidade(s) × {diariasCobradas} diária(s) efetiva(s) " +
+                   $"(contratado para {acessorio.Dias})";
+        }
+
+        /// <summary>
         /// A última vistoria do tipo pedido. Lança quando não há — e é o certo: sem a medição das
         /// duas pontas não existe cobrança de km, combustível ou avaria que sobreviva a uma
         /// contestação (RN-57), e `RegistrarDevolucao` já exigiu o par.
@@ -808,7 +908,13 @@ namespace Locadora_Auto.Domain.Entidades
             if (_seguros.Any(s => s.Ativo == true))
                 throw new DomainException("Locação já possui seguro ativo");
 
-            var locacaoSeguro = LocacaoSeguro.Contratar(seguro, valorDiaria, franquia);
+            // proteção vendida junto com o contrato cobre desde a retirada; vendida com o carro já
+            // na rua cobre a partir de agora, e a RN-19 cobra pró-rata a partir daí (doc 07 §4).
+            // Usar sempre `UtcNow` faria a proteção de balcão nascer atrasada em alguns segundos
+            // em relação ao início do contrato, e a pró-rata entraria onde não devia
+            var contratadaEm = Status == StatusLocacao.Criada ? DataInicio : DateTime.UtcNow;
+
+            var locacaoSeguro = LocacaoSeguro.Contratar(seguro, valorDiaria, franquia, contratadaEm);
             _seguros.Add(locacaoSeguro);
         }
 

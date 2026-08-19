@@ -42,6 +42,15 @@ namespace Locadora_Auto.Infra.Data.Configuracao
                   .HasDefaultValue(0m)
                   .IsRequired();
 
+            // RN-19: a janela em que a proteção cobriu. Sem as duas datas a pró-rata é inexequível
+            // — `ativo = false` diz que foi cancelada, mas não quando
+            builder.Property(ls => ls.DataContratacao)
+                  .HasColumnName("data_contratacao")
+                  .IsRequired();
+
+            builder.Property(ls => ls.DataCancelamento)
+                  .HasColumnName("data_cancelamento");
+
 
             //chave estrangeira
             builder.HasOne<Locacao>()

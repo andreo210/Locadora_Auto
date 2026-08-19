@@ -375,6 +375,8 @@ erDiagram
         boolean ativo
         numeric valor_diaria_contratada "10,2 — congelada na contratação (RN-18)"
         numeric franquia_contratada "10,2 — congelada na contratação (RN-25)"
+        timestamptz data_contratacao "desde quando cobre (RN-19)"
+        timestamptz data_cancelamento "anulável — até quando cobriu (RN-19)"
     }
 
     tb_fechamento_locacao {
