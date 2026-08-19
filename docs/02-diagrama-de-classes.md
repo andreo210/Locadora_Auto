@@ -466,6 +466,8 @@ classDiagram
         +ApurarCombustivel(veiculo, filialDevolucao) ApuracaoDeCombustivel
         +ApurarProtecoes(periodo) decimal
         +ApurarAcessorios(periodo) decimal
+        +ApurarTaxaOneWay(filialDevolucao, idFuncionarioAlcada?, motivoAlcada?) decimal
+        +ApurarLimpezaEspecial(filialDevolucao) decimal
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -539,9 +541,11 @@ classDiagram
         +DateTime DataVistoria
         +int IdFuncionario
         +int KmVeiculo
+        +bool RequerLimpezaEspecial
         +IReadOnlyCollection~FotoVistoria~ Fotos
         +IReadOnlyCollection~Dano~ Danos
-        ~Criar(idLocacao, idFuncionario, tipo, combustivel, kmVeiculo, observacoes) Vistoria
+        ~Criar(idLocacao, idFuncionario, tipo, combustivel, kmVeiculo, observacoes, requerLimpezaEspecial) Vistoria
+        +MarcarLimpezaEspecial(requer)
         +RegistrarDano(descricao, tipo, valor)
         +RemoverDano(idDano)
         +AprovarDano(idDano)

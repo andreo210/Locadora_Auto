@@ -32,6 +32,13 @@ namespace Locadora_Auto.Infra.Data.Configuracao
             builder.Property(v => v.Observacoes)
                    .HasColumnName("observacoes");
 
+            // RN-23: a declaração do vistoriador. Sozinha não cobra nada — o fechamento também
+            // exige ao menos uma foto na mesma vistoria
+            builder.Property(v => v.RequerLimpezaEspecial)
+                .HasColumnName("requer_limpeza_especial")
+                .HasDefaultValue(false)
+                .IsRequired();
+
             builder.Property(v => v.KmVeiculo)
                    .HasColumnName("km_veiculo");
 

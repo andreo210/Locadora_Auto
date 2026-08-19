@@ -782,7 +782,7 @@ namespace Locadora_Auto.Application.Services.LocacaoServices
                 return false;
             }
 
-            locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo,(NivelCombustivel)dto.NivelCombustivel,dto.KmVeiculo, dto.Observacoes);
+            locacao.RegistrarVistoria(dto.IdFuncionario, (TipoVistoria)dto.Tipo,(NivelCombustivel)dto.NivelCombustivel,dto.KmVeiculo, dto.Observacoes, dto.RequerLimpezaEspecial);
 
             await _locacaoRepository.AtualizarSalvarAsync(locacao);
             return true;

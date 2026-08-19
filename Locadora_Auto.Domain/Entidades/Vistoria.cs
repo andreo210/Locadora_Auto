@@ -10,6 +10,18 @@
         public DateTime DataVistoria { get; private set; }
         public int IdFuncionario { get; private set; }
         public int KmVeiculo { get; private set; }
+
+        /// <summary>
+        /// RN-23: o vistoriador declara que o carro voltou precisando de limpeza <b>especial</b> —
+        /// areia, lama, pelo de animal, mau cheiro, resíduo de carga. Sujeira comum é custo da
+        /// operação e não se cobra.
+        ///
+        /// É o "registro na vistoria de devolução" que a RN exige, e sozinho não basta: a cobrança
+        /// só entra no fechamento se houver também <b>ao menos uma foto</b>. A foto é a defesa da
+        /// cobrança, não formalidade — sem ela é a palavra do vistoriador contra a do cliente.
+        /// </summary>
+        public bool RequerLimpezaEspecial { get; private set; }
+
         //public bool Finalizada { get; set; }
         public Locacao Locacao { get; private set; } = null!;        
         public Funcionario Funcionario { get; private set; } = null!;
@@ -28,7 +40,8 @@
             TipoVistoria tipo,
             NivelCombustivel Combustivel,
             int kmVeiculo,
-            string? observacoes = null)
+            string? observacoes = null,
+            bool requerLimpezaEspecial = false)
         {
 
             if (!Enum.IsDefined(typeof(TipoVistoria), tipo))
@@ -43,11 +56,26 @@
                 IdFuncionario = idFuncionario,
                 Tipo = tipo,
                 KmVeiculo = kmVeiculo,
-                Combustivel = Combustivel,                
+                Combustivel = Combustivel,
                 Observacoes = observacoes,
-                DataVistoria = DateTime.UtcNow               
-            };           
+                // RN-23: só a devolução declara limpeza especial — na retirada o carro sai limpo,
+                // e um sinalizador na vistoria de saída não teria o que cobrar de ninguém
+                RequerLimpezaEspecial = tipo == TipoVistoria.Devolucao && requerLimpezaEspecial,
+                DataVistoria = DateTime.UtcNow
+            };
             return vistoria;
+        }
+
+        /// <summary>
+        /// RN-23. Existe porque a sujeira nem sempre aparece no primeiro olhar: o vistoriador abre
+        /// o porta-malas depois de ter registrado a vistoria, e precisa poder declarar.
+        /// </summary>
+        public void MarcarLimpezaEspecial(bool requer)
+        {
+            if (requer && Tipo != TipoVistoria.Devolucao)
+                throw new DomainException("Limpeza especial só se declara na vistoria de devolução");
+
+            RequerLimpezaEspecial = requer;
         }
 
         public void RegistrarDano(string descricao,TipoDano tipo, decimal valor)

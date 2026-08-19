@@ -63,7 +63,11 @@
 
         /// <summary>
         /// RN-34: quem respondeu por esta linha. Nulo nas linhas que a apuração calculou sozinha —
-        /// não há autor a registrar quando o autor é a regra. Obrigatório em correção e em isenção.
+        /// não há autor a registrar quando o autor é a regra.
+        ///
+        /// <b>Obrigatório</b> em correção e em isenção; <b>guardado sempre que informado</b>, e é
+        /// isso que permite a alçada da RN-22 assinar uma taxa de one-way que a filial de destino
+        /// não estava habilitada a receber.
         /// </summary>
         public int? IdFuncionarioLancamento { get; private set; }
 
@@ -127,7 +131,11 @@
                 Total = Arredondar(quantidade * valorUnitario),
                 DataLancamento = DateTime.UtcNow,
                 EhCorrecao = ehCorrecao,
-                IdFuncionarioLancamento = exigeAutoria ? idFuncionarioLancamento : null,
+
+                // guarda o autor sempre que ele vier, e não só quando é exigido: quem assina uma
+                // linha por alçada (RN-22) não está corrigindo nem isentando nada, e descartar a
+                // assinatura apagaria justamente a resposta que a auditoria vai pedir
+                IdFuncionarioLancamento = idFuncionarioLancamento is > 0 ? idFuncionarioLancamento : null,
                 Motivo = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim()
             };
         }

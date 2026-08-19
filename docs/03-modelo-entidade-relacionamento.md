@@ -430,6 +430,7 @@ erDiagram
         text observacoes
         timestamptz data_vistoria
         integer km_veiculo
+        boolean requer_limpeza_especial "default false — RN-23, só na devolução"
     }
 
     tb_dano {

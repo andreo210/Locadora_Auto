@@ -4,8 +4,8 @@
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
 > consome, a conta discriminada em que ela escreve (§8) e a apuração de **período, quilometragem,
-> combustível, proteção e acessórios** (§3.1 a §3.4). O resto do cálculo — taxas, avaria, multa e
-> composição — continua por fazer.
+> combustível, proteção, acessórios e taxas** (§3.1 a §3.5). Faltam avaria, multa e a composição
+> (§3.6 e §3.7).
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -127,6 +127,18 @@ de combustível, limpeza e km já saem sem consultar proteção nenhuma.
 
 ### 3.5 Taxas
 
+**Implantado** (backlog `A8`), em `Locacao.ApurarTaxaOneWay` e `Locacao.ApurarLimpezaEspecial`.
+Nenhuma das duas tem tipo de apuração próprio — não há cálculo, o valor sai pronto da filial de
+devolução.
+
+A RN-23 exigiu um campo novo: `Vistoria.RequerLimpezaEspecial`, porque "registro na vistoria de
+devolução" não tinha onde ser gravado. A cobrança só entra com **declaração e foto**, as duas — a
+declaração sozinha é a palavra do vistoriador contra a do cliente, e a foto sozinha não diz que a
+sujeira era especial.
+
+A alçada da RN-22 é assinada: filial não habilitada bloqueia, e a liberação exige responsável e
+motivo, que ficam gravados na própria linha do fechamento.
+
 | RN | Regra | Porquê |
 |---|---|---|
 | **RN-21** | `IdFilialDevolucao ≠ IdFilialRetirada` → cobra **taxa de retorno (one-way)** | O carro precisa voltar e a filial de origem fica desfalcada; sem a taxa, quem paga é a margem |
@@ -238,6 +250,7 @@ vazamento de receita.
 | `Locacao` | `ValorDiariaContratada` | RN-06 | **existe** |
 | `LocacaoSeguro` | `ValorDiariaContratada`, `FranquiaContratada` | RN-18, RN-25 | **existe** |
 | `LocacaoSeguro` | `DataContratacao`, `DataCancelamento` | RN-19 | **existe** (achado no `A7`) |
+| `Vistoria` | `RequerLimpezaEspecial` | RN-23 | **existe** (achado no `A8`) |
 | `Veiculo` | `CapacidadeTanqueLitros` | RN-14 | **existe** (anulável) |
 | `Filial` | `HabilitadaOneWay`, `TaxaRetornoOneWay` | RN-21, RN-22 | **existe** |
 | `Filial` | `ToleranciaMinutos`, `PercentualHoraExcedente`, `PrecoLitroCombustivel`, `TaxaServicoAbastecimento`, `ValorLimpezaEspecial` | RN-03, RN-04, RN-15, RN-23 | **existe** |

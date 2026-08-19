@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A8** (taxas) → **A9** (avarias e multas) → **A10** (composição e caução) | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Período, km, combustível, proteção e acessórios já viram linha; falta o que deu errado e a composição |
+| Fio principal | **A9** (avarias e multas) → **A10** (composição e caução) → **A11**/**A12** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Sete dos oito grupos de linha já são apurados; falta o que deu errado, a composição e a porta da Api |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A7` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
-a conta discriminada e a apuração de **período, quilometragem, combustível, proteção e acessórios**.
-O que falta são as taxas, avaria e multa — e a composição com a caução.
+`A1` a `A8` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
+a conta discriminada e a apuração de **período, quilometragem, combustível, proteção, acessórios e
+taxas**. Falta o que deu errado — avaria e multa — e a composição com a caução.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -253,14 +253,41 @@ anulável, é preenchida com `tb_locacao.data_inicio` e só então vira `NOT NUL
 é restrição sobre o `A9`: a franquia limita **avaria** (RN-25) e nada mais. As outras linhas já saem
 sem consultar proteção nenhuma, então o que o `A9` não pode fazer é começar a consultar.
 
-**A8 · Taxas** — `P` · RN-21 a RN-23 · **é por aqui que se começa**
-Siga o molde do `A5`–`A7`. Os dois parâmetros de one-way (`HabilitadaOneWay`, `TaxaRetornoOneWay`) e
-o `ValorLimpezaEspecial` saem da filial de **devolução**, e já existem desde o `A2`/`A3`.
-One-way quando a filial de devolução difere da de retirada, só entre filiais habilitadas (não
-habilitada bloqueia e exige alçada). Limpeza especial: valor fixo, só com registro na vistoria de
-devolução **e ao menos uma foto**.
+~~**A8 · Taxas** — `P` · RN-21 a RN-23~~ **feito.**
+`Locacao.ApurarTaxaOneWay(filialDevolucao, idFuncionarioAlcada?, motivoAlcada?)` e
+`Locacao.ApurarLimpezaEspecial(filialDevolucao)`. Migration `LimpezaEspecialNaVistoria`.
 
-**A9 · Avarias e multas no fechamento** — `M` · RN-24 a RN-26
+**Nenhuma das duas tem tipo de apuração próprio**, ao contrário do `A5`–`A7`: não há cálculo, o
+valor sai pronto da filial de destino. O que existe aqui é decisão — quando cobrar, e o que fazer
+quando a regra diz não.
+
+**A RN-23 exigia um campo que não existia.** "Registro na vistoria de devolução" não tinha onde ser
+gravado: entrou `Vistoria.RequerLimpezaEspecial`, com a declaração restrita à vistoria de devolução
+(na retirada o carro sai limpo). O campo foi até o `CriarVistoriaDto` na mesma mudança — sem isso a
+RN-23 ficaria inalcançável pela Api, como o km livre estava no `A6`.
+
+Quatro decisões:
+
+- **A alçada da RN-22 assina a linha.** Filial de destino não habilitada bloqueia o fechamento; a
+  saída é `idFuncionarioAlcada` + `motivoAlcada`, que ficam gravados na própria linha. O carro já
+  está no pátio dela — recusar para sempre não é opção, liberar sem quem responda também não. Alçada
+  pela metade (só autor ou só motivo) continua bloqueando.
+- **One-way de cortesia ainda escreve linha.** Taxa zerada é decisão comercial, não ausência de
+  evento: o carro foi devolvido longe de onde saiu, e o extrato registra. Já a devolução na
+  **própria** filial não escreve nada — ali não houve one-way nenhum.
+- **Limpeza exige declaração _e_ foto, as duas.** A declaração sozinha é a palavra do vistoriador
+  contra a do cliente; a foto sozinha não diz que a sujeira era especial. Faltando qualquer uma, não
+  há linha — sujeira comum é custo da operação.
+- **Filial com `ValorLimpezaEspecial` zerado não cobra**, mesmo com declaração e foto: zero é "não
+  parametrizado", como o preço do litro no `A6`.
+
+**Um defeito do `A4` corrigido:** `LinhaFechamento` descartava o `IdFuncionarioLancamento` quando
+ele não era obrigatório, então a assinatura da alçada sumiria em silêncio. Agora o autor é guardado
+sempre que informado, e continua **exigido** em correção e isenção.
+
+**A9 · Avarias e multas no fechamento** — `M` · RN-24 a RN-26 · **é por aqui que se começa**
+Atenção à RN-20: a franquia limita **avaria** e nada mais. Combustível, limpeza, multa e km já saem
+sem consultar proteção — o que não pode é o `A9` começar a consultar.
 Só entram avarias em `Aprovado` ou `Cobrado`; `Registrado`/`EmAnalise` vão para o pós-contrato.
 Havendo proteção, a cobrança ao cliente é limitada à franquia contratada **somando todas as
 avarias**, não por avaria. Multa `Pendente` conhecida entra; recebida depois não reabre.

@@ -17,6 +17,7 @@ namespace Locadora_Auto.Application.Models.Mappers
                 IdFuncionario = entidade.IdFuncionario,
                 IdLocacao = entidade.IdLocacao,
                 KmVeiculo = entidade.KmVeiculo,
+                RequerLimpezaEspecial = entidade.RequerLimpezaEspecial,
                 
             };
         }

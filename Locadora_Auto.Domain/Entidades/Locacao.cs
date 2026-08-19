@@ -643,6 +643,103 @@ namespace Locadora_Auto.Domain.Entidades
         }
 
         /// <summary>
+        /// RN-21 e RN-22: apura a <b>taxa de retorno one-way</b> — devolver em filial diferente da
+        /// de retirada. Devolve o valor cobrado, e zero quando não houve one-way.
+        ///
+        /// Não há linha quando a devolução foi na própria filial de retirada: é o caso da maioria
+        /// dos contratos, e "taxa one-way: R$ 0,00" em todo extrato seria ruído.
+        ///
+        /// <b>Não é cálculo, é decisão</b> — daí não ter tipo de apuração próprio como o período ou
+        /// o combustível: o valor sai pronto da filial de destino, e o que existe aqui é a guarda
+        /// da RN-22.
+        /// </summary>
+        /// <param name="idFuncionarioAlcada">
+        /// RN-22: filial não habilitada <b>bloqueia</b> o fechamento. A saída é a alçada do gerente,
+        /// e ela vem assinada — o carro já está no pátio dela, então recusar para sempre não é
+        /// opção, mas liberar sem quem responda também não.
+        /// </param>
+        public decimal ApurarTaxaOneWay(
+            Filial filialDevolucao, int? idFuncionarioAlcada = null, string? motivoAlcada = null)
+        {
+            ArgumentNullException.ThrowIfNull(filialDevolucao);
+
+            var fechamento = ContaAberta();
+
+            if (filialDevolucao.IdFilial != IdFilialDevolucao)
+                throw new InvalidOperationException("A filial informada não é a filial de devolução do contrato");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.TaxaRetornoOneWay))
+                throw new DomainException("A taxa de one-way deste contrato já foi apurada");
+
+            // RN-21: o gatilho é a filial de devolução diferir da de retirada, e não a distância
+            // entre elas — duas lojas da mesma cidade também desfalcam uma e sobrecarregam a outra
+            if (IdFilialDevolucao == IdFilialRetirada)
+                return 0m;
+
+            var comAlcada = idFuncionarioAlcada is > 0 && !string.IsNullOrWhiteSpace(motivoAlcada);
+
+            if (!filialDevolucao.HabilitadaOneWay && !comAlcada)
+                throw new DomainException(
+                    "Filial de devolução não habilitada para one-way: o fechamento exige alçada com responsável e motivo");
+
+            var baseCalculo = filialDevolucao.HabilitadaOneWay
+                ? $"devolução na filial {IdFilialDevolucao}, retirada na filial {IdFilialRetirada}"
+                : $"devolução na filial {IdFilialDevolucao}, retirada na filial {IdFilialRetirada}; " +
+                  "filial de destino não habilitada para one-way, liberada por alçada (RN-22)";
+
+            var linha = fechamento.Lancar(
+                TipoLinhaFechamento.TaxaRetornoOneWay,
+                baseCalculo,
+                1m,
+                filialDevolucao.TaxaRetornoOneWay,
+                comAlcada ? idFuncionarioAlcada : null,
+                comAlcada ? motivoAlcada : null);
+
+            return linha.Total;
+        }
+
+        /// <summary>
+        /// RN-23: apura a <b>limpeza especial</b> — valor fixo da filial de devolução, cobrado só
+        /// com declaração na vistoria de devolução <b>e ao menos uma foto</b>.
+        ///
+        /// As duas condições juntas, e não uma ou outra: a declaração sozinha é a palavra do
+        /// vistoriador contra a do cliente, e a foto sozinha não diz que a sujeira era especial.
+        /// Sem as duas não há linha — sujeira comum é custo da operação.
+        ///
+        /// Devolve o valor cobrado.
+        /// </summary>
+        public decimal ApurarLimpezaEspecial(Filial filialDevolucao)
+        {
+            ArgumentNullException.ThrowIfNull(filialDevolucao);
+
+            var fechamento = ContaAberta();
+
+            if (filialDevolucao.IdFilial != IdFilialDevolucao)
+                throw new InvalidOperationException("A filial informada não é a filial de devolução do contrato");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.LimpezaEspecial))
+                throw new DomainException("A limpeza especial deste contrato já foi apurada");
+
+            var vistoria = VistoriaDe(TipoVistoria.Devolucao);
+
+            if (!vistoria.RequerLimpezaEspecial || vistoria.Fotos.Count == 0)
+                return 0m;
+
+            // o valor zerado da filial significa "não configurado", como o preço do litro do A6 —
+            // não adianta lançar linha de R$ 0,00 para uma cobrança que ninguém parametrizou
+            if (filialDevolucao.ValorLimpezaEspecial <= 0)
+                return 0m;
+
+            var linha = fechamento.Lancar(
+                TipoLinhaFechamento.LimpezaEspecial,
+                $"declarada na vistoria de devolução, com {vistoria.Fotos.Count} foto(s) de suporte (RN-23)",
+                1m,
+                filialDevolucao.ValorLimpezaEspecial);
+
+            return linha.Total;
+        }
+
+        /// <summary>
         /// O nome do acessório sai da navegação quando ela está carregada, e o id serve de reserva:
         /// linha de extrato dizendo "adicional #7" é ruim, mas apurar errado por causa de um
         /// <c>Include</c> que ninguém pediu seria pior.
@@ -943,7 +1040,7 @@ namespace Locadora_Auto.Domain.Entidades
         /// é <see cref="RegistrarDevolucao"/>, que precisa dela para rodar. Isso mantém a ordem
         /// real do balcão — o carro chega, é vistoriado, e só então a devolução é lançada.
         /// </summary>
-        public void RegistrarVistoria(int idFuncionario, TipoVistoria tipo,NivelCombustivel combustivel,int km, string? observacoes)
+        public void RegistrarVistoria(int idFuncionario, TipoVistoria tipo,NivelCombustivel combustivel,int km, string? observacoes, bool requerLimpezaEspecial = false)
         {
             if (AposApuracao.Contains(Status) || Status == StatusLocacao.Cancelada)
                 throw new DomainException("Não é possível vistoriar locação já fechada ou cancelada");
@@ -954,7 +1051,7 @@ namespace Locadora_Auto.Domain.Entidades
             if (tipo == TipoVistoria.Devolucao && !ComCarroNaRua.Contains(Status))
                 throw new DomainException("A vistoria de devolução exige o veículo na rua");
 
-            var vistoria = Vistoria.Criar(IdLocacao, idFuncionario, tipo,combustivel, km,observacoes);
+            var vistoria = Vistoria.Criar(IdLocacao, idFuncionario, tipo,combustivel, km,observacoes, requerLimpezaEspecial);
 
             _vistorias.Add(vistoria);
 
