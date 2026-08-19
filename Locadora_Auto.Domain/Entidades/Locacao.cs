@@ -375,8 +375,7 @@ namespace Locadora_Auto.Domain.Entidades
             int? idFuncionarioLancamento = null,
             string? motivo = null)
         {
-            var fechamento = Fechamento
-                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+            var fechamento = ContaAberta();
 
             return fechamento.Lancar(tipo, baseCalculo, quantidade, valorUnitario, idFuncionarioLancamento, motivo);
         }
@@ -399,8 +398,7 @@ namespace Locadora_Auto.Domain.Entidades
         {
             ArgumentNullException.ThrowIfNull(filialRetirada);
 
-            var fechamento = Fechamento
-                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+            var fechamento = ContaAberta();
 
             if (filialRetirada.IdFilial != IdFilialRetirada)
                 throw new InvalidOperationException("A filial informada não é a filial de retirada do contrato");
@@ -456,13 +454,130 @@ namespace Locadora_Auto.Domain.Entidades
         };
 
         /// <summary>
+        /// RN-08 a RN-11: apura a <b>rodagem</b> e escreve a linha de km excedente.
+        ///
+        /// A linha é escrita mesmo valendo R$ 0,00 — em km livre, ou dentro da franquia. É o que o
+        /// doc 07 §10 pede, e o motivo é de balcão: a linha zerada diz ao cliente que a
+        /// quilometragem foi apurada e não gerou cobrança, o que a ausência dela não diz.
+        /// </summary>
+        /// <param name="periodo">
+        /// O resultado de <see cref="ApurarPeriodo"/>. A franquia é km <b>por diária cobrada</b>
+        /// (RN-09), então ela encolhe junto com a conta na devolução antecipada — e é por isso que
+        /// o número tem de ser o que de fato foi cobrado, não o previsto no contrato.
+        /// </param>
+        public ApuracaoDeQuilometragem ApurarQuilometragem(
+            Veiculo veiculo, CategoriaVeiculo categoria, ApuracaoDePeriodo periodo)
+        {
+            ArgumentNullException.ThrowIfNull(veiculo);
+            ArgumentNullException.ThrowIfNull(categoria);
+            ArgumentNullException.ThrowIfNull(periodo);
+
+            var fechamento = ContaAberta();
+
+            if (veiculo.IdVeiculo != IdVeiculo)
+                throw new InvalidOperationException("O veículo informado não é o veículo do contrato");
+
+            if (categoria.Id != veiculo.IdCategoria)
+                throw new InvalidOperationException("A categoria informada não é a categoria do veículo");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.KmExcedente))
+                throw new DomainException("A quilometragem deste contrato já foi apurada");
+
+            // RN-11: os dois hodômetros saem das vistorias, e nenhum é digitado no fechamento.
+            // `KmInicial`/`KmFinal` do contrato guardam os mesmos números, mas quem os informou foi
+            // quem abriu e quem recebeu — a medição que sustenta a cobrança é a da vistoria
+            var kmInicial = VistoriaDe(TipoVistoria.Retirada).KmVeiculo;
+            var kmFinal = VistoriaDe(TipoVistoria.Devolucao).KmVeiculo;
+
+            var apuracao = ApuracaoDeQuilometragem.Calcular(
+                kmInicial, kmFinal, categoria.LimiteKm, categoria.ValorKmExcedente, periodo.DiariasCobradas);
+
+            fechamento.Lancar(
+                TipoLinhaFechamento.KmExcedente,
+                apuracao.BaseCalculo(kmInicial, kmFinal, categoria.LimiteKm, periodo.DiariasCobradas),
+                apuracao.KmExcedentes,
+                apuracao.ValorKmExcedente);
+
+            return apuracao;
+        }
+
+        /// <summary>
+        /// RN-13 a RN-16: apura o <b>combustível</b> no regime full-to-full e escreve a linha —
+        /// mais a da taxa de serviço, quando há litro a repor (RN-15).
+        ///
+        /// A política sai da filial de <b>devolução</b>, e não da de retirada: quem paga o posto e
+        /// põe alguém para abastecer é a praça que recebeu o carro. É o outro lado do recorte do
+        /// A5, onde tolerância e hora excedente saem da filial que vendeu.
+        ///
+        /// Não bloqueia por falta de cadastro. Tanque não cadastrado ou preço do litro zerado
+        /// produzem linha de R$ 0,00 explicando o motivo, e a <see cref="ApuracaoDeCombustivel.Situacao"/>
+        /// devolvida é o que permite a quem chama avisar alguém.
+        /// </summary>
+        public ApuracaoDeCombustivel ApurarCombustivel(Veiculo veiculo, Filial filialDevolucao)
+        {
+            ArgumentNullException.ThrowIfNull(veiculo);
+            ArgumentNullException.ThrowIfNull(filialDevolucao);
+
+            var fechamento = ContaAberta();
+
+            if (veiculo.IdVeiculo != IdVeiculo)
+                throw new InvalidOperationException("O veículo informado não é o veículo do contrato");
+
+            if (filialDevolucao.IdFilial != IdFilialDevolucao)
+                throw new InvalidOperationException("A filial informada não é a filial de devolução do contrato");
+
+            if (fechamento.Linhas.Any(l => l.Tipo == TipoLinhaFechamento.Combustivel))
+                throw new DomainException("O combustível deste contrato já foi apurado");
+
+            // RN-11 vale para o tanque pelo mesmo motivo do hodômetro: o nível é medição de
+            // vistoria, feita com o carro à frente de quem assina
+            var apuracao = ApuracaoDeCombustivel.Calcular(
+                VistoriaDe(TipoVistoria.Retirada).Combustivel,
+                VistoriaDe(TipoVistoria.Devolucao).Combustivel,
+                veiculo.CapacidadeTanqueLitros,
+                filialDevolucao.PrecoLitroCombustivel,
+                filialDevolucao.TaxaServicoAbastecimento);
+
+            fechamento.Lancar(
+                TipoLinhaFechamento.Combustivel,
+                apuracao.BaseCalculoDoCombustivel(),
+                apuracao.Cobravel ? apuracao.LitrosFaltantes : 0,
+                apuracao.Cobravel ? apuracao.PrecoLitro : 0m);
+
+            // linha separada, e não somada ao combustível: são coisas diferentes na conta do
+            // cliente — litro é insumo, taxa é serviço —, e o indicador de receita acessória do
+            // doc 07 §12 só fecha se elas puderem ser contadas em separado
+            if (apuracao.TotalDaTaxa > 0)
+                fechamento.Lancar(
+                    TipoLinhaFechamento.TaxaServicoAbastecimento,
+                    apuracao.BaseCalculoDaTaxa(),
+                    1m,
+                    apuracao.TaxaServico);
+
+            return apuracao;
+        }
+
+        /// <summary>
+        /// A última vistoria do tipo pedido. Lança quando não há — e é o certo: sem a medição das
+        /// duas pontas não existe cobrança de km, combustível ou avaria que sobreviva a uma
+        /// contestação (RN-57), e `RegistrarDevolucao` já exigiu o par.
+        /// </summary>
+        private Vistoria VistoriaDe(TipoVistoria tipo)
+            => _vistorias.LastOrDefault(v => v.Tipo == tipo)
+               ?? throw new InvalidOperationException($"Contrato sem vistoria de {tipo} não pode ser apurado");
+
+        /// <summary>A conta aberta deste contrato, ou a recusa de quem tentou apurar sem abrir.</summary>
+        private FechamentoLocacao ContaAberta()
+            => Fechamento
+               ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+
+        /// <summary>
         /// Encerra a apuração e devolve o saldo (RN-27). Daqui em diante a conta é histórico e só
         /// aceita correção.
         /// </summary>
         public decimal SelarFechamento()
         {
-            var fechamento = Fechamento
-                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+            var fechamento = ContaAberta();
 
             fechamento.Selar();
             return fechamento.Saldo;
@@ -480,8 +595,7 @@ namespace Locadora_Auto.Domain.Entidades
             int idFuncionarioLancamento,
             string motivo)
         {
-            var fechamento = Fechamento
-                ?? throw new InvalidOperationException("A apuração não foi aberta para esta locação");
+            var fechamento = ContaAberta();
 
             return fechamento.RegistrarCorrecao(
                 tipo, baseCalculo, quantidade, valorUnitario, idFuncionarioLancamento, motivo);

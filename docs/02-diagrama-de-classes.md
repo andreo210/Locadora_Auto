@@ -252,8 +252,8 @@ classDiagram
         +int? LimiteKm
         +decimal? ValorKmExcedente
         +IReadOnlyCollection~FotoCategoriaVeiculo~ Fotos
-        +Criar(nome, valorDiaria, limiteKm, valorKmExcedente) CategoriaVeiculo
-        +Atualizar(nome, valorDiaria, limiteKm, valorKmExcedente)
+        +Criar(nome, valorDiaria, limiteKm?, valorKmExcedente?) CategoriaVeiculo
+        +Atualizar(nome, valorDiaria, limiteKm?, valorKmExcedente?)
         +AdicionarFoto(fotos)
         +RemoverFoto(idFoto)
     }
@@ -462,6 +462,8 @@ classDiagram
         +LiquidarSaldo()
         +AbrirFechamento(idFuncionarioApuracao) FechamentoLocacao
         +ApurarPeriodo(filialRetirada) ApuracaoDePeriodo
+        +ApurarQuilometragem(veiculo, categoria, periodo) ApuracaoDeQuilometragem
+        +ApurarCombustivel(veiculo, filialDevolucao) ApuracaoDeCombustivel
         +LancarNoFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
         +SelarFechamento() decimal
         +CorrigirFechamento(tipo, baseCalculo, quantidade, valorUnitario, idFuncionario, motivo) LinhaFechamento
@@ -600,6 +602,35 @@ classDiagram
         +BaseCalculoDoTeto(toleranciaMinutos) string
     }
 
+    class ApuracaoDeQuilometragem {
+        +int KmRodados
+        +int FranquiaKm
+        +int KmExcedentes
+        +decimal ValorKmExcedente
+        +bool KmLivre
+        +decimal Total
+        +Calcular(kmInicial, kmFinal, limiteKm, valorKmExcedente, diariasCobradas)$ ApuracaoDeQuilometragem
+        +BaseCalculo(kmInicial, kmFinal, limiteKm, diariasCobradas) string
+    }
+
+    class ApuracaoDeCombustivel {
+        +SituacaoDoCombustivel Situacao
+        +NivelCombustivel NivelRetirada
+        +NivelCombustivel NivelDevolucao
+        +decimal? CapacidadeTanqueLitros
+        +int LitrosFaltantes
+        +decimal PrecoLitro
+        +decimal TaxaServico
+        +bool Cobravel
+        +decimal TotalDoCombustivel
+        +decimal TotalDaTaxa
+        +decimal Total
+        +Calcular(nivelRetirada, nivelDevolucao, capacidadeTanqueLitros, precoLitro, taxaServico)$ ApuracaoDeCombustivel
+        +FracaoDe(nivel)$ decimal
+        +BaseCalculoDoCombustivel() string
+        +BaseCalculoDaTaxa() string
+    }
+
     class FechamentoLocacao {
         +int IdFechamento
         +int IdLocacao
@@ -686,7 +717,11 @@ classDiagram
     Locacao "1" *-- "0..1" FechamentoLocacao : Fechamento
     FechamentoLocacao "1" *-- "0..*" LinhaFechamento : Linhas
     Locacao ..> ApuracaoDePeriodo : ApurarPeriodo()
-    Filial ..> ApuracaoDePeriodo : tolerância e percentual
+    Locacao ..> ApuracaoDeQuilometragem : ApurarQuilometragem()
+    Locacao ..> ApuracaoDeCombustivel : ApurarCombustivel()
+    Filial ..> ApuracaoDePeriodo : tolerância e percentual (retirada)
+    Filial ..> ApuracaoDeCombustivel : preço do litro e taxa (devolução)
+    CategoriaVeiculo ..> ApuracaoDeQuilometragem : limite e valor do km
     Locacao "1" --> "0..*" HistoricoStatusLocacao
     Vistoria "1" *-- "0..*" Dano : Danos
     Vistoria "1" *-- "0..*" FotoVistoria : Fotos
@@ -844,6 +879,14 @@ classDiagram
         <<enumeration>>
         Debito = 1
         Credito = 2
+    }
+
+    class SituacaoDoCombustivel {
+        <<enumeration>>
+        SemDiferenca = 1
+        Cobravel = 2
+        TanqueNaoCadastrado = 3
+        PrecoNaoConfigurado = 4
     }
 
     class TipoVistoria {

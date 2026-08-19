@@ -25,7 +25,7 @@ Três frentes independentes, para escolher pelo tempo disponível e não pela or
 | Frente | Primeiro item | Por quê |
 |---|---|---|
 | Entrega visível rápida | **F3** (Adicionais) → **F7** (liberar preparação) → **F6** (trilha) | Api já pronta; é só front consumindo endpoint existente. Com o bloco B fechado, esta frente cresceu: bloqueio, transferência e desmobilização também são só tela |
-| Fio principal | **A6** (km e combustível) → **A7**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. O `A5` já apura o período e escreve as linhas dele; o `A6` é o mesmo padrão, sobre a vistoria |
+| Fio principal | **A7** (proteções e acessórios) → **A8**–**A10** | É o buraco funcional do sistema: hoje o valor da devolução é digitado. Período, km e combustível já viram linha; falta o que foi contratado, as taxas e a composição |
 | Dívida que trava outras | **C3** (locações paginadas) → **C1**/**C2** (multa) → **C8** (leitura de vistoria) | Cada um destrava uma tela do front |
 
 O **F1** (módulo de locações no front) é o maior item da lista inteira e depende de `C3`. Não
@@ -37,9 +37,9 @@ comece por ele num dia curto.
 
 ## Bloco A — fechamento financeiro (doc `07`)
 
-`A1` a `A5` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
-a conta discriminada e a apuração do **período**. O que falta é o resto da conta — km, combustível,
-proteção, acessório, taxas, avaria, multa — e a composição com a caução.
+`A1` a `A6` estão feitos: o ciclo de vida do contrato, os valores congelados, os parâmetros da casa,
+a conta discriminada e a apuração de **período, quilometragem e combustível**. O que falta é o resto
+da conta — proteção, acessório, taxas, avaria, multa — e a composição com a caução.
 
 ~~**A1 · Estados de locação de verdade** — `M`~~ **feito.**
 `StatusLocacao` passou a ser `Criada → EmAndamento → Devolvida → Fechada → Finalizada`, com
@@ -173,17 +173,48 @@ Um erro do próprio doc `07` foi corrigido: o cenário 4 do §10 dizia "1 diári
 **3** horas excedentes", mas 4h de sobra menos 30 min de tolerância dão 3h30, que por hora iniciada
 são **4** horas. O resultado que importa — 3 diárias, R$ 450,00 — não muda.
 
-**A6 · Quilometragem e combustível** — `M` · RN-08 a RN-16 · **é por aqui que se começa**
-Siga o molde do `A5`: cálculo puro num tipo próprio, `Locacao.Apurar...` escrevendo as linhas, e a
-franquia multiplicando `ApuracaoDePeriodo.DiariasCobradas` (que já soma a diária do teto). Os
-parâmetros de combustível saem da filial de **devolução**, não da de retirada.
-Franquia = `LimiteKm × diárias cobradas`; excedente sobre isso. `KmAtual` já avança na devolução
-(RN-12, feito no bloco anterior). Combustível full-to-full pelo enum `NivelCombustivel` ×
-`CapacidadeTanqueLitros` + taxa de serviço cobrada uma vez; devolver com mais não gera crédito.
-Bloqueios: `KmFinal < KmInicial`; `LimiteKm` preenchido com `ValorKmExcedente` nulo. Tanque não
-cadastrado **notifica e não cobra** — melhor perder a cobrança que inventar número.
+~~**A6 · Quilometragem e combustível** — `M` · RN-08 a RN-16~~ **feito.**
+`ApuracaoDeQuilometragem` e `ApuracaoDeCombustivel` fazem as contas;
+`Locacao.ApurarQuilometragem(veiculo, categoria, periodo)` e
+`Locacao.ApurarCombustivel(veiculo, filialDevolucao)` escrevem as linhas. Os quatro cenários de km e
+combustível do doc `07` §10 estão nos testes.
 
-**A7 · Proteções e acessórios** — `M` · RN-17 a RN-20
+Cinco decisões que valem para o `A7` em diante:
+
+- **O hodômetro e o nível saem da vistoria, não do contrato** (RN-11). `Locacao.KmInicial`/`KmFinal`
+  guardam os mesmos números, mas quem os informou foi quem abriu e quem recebeu — a medição que
+  sustenta a cobrança é a que foi feita com o carro à frente de quem assina. Há teste com os dois
+  divergindo de propósito.
+- **Falta de cadastro no combustível não bloqueia: vira linha de R$ 0,00 que se explica.** Tanque
+  não cadastrado e preço do litro zerado produzem `SituacaoDoCombustivel` própria, e a base de
+  cálculo da linha diz o motivo. É melhor que uma notificação, porque fica no extrato para sempre.
+  A `Situacao` devolvida é o que permite a quem chama avisar alguém além disso.
+- **Combustível e taxa de serviço são linhas separadas.** Litro é insumo e taxa é serviço — coisas
+  diferentes na conta do cliente —, e o indicador de receita acessória do doc `07` §12 só fecha se
+  puderem ser contadas à parte. O §10 falava em "a linha de combustível de R$ 188,80"; são duas,
+  somando o mesmo.
+- **A linha de km é escrita mesmo valendo zero**, em km livre ou dentro da franquia. A linha zerada
+  diz ao cliente que a quilometragem foi apurada e não gerou cobrança; a ausência dela não diz.
+- **Km bloqueia onde combustível não bloqueia.** Hodômetro menor na devolução e categoria com
+  limite sem preço param a apuração, porque não há resposta segura — cobrar zero esconderia a
+  adulteração, e cobrar sem preço inventaria número.
+
+**Dois defeitos achados e corrigidos no caminho**, ambos na `CategoriaVeiculo`:
+
+- **A quilometragem livre da RN-08 não era cadastrável.** As colunas sempre foram anuláveis e os
+  DTOs também, mas `Criar`/`Atualizar` exigiam número e o serviço fazia `dto.LimiteKm.Value` por
+  cima — quem omitisse o campo levava **500**. Agora `LimiteKm` nulo é km livre, `ValorKmExcedente`
+  é descartado quando não há limite, e o serviço notifica em vez de deixar a entidade lançar.
+- **`int.IsPositive(0)` é `true`**, então `limiteKm = 0` passava pela guarda antiga e criava
+  categoria com franquia zero — toda a rodagem virando excedente. Trocado por comparação explícita,
+  como o resto do repositório já faz.
+
+Fica um débito para o `A11`: `Locacao.KmFinal` e o hodômetro da vistoria de devolução são hoje dois
+registros do mesmo número, e nada garante que concordem. Ou `RegistrarDevolucao` deixa de receber
+`kmFinal` e passa a lê-lo da vistoria, ou a divergência vira aviso — o que não pode é seguir sem
+ninguém olhar.
+
+**A7 · Proteções e acessórios** — `M` · RN-17 a RN-20 · **é por aqui que se começa**
 Recalcular `LocacaoAdicional` pelas diárias **efetivas** — hoje `Dias` congela a previsão e erra em
 toda devolução antecipada ou atrasada. Proteção pelas diárias cobradas, pró-rata quando cancelada
 no meio do contrato. O `A2` já entregou o dado de que depende: `LocacaoSeguro.ValorDiariaContratada`

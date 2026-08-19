@@ -3,8 +3,9 @@
 > **Este documento é prescritivo.** Diferente de `01` a `06`, que descrevem o que o sistema
 > **faz hoje**, aqui está o que o fechamento de contrato **precisa fazer**. Quando foi escrito,
 > nada abaixo existia. Hoje existem o ciclo de vida do contrato (§6), os dados que a apuração
-> consome, a conta discriminada em que ela escreve (§8) e a **apuração do período** (§3.1). O resto
-> do cálculo — km, combustível, proteção, taxas, avaria, multa e composição — continua por fazer.
+> consome, a conta discriminada em que ela escreve (§8) e a apuração de **período, quilometragem e
+> combustível** (§3.1 a §3.3). O resto do cálculo — proteção, acessório, taxas, avaria, multa e
+> composição — continua por fazer.
 
 Hoje `ILocacaoService.FinalizarAsync(id, dataFimReal, kmFinal, valorFinal, filialDevolucao)`
 recebe o `valorFinal` pronto: quem chama a Api decide quanto cobrar. Não há cálculo de diária,
@@ -71,6 +72,13 @@ fechar, porque o texto abaixo comporta mais de uma:
 
 ### 3.2 Quilometragem
 
+**Implantado** (backlog `A6`), em `ApuracaoDeQuilometragem` + `Locacao.ApurarQuilometragem`. A linha
+é escrita **mesmo valendo R$ 0,00** — em km livre ou dentro da franquia —, porque a linha zerada diz
+ao cliente que a quilometragem foi apurada e não gerou cobrança, e a ausência dela não diz.
+
+A implantação também destravou a RN-08 no cadastro: `CategoriaVeiculo` exigia `LimiteKm` numérico,
+então **quilometragem livre não era cadastrável** e quem omitisse o campo levava 500 no serviço.
+
 | RN | Regra | Porquê |
 |---|---|---|
 | **RN-08** | Km só é cobrado quando `CategoriaVeiculo.LimiteKm` estiver preenchido. `null` = **km livre**, cobrança zero | |
@@ -80,6 +88,15 @@ fechar, porque o texto abaixo comporta mais de uma:
 | **RN-12** | Ao fechar, `Veiculo.KmAtual` recebe `KmFinal` | Revisão por km, depreciação e custo por km dependem disso; hoje o odômetro do ativo nunca avança |
 
 ### 3.3 Combustível
+
+**Implantado** (backlog `A6`), em `ApuracaoDeCombustivel` + `Locacao.ApurarCombustivel`, com a
+política saindo da filial de **devolução** — quem paga o posto é a praça que recebeu o carro.
+
+Duas decisões da implantação: o combustível e a taxa de serviço saem em **linhas separadas** (litro
+é insumo, taxa é serviço, e o indicador de receita acessória da §12 precisa contá-las à parte); e a
+falta de cadastro **não bloqueia** — tanque não cadastrado ou preço do litro zerado produzem linha
+de R$ 0,00 cuja base de cálculo diz o motivo, e a `SituacaoDoCombustivel` devolvida permite a quem
+chama avisar alguém.
 
 | RN | Regra | Porquê |
 |---|---|---|
@@ -307,7 +324,8 @@ Cenário: combustível cobrado pela diferença de nível
   E preço do litro de R$ 6,20 e taxa de serviço de R$ 40,00
   Quando o fechamento for apurado
   Então devem ser cobrados 24 litros
-  E a linha de combustível deve ser R$ 188,80
+  E a linha de combustível deve ser R$ 148,80
+  E a linha de taxa de serviço deve ser R$ 40,00
 
 Cenário: devolver com mais combustível não gera crédito
   Dado vistoria de retirada com nível Meio e de devolução com nível Cheio

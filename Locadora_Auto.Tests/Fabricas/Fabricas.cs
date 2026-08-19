@@ -33,8 +33,16 @@ namespace Locadora_Auto.Tests.Fabricas
             return cliente;
         }
 
-        public static CategoriaVeiculo Categoria(string nome = "Hatch")
-            => CategoriaVeiculo.Criar(nome, valorDiaria: 150m, limiteKm: 200, valorKmExcedente: 2m);
+        /// <summary>
+        /// <paramref name="limiteKm"/> nulo é a categoria de <b>quilometragem livre</b> da RN-08 —
+        /// e aí o valor do km excedente não se aplica.
+        /// </summary>
+        public static CategoriaVeiculo Categoria(
+            string nome = "Hatch",
+            decimal valorDiaria = 150m,
+            int? limiteKm = 200,
+            decimal? valorKmExcedente = 2m)
+            => CategoriaVeiculo.Criar(nome, valorDiaria, limiteKm, valorKmExcedente);
 
         /// <param name="tempoPreparacaoMinutos">
         /// <c>null</c> deixa o padrão da casa (<c>Filial.PreparacaoPadraoMinutos</c>). Informe só

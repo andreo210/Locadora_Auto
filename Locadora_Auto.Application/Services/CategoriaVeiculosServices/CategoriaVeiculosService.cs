@@ -105,7 +105,10 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
                 return null;
             }
 
-            var entidade = CategoriaVeiculo.Criar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
+            if (!ValidarQuilometragem(dto.LimiteKm, dto.ValorKmExcedente))
+                return null;
+
+            var entidade = CategoriaVeiculo.Criar(dto.Nome, dto.ValorDiaria, dto.LimiteKm, dto.ValorKmExcedente);
             await _repository.InserirSalvarAsync(entidade, ct);
 
             return entidade.ToDto();
@@ -130,12 +133,49 @@ namespace Locadora_Auto.Application.Services.CategoriaVeiculosServices
                 }
             }
 
-            categoria.Atualizar(dto.Nome,dto.ValorDiaria,dto.LimiteKm.Value,dto.ValorKmExcedente.Value);
+            if (dto.ValorDiaria <= 0)
+            {
+                _notificador.Add("Valor da diária deve ser maior que zero.");
+                return false;
+            }
+
+            if (!ValidarQuilometragem(dto.LimiteKm, dto.ValorKmExcedente))
+                return false;
+
+            categoria.Atualizar(dto.Nome, dto.ValorDiaria, dto.LimiteKm, dto.ValorKmExcedente);
             var alterado = await _repository.SalvarAsync(ct);
 
             if (alterado == 0)
             {
                 _notificador.Add("Nenhuma alteração foi realizada.");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// RN-08: <c>LimiteKm</c> nulo é quilometragem livre; preenchido, exige preço do km
+        /// excedente. Repete a guarda de <c>CategoriaVeiculo</c> porque a entidade lança
+        /// <c>InvalidOperationException</c>, que o <c>ExceptionProblemFactory</c> não mapeia e
+        /// sairia como 500 — cadastro incompleto é recusa de regra e tem que sair 400.
+        /// </summary>
+        private bool ValidarQuilometragem(int? limiteKm, decimal? valorKmExcedente)
+        {
+            if (!limiteKm.HasValue)
+                return true;
+
+            if (limiteKm.Value <= 0)
+            {
+                _notificador.Add("Limite de km deve ser positivo, ou vazio para quilometragem livre.");
+                return false;
+            }
+
+            if (!valorKmExcedente.HasValue || valorKmExcedente.Value <= 0)
+            {
+                // é o "cadastro inconsistente" do doc 07 §4, que hoje só apareceria no fechamento,
+                // com o cliente na frente e o carro já devolvido
+                _notificador.Add("Categoria com limite de km exige o valor do km excedente.");
                 return false;
             }
 
